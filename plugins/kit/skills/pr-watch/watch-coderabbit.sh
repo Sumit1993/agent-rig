@@ -48,8 +48,9 @@ while [ ${#PRS[@]} -gt 0 ]; do
       echo "PR#$pr CI FAIL — $r"
     done
   done
-  PRS=("${next[@]:-}")
-  [ ${#PRS[@]} -eq 0 ] && break
+  # NB: not PRS=("${next[@]:-}") — empty array expands to one "" element and the exit check never fires (found live 2026-07-12)
+  [ ${#next[@]} -eq 0 ] && break
+  PRS=("${next[@]}")
   [ "$gh_fail" -ge 5 ] && { echo "WATCHER DEGRADED — gh failing repeatedly (auth/network?)"; gh_fail=0; }
   sleep 75
 done

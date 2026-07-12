@@ -27,8 +27,9 @@ while [ "$(date +%s)" -lt "$end" ]; do
       gh pr update-branch "$pr" --repo "$REPO" >/dev/null 2>&1 && echo "PR#$pr was BEHIND — branch updated, CI rerunning"
     fi
   done
-  PRS=("${next[@]:-}")
-  [ ${#PRS[@]} -eq 0 ] && { echo "merge-cascade: all merged"; exit 0; }
+  # NB: not PRS=("${next[@]:-}") — empty array expands to one "" element (see watch-coderabbit.sh)
+  [ ${#next[@]} -eq 0 ] && { echo "merge-cascade: all merged"; exit 0; }
+  PRS=("${next[@]}")
   sleep 90
 done
 echo "merge-cascade: TIMEOUT with open PRs: ${PRS[*]} — check thread resolution / required reviews"
