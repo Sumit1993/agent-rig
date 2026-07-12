@@ -1,0 +1,18 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/pr-created.sh\"",
+            "timeout": 10
+          }
+        ],
+        "description": "After a successful `gh pr create`, inject a reminder to arm the pr-watch monitor",
+        "id": "post:bash:pr-created"
+      }
+    ]
+  }
+}

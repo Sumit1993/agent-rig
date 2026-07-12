@@ -1,0 +1,9 @@
+{
+  "name": "kit",
+  "version": "0.1.0",
+  "description": "Personal working-style kit: post-PR watching, agy delegation, patched CodeRabbit skills, PR-created hook.",
+  "author": {
+    "name": "Sumit Patel",
+    "url": "https://github.com/Sumit1993"
+  }
+}
