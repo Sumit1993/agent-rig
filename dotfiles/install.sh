@@ -18,8 +18,8 @@ cp "$HERE/statusline-command.sh" "$CLAUDE/statusline-command.sh"
 echo "→ settings.json (deep-merge: fragment overlays existing; permissions.allow unions)"
 if [ -f "$CLAUDE/settings.json" ]; then
   cp "$CLAUDE/settings.json" "$CLAUDE/settings.json.bak-$(date +%s)"
-  jq -s '(.[0] * .[1])
-         | .permissions.allow = ((.[0].permissions.allow // []) + (.[1].permissions.allow // []) | unique)' \
+  jq -s '.[0] as $cur | .[1] as $frag | ($cur * $frag)
+         | .permissions.allow = (($cur.permissions.allow // []) + ($frag.permissions.allow // []) | unique)' \
     "$CLAUDE/settings.json" "$HERE/settings.fragment.json" > /tmp/settings.merged.json
   jq -e . /tmp/settings.merged.json >/dev/null
   mv /tmp/settings.merged.json "$CLAUDE/settings.json"
