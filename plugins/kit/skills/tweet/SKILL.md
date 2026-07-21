@@ -5,7 +5,11 @@ description: Draft a tweet for @Desolatte about something cool from the current 
 
 # Tweet drafting for @Desolatte
 
-Goal: turn something from the current session (a finding, a built thing, a gotcha, a "huh, neat" moment) into a tweet the user can post in one click. Draft-only — never post automatically.
+Live context from the X Context Provider n8n workflow (voice spec, recent posts for dedup, current trending):
+
+!`curl -sf -m 30 -H "X-Context-Token: $(cat ~/.claude/secrets/x-context-token)" "https://n8n.sfun.cloud/webhook/x-context-73826577" | jq '{voice, recentSummary, mentionsProductRecently, trendingSummary, historyFreshAt}'`
+
+If the block above is empty or errored, say so and stop — do not draft without voice + dedup context. (Check the token file exists and the n8n workflow "X Context Provider" is active.)
 
 ## 1. Gather the material
 
@@ -17,33 +21,23 @@ If the user pointed at a specific thing ("tweet about X"), use that. Otherwise r
 
 Tweet-worthy = surprising, concrete, useful to other builders. Not tweet-worthy = routine chores, version bumps, private/client details, anything with secrets, tokens, internal URLs, or unreleased plans the user hasn't okayed.
 
-## 2. Voice
+## 2. Draft
 
-Follow the voice notes below. If the "Voice examples" section is still empty, ask the user to paste 2-3 of their favorite own tweets, then EDIT THIS FILE to store them under Voice examples so future runs skip the ask.
+Follow the injected `voice` spec EXACTLY — it is the single source of truth (edit it only in the n8n workflow, never here). Apply the injected dedup rules:
 
-Voice rules:
-- Plain language, no hype words (game-changer, insane, 🚀-speak). Lowercase-casual is fine.
-- Concrete detail over abstraction — one real number, error message, or code fragment beats a claim.
-- No hashtag spam; at most one if it genuinely helps discovery.
-- Builder-to-builder tone: "I hit X, turns out Y" not marketing copy.
+- Do not repeat any joke, phrasing, or theme visible in `recentSummary`.
+- If `mentionsProductRecently` is true, no mage-memory mention in any option.
+- `trendingSummary` is optional inspiration — one option MAY riff on a current moment if it fits the session material; never name-drop handles or paste links.
 
-### Voice examples
+Produce 2-3 options, each ≤280 chars (count it), each a distinct angle (the gotcha, the what-I-built, the human moment). Show them as plain text blocks.
 
-(none yet — ask the user and store them here)
+## 3. Hand off
 
-## 3. Draft
-
-Produce 2-3 options, each ≤280 chars (count it). Vary the angle: e.g. the gotcha angle, the "what I built" angle, the one-liner hot-take angle. For threads (only if the material genuinely needs it), number the parts and keep it ≤4 tweets.
-
-Show drafts as plain text blocks so they're easy to copy.
-
-## 4. Hand off
-
-After the user picks a draft (or edits it), open X's compose window pre-filled with it:
+After the user picks (or edits) a draft, open X's compose window pre-filled:
 
 ```bash
-python3 -c "import urllib.parse,sys; print('https://x.com/intent/post?text='+urllib.parse.quote(sys.argv[1]))" 'TWEET TEXT HERE'
-explorer.exe "<that url>"
+URL=$(python3 -c "import urllib.parse,sys; print('https://twitter.com/intent/tweet?text='+urllib.parse.quote(sys.argv[1]))" 'TWEET TEXT HERE')
+explorer.exe "$URL"
 ```
 
-(`explorer.exe <url>` opens the default Windows browser from WSL.) The user reviews and hits Post themselves. Never call any X API to post.
+(`explorer.exe <url>` opens the default Windows browser from WSL.) The user reviews and hits Post themselves. NEVER post via the X API — Sumit is on a tight X API budget; the intent URL is free.
