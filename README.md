@@ -38,5 +38,14 @@ This repo is the source of truth. Edit here, commit, push; machines with
 `autoUpdate: true` pick it up. Never edit the loose `~/.claude/skills/` copies —
 `dedupe.sh` removes them after first plugin load.
 
-Deliberately NOT here: Matt Pocock's skills (his repo + installer own them), mage and
-context-mode (own lifecycles), any tokens/auth.
+Deliberately NOT vendored here — but `settings.fragment.json` subscribes to them as
+marketplaces so a fresh machine still gets them, always-current and read-only:
+
+| Source | Why a subscription, not a copy |
+|---|---|
+| `mattpocock/skills` → `mattpocock-skills@mattpocock` | Copies installed via `npx skills add` silently rot: they're real files, so pulling the clone updates nothing. Went 40 commits stale that way. The plugin can't drift |
+
+mage and context-mode own their own lifecycles (local dev clones); tokens/auth never live here.
+
+**Rule of thumb:** if upstream ships a plugin, subscribe to it. Only vendor a skill when
+you patch it (`autofix`, `code-review`) — and say so in the table above.
