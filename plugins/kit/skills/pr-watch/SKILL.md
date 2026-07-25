@@ -9,7 +9,21 @@ metadata:
 
 After a PR is raised, reviews arrive asynchronously (CodeRabbit ~3-5 min after each push; CI in ~5-10). Never poll with model turns and never rely on the user to relay events — arm deterministic watchers and process only deltas.
 
-Scripts live in this skill's directory (`~/.claude/skills/pr-watch/`). Both auto-detect the repo from the cwd's origin remote (`--repo owner/name` to override).
+Scripts live in this skill's own directory (`<skill-dir>` below) — `${CLAUDE_PLUGIN_ROOT}/skills/pr-watch/` when loaded as `kit:pr-watch`. Resolve it to an absolute path before handing it to a Monitor or background Bash; those shells may not inherit the variable. Both scripts auto-detect the repo from the cwd's origin remote (`--repo owner/name` to override).
+
+## Phase 0 — pick the review tier (before and around the PR)
+
+Escalate by risk; never pay model tokens for review a cheaper layer already covers.
+
+| Tier | When | What |
+|---|---|---|
+| CodeRabbit (free on public OSS) | Every PR push, automatically | Line-level diff review. Don't duplicate it with model turns |
+| One Opus 4.8 pass | Non-trivial PRs | The layer CodeRabbit *can't* do: spec/ADR conformance, since design truth often lives in an external hub it can't see |
+| Multi-agent extreme (`/code-review ultra`) | Rare | Engine-core, security/sandbox boundary, contract/schema changes only |
+
+- **Pre-PR:** the CodeRabbit CLI reviews local changes free — `coderabbit review --prompt-only`, feed the output to a coding agent to fix. Cheaper than review-after-push round trips.
+- **CodeRabbit's limits:** diff only, no test runs, Sonnet-tier depth, nitpick noise. Tame with `profile: chill` in `.coderabbit.yaml`, and distil key repo invariants into its path instructions — that file is the only channel by which design decisions reach its reviews.
+- Related skills: `code-review` (CodeRabbit CLI; note it shadows the built-in Standards/Spec review skill), `autofix` (apply PR-thread feedback with per-change approval).
 
 ## Phase 1 — arm the watcher (immediately after `gh pr create`)
 
@@ -21,7 +35,7 @@ Scripts live in this skill's directory (`~/.claude/skills/pr-watch/`). Both auto
    ```
 2. Arm via the **Monitor tool** (persistent: true):
    ```
-   command: ~/.claude/skills/pr-watch/watch-coderabbit.sh <pr> [<pr>...]
+   command: <skill-dir>/watch-coderabbit.sh <pr> [<pr>...]
    description: CodeRabbit comments + CI reds on PR <pr>
    ```
    One monitor covers many PRs. If a monitor is already running for this repo, stop it (TaskStop) and re-arm with the combined PR list — the seen-state makes re-arming free.
@@ -43,7 +57,7 @@ Each event line is either `NEW coderabbit <thread|reply-in-ID> — id N — path
 
 GitHub auto-merge never updates BEHIND branches; each merge strands the remaining armed PRs. Arm auto-merge per PR (`gh pr merge <n> --auto --squash`), then run as a background Bash (not Monitor — single completion):
 ```bash
-~/.claude/skills/pr-watch/merge-cascade.sh <pr> [<pr>...]
+<skill-dir>/merge-cascade.sh <pr> [<pr>...]
 ```
 Merge widest-diff PR first so smaller ones absorb the update-branch merges. Afterward: remove merged worktrees (`git worktree remove <path>` + delete local branch).
 
@@ -51,4 +65,5 @@ Merge widest-diff PR first so smaller ones absorb the update-branch merges. Afte
 
 - Watching is cheap (shell poll, 75s; zero tokens while quiet) — prefer over-watching to user-relaying.
 - State dir `~/ai-context/state/cr-watch/` is durable across sessions; safe to re-arm anytime.
-- The PostToolUse hook (`~/.claude/hooks/pr-created.sh`) injects a reminder line whenever a `gh pr create` succeeds — respond to it by running Phase 1 for that PR.
+- The plugin's PostToolUse hook (`hooks/pr-created.sh`) injects a reminder line whenever a `gh pr create` succeeds — respond to it by running Phase 1 for that PR.
+- Phase 3's cascade is a background Bash with a single completion, not a Monitor — see the `anti-stall` skill for why waits key on evidence, never on liveness.

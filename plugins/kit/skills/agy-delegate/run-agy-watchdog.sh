@@ -1,12 +1,14 @@
 #!/bin/bash
-# Usage: run-agy-watchdog.sh <worktree> <promptfile> <logfile> <expected_commits> <timeout>
-# Runs agy (Gemini 3.1 Pro High) headless; kills it if it hangs after completing its work
+# Usage: run-agy-watchdog.sh <worktree> <promptfile> <logfile> <expected_commits> <timeout> [model]
+# Runs agy headless; kills it if it hangs after completing its work
 # (log stale >3min AND >=expected commits ahead of origin/main AND clean tree).
+# Always appends the AGY_EXITED sentinel — wait on that, per the anti-stall skill.
 set -u
 WT="$1"; PROMPT="$2"; LOG="$3"; EXPECT="$4"; TMOUT="$5"
+MODEL="${6:-Gemini 3.6 Flash (High)}"
 
-cd "$WT" || { echo "WATCHDOG: worktree missing" > "$LOG"; exit 1; }
-agy --model "Gemini 3.1 Pro (High)" -p "$(cat "$PROMPT")" \
+cd "$WT" || { echo "WATCHDOG: worktree missing" > "$LOG"; echo "AGY_EXITED rc=1" >> "$LOG"; exit 1; }
+agy --model "$MODEL" -p "$(cat "$PROMPT")" \
   --dangerously-skip-permissions --print-timeout "$TMOUT" > "$LOG" 2>&1 &
 PID=$!
 echo "WATCHDOG: agy pid $PID" >&2
@@ -25,4 +27,5 @@ while kill -0 "$PID" 2>/dev/null; do
   fi
 done
 wait "$PID" 2>/dev/null
-echo "WATCHDOG-EXIT: agy exit=$? log_bytes=$(stat -c %s "$LOG" 2>/dev/null || echo 0)" >> "$LOG"
+RC=$?
+echo "AGY_EXITED rc=$RC log_bytes=$(stat -c %s "$LOG" 2>/dev/null || echo 0)" >> "$LOG"

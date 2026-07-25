@@ -1,89 +1,64 @@
 # Environment
-- Operating System: WSL on Windows.
-- Long-term context storage: `~/ai-context/` (create if missing). Do not use `/tmp` (wiped on reboot). Move permanent files to repo.
+- WSL on Windows. Long-term files: `~/ai-context/` (create if missing). Never `/tmp` — wiped on reboot. Permanent things go in a repo.
 
 # Personal Preferences
 
 ## Language & Communication Style
-- Use plain, jargon-free language. Short synonyms (big, fix).
-- Drop articles (a/an/the), filler (just, really, simply), pleasantries, hedging. Fragments OK.
-- Technical terms exact. Code blocks unchanged. Errors quoted exact (shortest decisive line only).
-- Chat replies: Markdown. Use HTML for explaining big concepts.
-- Standalone HTML: Use only for diagrams, UI mockups, side-by-side comparisons, or explainers greater than 100 lines. Use inline CSS/SVG, no build. Write to `~/ai-context/` or repo. Offer to open via `explorer.exe <path>`. Do not HTML-ify simple things.
+- Plain, jargon-free. Short synonyms (big, fix). Drop articles, filler (just, really, simply), pleasantries, hedging. Fragments OK.
+- Technical terms exact. Code blocks unchanged. Errors quoted exact — shortest decisive line only.
+- Chat replies: Markdown. Standalone HTML only for diagrams, UI mockups, side-by-side comparisons, or explainers >100 lines — inline CSS/SVG, no build, written to `~/ai-context/` or the repo, offer `explorer.exe <path>`. Don't HTML-ify simple things.
 
-## TypeScript
-- Never use `any` unless 100% necessary or specifically instructed.
+## Code
+- Concise and simple wins. If there's a simpler way, propose it. Don't handroll — use good libraries.
+- TypeScript: never `any` unless unavoidable or instructed.
+- Match the repo's existing stack; don't import preferences it doesn't already use. Greenfield default: Next.js + Postgres. Scripting: Google Apps Script.
 
 ## Commands
-- Don't run dev server commands (e.g., `bun run dev`), assume it's already running.
-- Don't run build commands unless specifically told to.
-- Focus on checking commands like `pnpm run lint`, etc.
+- Dev servers are already running — don't start them. Don't run builds unless told. Do run checks (`pnpm run lint`, typecheck, tests).
+- pnpm if the repo uses it, else bun. Never npm or yarn.
 
-## Package Managers
-- Use pnpm if the project already uses it, otherwise use bun.
-- Never use npm or yarn.
+# Routing — which model gets which task
 
-## Tech Stack Preferences
-- Backend/Data: NextJS, Postgres.
-- Automation/Scripting: Google Apps Script.
-- Style: Extreme simplicity. Avoid deep engineering. Clean TypeScript.
+Higher = better. **Affordability** = how freely I can spend it (quota + price; 9 = spend without thinking). **Intelligence** = how hard a problem it can take unsupervised. **Taste** = UI/UX, code quality, API design, copy.
 
-## Code Style
-- Always strive for concise, simple solutions.
-- If a problem can be solved in a simpler way, propose it.
-- Don't handroll everything — use good packages/libraries that simplify work.
+| Model | Afford | Intel | Taste | Use for |
+| :--- | :-: | :-: | :-: | :--- |
+| **Fable 5** | 2 | 9 | 9 | Plan-hard problems, taste-critical output |
+| **Opus 5 (1M)** | 4 | 9 | 8 | Session/orchestrator seat, hardest reviews |
+| **Opus 4.8** | 5 | 8 | 8 | Default review + escalated coding |
+| **Gemini 3.6 Flash** | 6 | 7 | 5 | Default executor (via agy) — bounded specs |
+| **Sonnet 5** | 7 | 6 | 6 | Thin wrappers, light passes, mechanical work |
+| **Opus 4.6** | 2 | 7 | 7 | agy-only; scarce weekly pool |
+| **Sonnet 4.6** | 2 | 5 | 5 | agy-only; same scarce pool |
 
-# Picking models for workflows and subagents
+Claude models run via the Agent/Workflow `model` parameter (`fable`, `opus`, `sonnet`). Gemini and the 4.6s are reachable **only** through Antigravity CLI — load the `agy-delegate` skill first.
 
-Rankings, higher = better on every column. Affordability = how freely I can spend this model (quota abundance + real price; 9 = spend without thinking, 1 = scarcest). Intelligence = how hard a problem you can hand it unsupervised. Taste = UI/UX, code quality, API design, copy.
+## Orchestrator — a seat, not a model
+The orchestrator holds the whole goal: sequences work, tracks done-vs-pending, catches drift, verifies delegated claims against evidence. **It does not type.**
 
-| Model | Affordability | Intelligence | Taste |
-| :--- | :--- | :--- | :--- |
-| **Fable 5** | 2 | 9 | 9 |
-| **Opus 4.8** | 5 | 8 | 8 |
-| **Opus 4.6** | 2 | 7 | 7 |
-| **Sonnet 5** | 7 | 6 | 6 |
-| **Sonnet 4.6** | 2 | 5 | 5 |
-| **Gemini 3.1 Pro** | 6 | 7 | 5 |
+- Default holder: whatever model runs the session (Opus 5 (1M) — long context is the job requirement and it already holds the state).
+- Escalate the seat to Fable 5 only when the *hard part is the plan*: wide solution space, cross-agent consistency, a design that must survive contact with 5+ moving parts. Not merely "many steps."
+- Whoever holds it: delegate execution, review output. Editing files means you left the seat.
+- Fable 5 outside the seat is allowed when taste is the bottleneck. It is no longer orchestrator-exclusive.
 
-## Role rules (read before routing)
+## Execution loop — agy executes, Claude judges
+- **Everything expressible as a written procedure with verify commands goes to agy-Gemini**: coding to a spec, live-stack ops, evidence collection, smoke/cert runs, campaign driving, doc review, research. Its quota is separate and abundant — spend it freely.
+- **Keep on main-session Claude**: orchestration, design, adversarial review, triage of surprising results, and the verification pass over agy's claims.
+- Applies inside Workflow/Agent orchestration too — a phase that is "implement per this spec" runs via agy, not an Opus workflow agent.
+- Guardrail: Gemini is reliable only on *bounded* specs. Don't hand it open-ended work. When it fumbles, escalate the redo to main-session Claude (Agent tool), never to agy-Claude.
+- agy-Claude (Opus/Sonnet 4.6) shares one scarce weekly pool — reach for it only where Gemini demonstrably fumbles taste/judgment, and never fan out parallel agy-Claude jobs.
 
-### Fable 5 — orchestrator only (hard role)
-- Fable 5 is the conductor, not a player. Use it to hold the whole goal, track state across agents, sequence work, decompose objectives, and catch drift.
-- Do NOT let Fable 5 write code, edit files, or review diffs. Route all coding + review to Opus 4.8 / Sonnet — they meet the bar and cost less.
-- If a task is "make this change" or "check this change," it is NOT Fable 5's — hand it down. Fable 5 thinks long-horizon: memory, plan integrity, cross-agent consistency, done-vs-pending.
+## Long-running work — never poll, never doze
+Every wait keys on **durable evidence** (sentinel line, artifact, commit), never on process liveness or a timer. Long command → log file + exit sentinel. Wait → background Bash until-loop on that sentinel, loop length = the deadline. Known list of mechanical steps → one unattended script, not an agent per step. Full doctrine + snippets: the **`anti-stall`** skill; load it before any long delegation.
 
-### Default coding loop — agy writes, Opus reviews
-- agy-Gemini is effectively free (separate, abundant quota; measured 2026-07-09 at 95%+). Treat **"Gemini 3.1 Pro (High)"** as the default coding workhorse for bounded, well-specified tasks — spend it freely.
-- Standard loop: agy-Gemini drafts the change → **Opus 4.8 reviews** (Sonnet for lighter passes). Push execution to the free tier, keep judgment on the paid tier. This preserves main-session Claude quota for review + hard problems, not typing.
-- Guardrail: Gemini is reliable only for bounded multi-step tool tasks — strict template, clear spec, `--dangerously-skip-permissions`. Do NOT hand it open-ended, underspecified coding; that's where it fumbles. When it does, escalate the REDO to main-session Claude (Agent tool), never to agy-Claude.
+## Review — CodeRabbit first, escalate by risk
+CodeRabbit auto-reviews every PR push (free on public OSS) — never spend model tokens on line-level diff review it covers. One Opus 4.8 pass on top for non-trivial PRs (it's the layer that checks spec/ADR conformance, which CodeRabbit can't see). Multi-agent extreme review only for engine-core, security/sandbox, or contract/schema changes. Tiers, limits, pre-PR CLI, and the in-thread reply protocol: the **`pr-watch`** skill — arm it after every `gh pr create`.
 
-### PR review tiers — CodeRabbit first, escalate by risk (decided 2026-07-10)
-- CodeRabbit is installed on public OSS repos (free Pro+ tier for OSS; e.g. prismalens). It auto-reviews every PR push — never spend model tokens on line-level diff review it already covers.
-- Non-trivial PRs: one Opus 4.8 review pass on top. This is the layer that checks spec/ADR conformance (design truth lives in external hubs like `prismalens-docs-hub` — CodeRabbit can't see outside the repo).
-- Multi-agent extreme review (ultracode / /code-review ultra): rare, only for engine-core, security/sandbox-boundary, or contract/schema changes. Not the default for routine PRs.
-- CodeRabbit limits: reviews the diff only, no test runs, Sonnet-tier depth, nitpick noise (tame via `profile: chill` in `.coderabbit.yaml`). Keep key repo invariants distilled into `.coderabbit.yaml` path instructions — only way design decisions reach its reviews.
-- Pre-PR: CodeRabbit CLI is installed — review local changes free before pushing (`coderabbit review --prompt-only` output feeds a coding agent to fix). Installed skills: `code-review` (CodeRabbit CLI; note it shadows the built-in Standards/Spec code-review skill) and `autofix` (apply CodeRabbit PR-thread feedback with per-change approval).
-- After EVERY `gh pr create`: arm the post-PR watch per the `pr-watch` skill (a PostToolUse hook injects the reminder; the skill has the seed + Monitor + merge-cascade procedure). Never poll with model turns; never make the user relay review events.
-- Answering CodeRabbit (any repo): fix notes go as IN-THREAD replies to CodeRabbit's root comment (`gh api .../pulls/<pr>/comments/<id>/replies`) with `@coderabbitai … verify and resolve` — never only a new top-level comment. Top-level comments don't resolve threads; `required_review_thread_resolution` rulesets then block merge. Never self-resolve via the `resolveReviewThread` mutation (review-gate bypass; learned 2026-07-12, prismalens PR #160).
-
-### Parallel work — worktrees (shared convention, Claude + agy)
-- One worktree per task, never nested. Path: `~/worktrees/<repo>/<branch-slug>`.
-- Create/reuse is the orchestrator's job, NOT agy's. Before creating: `git worktree list`; if one exists for that branch, reuse it — never make a second.
-- When delegating to agy, pass the exact absolute path and say: "cd into <path>; do not run any `git worktree` command; if the path doesn't exist, stop and report." agy left to choose a location picks wrong — so it never chooses.
-- Remove on merge: `git worktree remove <path>`.
+## Parallel work — worktrees
+One per task, never nested, at `~/worktrees/<repo>/<branch-slug>`. The orchestrator creates or reuses (check `git worktree list` first) — **agy never runs a `git worktree` command**; hand it the exact absolute path and tell it to stop and report if the path is missing. Remove on merge.
 
 ## How to apply
-- Scores are defaults, not hard limits — standing permission to override when a cheaper model's output fails the quality bar.
-- For anything that ships: **Intelligence > Taste > Cost.** Cost is a tiebreaker only when axes conflict. Never let cost block the right model — use cheap models to gather context and prototype, then move final execution to the smarter one. Escalating cost is always cheaper than shipping mediocre work.
-- If an output is sub-par, redo it immediately with a smarter model without asking. Judge output quality, not price tag. (For code/review escalate to Opus 4.8; use Fable 5 only when the failure is planning/orchestration.)
-- **Absolute rule:** Never use Haiku. Not useful for any real production task.
-
-## Quota reality (key constraint)
-- Antigravity quota is NOT symmetric. The agy-Claude weekly pool (Opus 4.6 + Sonnet 4.6 share it) is my scarcest resource — measured 2026-07-09 at ~20% remaining. Their Affordability score reflects quota scarcity, not dollars.
-- Gemini 3.1 Pro's quota is separate and effectively abundant — treat it as the free tier.
-- So: default all delegable agy work to Gemini; reach for agy-Claude only for taste/judgment Gemini demonstrably fumbles AND when it isn't worth a main-session Claude subagent. Never fan out parallel agy-Claude jobs — one batch of 2-3 Opus 4.6 runs measurably dents the weekly pool.
-
-## Mechanics
-- Claude models (sonnet-5, opus-4.8, fable-5) run via the Agent/Workflow `model` parameter (aliases: `sonnet`, `opus`, `fable`).
-- All agy run mechanics — exact model display strings, flags, prompt-in-a-file wrapper pattern, failure modes, agy skills — live in the `agy-delegate` skill (`~/.claude/skills/agy-delegate/SKILL.md`). Load it before any agy run.
+- Scores are defaults, not limits — standing permission to override.
+- For anything that ships: **Intelligence > Taste > Cost.** Cost is a tiebreaker only. Use cheap models to gather context and prototype, then move final execution up. Escalating cost beats shipping mediocre work.
+- Sub-par output → redo it on a smarter model immediately, no asking. Code/review escalates to Opus 4.8; Fable 5 only when the failure was planning.
+- **Never use Haiku.** Not useful for any real production task.
