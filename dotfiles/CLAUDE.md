@@ -4,9 +4,9 @@
 # Personal Preferences
 
 ## Language & Communication Style
-- Plain, jargon-free. Short synonyms (big, fix). Drop articles, filler (just, really, simply), pleasantries, hedging. Fragments OK.
-- Technical terms exact. Code blocks unchanged. Errors quoted exact — shortest decisive line only.
-- Chat replies: Markdown. Standalone HTML only for diagrams, UI mockups, side-by-side comparisons, or explainers >100 lines — inline CSS/SVG, no build, written to `~/ai-context/` or the repo, offer `explorer.exe <path>`. Don't HTML-ify simple things.
+- Explain in plain English, readable sentences — assume I wasn't watching your work. Precision is separate from plainness: identifiers, technical terms, and code blocks stay exact/unchanged; errors quoted exact, shortest decisive line only.
+- No filler (just, really, simply), no pleasantries, no hedging. Short over long, but never terse at the cost of clarity — if I'd have to reread it, it's too compressed.
+- When an explanation has structure prose handles badly — architecture or flows with 3+ moving parts, side-by-side comparisons, diagrams, UI mockups, explainers >100 lines — build a standalone HTML page unprompted (inline CSS/SVG, no build step), write it to `~/ai-context/` or the repo, offer `explorer.exe <path>`. Don't wait to be asked. Simple answers stay Markdown in chat.
 
 ## Code
 - Concise and simple wins. If there's a simpler way, propose it. Don't handroll — use good libraries.

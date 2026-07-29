@@ -1,5 +1,31 @@
 {
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/pre-push-cr-gate.sh\"",
+            "timeout": 15
+          }
+        ],
+        "description": "Gate `git push` on CodeRabbit-enabled repos behind a fresh CLI preview (scripts/cr-preview.sh)",
+        "id": "pre:bash:cr-gate"
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/no-haiku.sh\"",
+            "timeout": 5
+          }
+        ],
+        "description": "Block Agent calls with model=haiku (routing doctrine)",
+        "id": "pre:agent:no-haiku"
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Bash",

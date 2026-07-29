@@ -9,7 +9,7 @@
 # keyed by owner-repo-prN, so re-arming never re-emits old comments.
 # Repo defaults to the current directory's origin remote.
 #
-# Rate limits (found live 2026-07-26, prismalens#213): when CodeRabbit is out of quota it
+# Rate limits: when CodeRabbit is out of quota it
 # posts the notice as an ISSUE comment, not a review comment — a watcher polling only
 # /pulls/N/comments sees nothing and waits forever. It also posts a check named
 # "Review rate limited" that PASSES by design (so it never blocks merge on protected
@@ -37,17 +37,25 @@ declare -A FAILED_SEEN
 gh_fail=0
 
 # --- CodeRabbit presence probe (once, at startup) ---
-# Cheap and conservative: a committed config, or the bot having spoken anywhere in the
+# Fast path: the kit-meta registry (data/repo-meta.json + observed.json). Otherwise
+# cheap and conservative: a committed config, or the bot having spoken anywhere in the
 # repo's recent comment history. Either is proof the app is wired; neither means it is not.
+# A positive probe upserts the registry so every later consumer skips the API calls.
+KIT_META="$(cd "$(dirname "$0")/../../scripts" 2>/dev/null && pwd)/kit-meta.sh"
+found() {
+  [ -x "$KIT_META" ] && "$KIT_META" observe "$REPO" coderabbit true >/dev/null 2>&1
+  echo 1
+}
 detect_coderabbit() {
-  gh api "repos/$REPO/contents/.coderabbit.yaml" >/dev/null 2>&1 && { echo 1; return; }
-  gh api "repos/$REPO/contents/.coderabbit.yml"  >/dev/null 2>&1 && { echo 1; return; }
+  if [ -x "$KIT_META" ] && [ "$("$KIT_META" get "$REPO" coderabbit 2>/dev/null)" = "true" ]; then echo 1; return; fi
+  gh api "repos/$REPO/contents/.coderabbit.yaml" >/dev/null 2>&1 && { found; return; }
+  gh api "repos/$REPO/contents/.coderabbit.yml"  >/dev/null 2>&1 && { found; return; }
   local n
   for endpoint in "issues/comments" "pulls/comments"; do
     n=$(gh api "repos/$REPO/$endpoint?per_page=100" \
           --jq '[.[] | select(.user.login | test("coderabbit";"i"))] | length' 2>/dev/null)
     case "$n" in ''|*[!0-9]*) n=0;; esac
-    [ "$n" -gt 0 ] && { echo 1; return; }
+    [ "$n" -gt 0 ] && { found; return; }
   done
   echo 0
 }
@@ -81,13 +89,18 @@ while [ ${#PRS[@]} -gt 0 ]; do
 
     if [ "$CR_PRESENT" = "1" ]; then
     seen="$STATE_DIR/$KEY-pr$pr.seen"; touch "$seen"
+    # Pointer, not payload: the full comment body goes to a state file; the event
+    # line carries its path plus a short excerpt. The session that owns the Monitor
+    # routes the path to a seat — comment bodies never enter the main context.
+    payload_dir="$STATE_DIR/$KEY-pr$pr-comments"; mkdir -p "$payload_dir"
     gh api "repos/$REPO/pulls/$pr/comments?per_page=100" \
-      --jq '.[] | select(.user.login | test("coderabbit")) | "\(.id)\t\(.path):\(.line // .original_line)\t\(.in_reply_to_id // "root")\t\(.body | gsub("[\\n\\r\\t]"; " ") | .[0:150])"' 2>/dev/null |
+      --jq '.[] | select(.user.login | test("coderabbit")) | "\(.id)\t\(.path):\(.line // .original_line)\t\(.in_reply_to_id // "root")\t\(.body | gsub("[\\n\\r\\t]"; " ") | .[0:80])"' 2>/dev/null |
     while IFS=$'\t' read -r id path reply body; do
       grep -qx "$id" "$seen" 2>/dev/null && continue
       echo "$id" >> "$seen"
       kind="thread"; [ "$reply" != "root" ] && kind="reply-in-$reply"
-      echo "PR#$pr NEW coderabbit $kind — id $id — $path — $body"
+      gh api "repos/$REPO/pulls/comments/$id" > "$payload_dir/$id.json" 2>/dev/null
+      echo "PR#$pr NEW coderabbit $kind — id $id — $path — payload $payload_dir/$id.json — $body"
     done
 
     # --- rate-limit channel (issue comments) ---
@@ -141,9 +154,9 @@ while [ ${#PRS[@]} -gt 0 ]; do
     fi  # CR_PRESENT
 
     # Read line-by-line: check names contain spaces ("Validate PR title (conventional
-    # commits)"), and `for r in $reds` word-splits them into one bogus event per word
-    # (found live 2026-07-26 on prismalens#218). A here-string keeps FAILED_SEEN in
-    # this shell — a pipe would subshell it and every red would re-fire every cycle.
+    # commits)"), and `for r in $reds` word-splits them into one bogus event per word.
+    # A here-string keeps FAILED_SEEN in this shell — a pipe would subshell it and
+    # every red would re-fire every cycle.
     reds=$(gh pr checks "$pr" --repo "$REPO" 2>/dev/null | awk -F'\t' '$2=="fail" {print $1}')
     while IFS= read -r r; do
       [ -z "$r" ] && continue
@@ -153,7 +166,7 @@ while [ ${#PRS[@]} -gt 0 ]; do
       echo "PR#$pr CI FAIL — $r"
     done <<< "$reds"
   done
-  # NB: not PRS=("${next[@]:-}") — empty array expands to one "" element and the exit check never fires (found live 2026-07-12)
+  # NB: not PRS=("${next[@]:-}") — empty array expands to one "" element and the exit check never fires
   [ ${#next[@]} -eq 0 ] && break
   PRS=("${next[@]}")
   [ "$gh_fail" -ge 5 ] && { echo "WATCHER DEGRADED — gh failing repeatedly (auth/network?)"; gh_fail=0; }
