@@ -29,6 +29,13 @@ if [ -z "$def" ]; then
   [ -z "$def" ] && git show-ref --verify --quiet refs/remotes/origin/master && def=master
 fi
 [ "$branch" = "${def:-main}" ] && exit 0
+# Docs-only diffs (only .md/.txt changed vs the default branch) are exempt —
+# spending the CLI counter on markdown wastes it, and KB repos push mostly docs.
+if [ -n "$def" ] && git rev-parse --verify -q "refs/remotes/origin/$def" >/dev/null 2>&1; then
+  if ! git diff --name-only "origin/$def...HEAD" 2>/dev/null | grep -qvE '\.(md|txt)$'; then
+    exit 0
+  fi
+fi
 mark="$HOME/ai-context/state/kit/cr-preview/$(echo "$repo-$branch" | tr '/' '-')"
 now=$(date +%s); ts=$(cat "$mark" 2>/dev/null || echo 0)
 case "$ts" in ''|*[!0-9]*) ts=0;; esac

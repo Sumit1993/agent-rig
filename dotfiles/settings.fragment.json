@@ -2,11 +2,6 @@
   "permissions": {
     "allow": ["Bash(agy *)"],
     "deny": [
-      "Bash(yarn *)",
-      "Bash(yarn)",
-      "Bash(npm install*)",
-      "Bash(npm ci*)",
-      "Bash(npm link*)",
       "Bash(npm run dev*)",
       "Bash(pnpm dev*)",
       "Bash(pnpm run dev*)",
