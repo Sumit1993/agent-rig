@@ -58,7 +58,14 @@ The load-bearing consequence: **on a young OSS repo the CLI counter (3/hr) is la
 
 Event lines: `NEW coderabbit <thread|reply-in-ID> — id N — path — excerpt`, `CI FAIL — <check>`, `CODERABBIT RATE-LIMITED — …`, `CODERABBIT RE-TRIGGERED — …`, `CODERABBIT RESUMED — …`, or `PR#N MERGED/CLOSED`.
 
-Env knobs: `CR_WATCH_AUTORETRY=0` makes rate-limit handling detect-only (no comment posted); `CR_WATCH_MAX_RETRIES=N` caps auto re-triggers per PR (default 2).
+**The first line is always the presence verdict.** Not every repo has CodeRabbit — the KB hubs (`prismalens-docs-hub`, `sreforge-memory`) do not. The watcher probes once at startup (a committed `.coderabbit.yaml`/`.yml`, else any `coderabbit*` author in the repo's recent issue/review comment history) and emits one of:
+
+- `CODERABBIT ACTIVE on <repo> — watching reviews, rate limits, CI and merge state`
+- `CODERABBIT ABSENT on <repo> — watching CI + merge state ONLY. …silence here is NOT a clean review…`
+
+On ABSENT it skips both CodeRabbit polls and watches only CI and merge state. **Treat ABSENT exactly like a rate-limit block: the diff is unreviewed, not clean.** A repo with no reviewer produces a *perfectly quiet watch*, which is byte-identical to "reviewed, found nothing" — the same trap the rate-limit channel sets, and the reason both are announced rather than inferred from silence. Decide by risk: KB-only or trivial can merge on CI alone; anything non-trivial wants `coderabbit review --prompt-only` pre-push (the CLI works locally regardless of whether the app is installed on the repo) or a model review pass.
+
+Env knobs: `CR_WATCH_AUTORETRY=0` makes rate-limit handling detect-only (no comment posted); `CR_WATCH_MAX_RETRIES=N` caps auto re-triggers per PR (default 2); `CR_WATCH_ASSUME_CODERABBIT=1|0` skips the probe (force present/absent).
 
 ## Phase 2 — on each event
 
