@@ -23,7 +23,7 @@ Escalate by risk; never pay model tokens for review a cheaper layer already cove
 |---|---|---|
 | CodeRabbit **CLI**, pre-push | Every non-trivial change, before `gh pr create` | Line-level review that spends the *abundant* counter — run `<plugin>/scripts/cr-preview.sh`; it records the marker that opens the pre-push gate (see quota table below) |
 | CodeRabbit **PR** review | Every PR, automatically | Same engine on the pushed diff. Scarce on OSS — don't burn it on findings the CLI would have caught |
-| One Opus 4.8 pass | Non-trivial PRs | The layer CodeRabbit *can't* do: spec/ADR conformance, since design truth often lives in an external hub it can't see |
+| One Opus 5 pass | Non-trivial PRs | The layer CodeRabbit *can't* do: spec/ADR conformance, since design truth often lives in an external hub it can't see |
 | Multi-agent extreme (`/code-review ultra`) | Rare | Engine-core, security/sandbox boundary, contract/schema changes only |
 
 ### Quota — PR, IDE and CLI are three SEPARATE counters
@@ -83,7 +83,7 @@ Env knobs: `CR_WATCH_AUTORETRY=0` makes rate-limit handling detect-only (no comm
   Never self-resolve threads via the GraphQL mutation — that bypasses the review gate.
 - **Reply-in events** are CodeRabbit's verdicts on your fixes — read them; it may push back or resolve.
 - **CI FAIL:** diagnose from the failed job log, fix, push. Verify locally with explicit exit codes (`cmd >/dev/null; echo $?`) — never let a `| tail` mask a red gate.
-- **`CODERABBIT RATE-LIMITED`:** no review ran — the diff is **unreviewed**, not clean. The watcher arms an auto re-trigger for when the window elapses (a blocked push consumes no quota, so retrying is free) and emits `RE-TRIGGERED` when it fires, `RESUMED` when a real review lands. **Do not sit idle waiting.** The rate-limit check *passes* by design, so merge is never actually blocked — decide by risk: low-risk diff, merge on CI + the auto re-trigger; otherwise run the Opus 4.8 pass now rather than spending 45 minutes waiting for a tier that would have found less. On `auto-retry budget spent`, the model pass *is* the review.
+- **`CODERABBIT RATE-LIMITED`:** no review ran — the diff is **unreviewed**, not clean. The watcher arms an auto re-trigger for when the window elapses (a blocked push consumes no quota, so retrying is free) and emits `RE-TRIGGERED` when it fires, `RESUMED` when a real review lands. **Do not sit idle waiting.** The rate-limit check *passes* by design, so merge is never actually blocked — decide by risk: low-risk diff, merge on CI + the auto re-trigger; otherwise run the Opus 5 pass now rather than spending 45 minutes waiting for a tier that would have found less. On `auto-retry budget spent`, the model pass *is* the review.
 
 ## Phase 3 — merge cascade (once the user says merge)
 

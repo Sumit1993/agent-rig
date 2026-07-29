@@ -14,6 +14,18 @@
         "id": "pre:bash:cr-gate"
       },
       {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/release-docs-gate.sh\"",
+            "timeout": 20
+          }
+        ],
+        "description": "Block merging a release PR on docs-governed repos without a fresh docs audit",
+        "id": "pre:bash:release-docs-gate"
+      },
+      {
         "matcher": "Agent",
         "hooks": [
           {

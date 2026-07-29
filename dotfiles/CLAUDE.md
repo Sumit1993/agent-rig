@@ -24,8 +24,7 @@ Higher = better. **Affordability** = how freely I can spend it (quota + price; 9
 | Model | Afford | Intel | Taste | Use for |
 | :--- | :-: | :-: | :-: | :--- |
 | **Fable 5** | 2 | 9 | 9 | Plan-hard problems, taste-critical output |
-| **Opus 5 (1M)** | 4 | 9 | 8 | Session/orchestrator seat, hardest reviews |
-| **Opus 4.8** | 5 | 8 | 8 | Default review + escalated coding |
+| **Opus 5 (1M)** | 4 | 9 | 8 | Session/orchestrator seat, default review + escalated coding |
 | **Gemini 3.6 Flash** | 6 | 7 | 5 | Default executor (via agy) — bounded specs |
 | **Sonnet 5** | 7 | 6 | 6 | Thin wrappers, light passes, mechanical work |
 | **Opus 4.6** | 2 | 7 | 7 | agy-only; scarce weekly pool |
@@ -52,7 +51,7 @@ The orchestrator holds the whole goal: sequences work, tracks done-vs-pending, c
 Every wait keys on **durable evidence** (sentinel line, artifact, commit), never on process liveness or a timer. Long command → log file + exit sentinel. Wait → background Bash until-loop on that sentinel, loop length = the deadline. Known list of mechanical steps → one unattended script, not an agent per step. Full doctrine + snippets: the **`anti-stall`** skill; load it before any long delegation.
 
 ## Review — CodeRabbit first, escalate by risk
-CodeRabbit auto-reviews every PR push (free on public OSS) — never spend model tokens on line-level diff review it covers. One Opus 4.8 pass on top for non-trivial PRs (it's the layer that checks spec/ADR conformance, which CodeRabbit can't see). Multi-agent extreme review only for engine-core, security/sandbox, or contract/schema changes. Tiers, limits, pre-PR CLI, and the in-thread reply protocol: the **`pr-watch`** skill — arm it after every `gh pr create`.
+CodeRabbit auto-reviews every PR push (free on public OSS) — never spend model tokens on line-level diff review it covers. One Opus 5 pass on top for non-trivial PRs (it's the layer that checks spec/ADR conformance, which CodeRabbit can't see). Multi-agent extreme review only for engine-core, security/sandbox, or contract/schema changes. Tiers, limits, pre-PR CLI, and the in-thread reply protocol: the **`pr-watch`** skill — arm it after every `gh pr create`.
 
 ## Parallel work — worktrees
 One per task, never nested, at `~/worktrees/<repo>/<branch-slug>`. The orchestrator creates or reuses (check `git worktree list` first) — **agy never runs a `git worktree` command**; hand it the exact absolute path and tell it to stop and report if the path is missing. Remove on merge.
@@ -60,5 +59,5 @@ One per task, never nested, at `~/worktrees/<repo>/<branch-slug>`. The orchestra
 ## How to apply
 - Scores are defaults, not limits — standing permission to override.
 - For anything that ships: **Intelligence > Taste > Cost.** Cost is a tiebreaker only. Use cheap models to gather context and prototype, then move final execution up. Escalating cost beats shipping mediocre work.
-- Sub-par output → redo it on a smarter model immediately, no asking. Code/review escalates to Opus 4.8; Fable 5 only when the failure was planning.
+- Sub-par output → redo it on a smarter model immediately, no asking. Code/review escalates to Opus 5; Fable 5 only when the failure was planning.
 - **Never use Haiku.** Not useful for any real production task.
