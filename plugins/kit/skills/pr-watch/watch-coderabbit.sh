@@ -15,8 +15,13 @@
 # "Review rate limited" that PASSES by design (so it never blocks merge on protected
 # branches), so the red-check loop can't see it either. Both channels are silent; this
 # script polls /issues/N/comments for the marker and treats it as a first-class event.
+# Not every repo has CodeRabbit (the hubs do not). A repo without the app emits no review
+# comments AND no rate-limit notice — byte-identical to "reviewed, found nothing". So the
+# watcher probes once at startup and SAYS so; a silent watch must never read as a clean
+# review that never happened.
 # Env: CR_WATCH_AUTORETRY=0 disables posting `@coderabbitai review` (detect-only).
 #      CR_WATCH_MAX_RETRIES=N caps auto re-triggers per PR (default 2).
+#      CR_WATCH_ASSUME_CODERABBIT=1|0 skips the probe (force present/absent).
 set -u
 if [ "${1:-}" = "--repo" ]; then REPO="$2"; shift 2; else
   REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null) || { echo "watch-coderabbit: cannot resolve repo (pass --repo owner/name)"; exit 1; }
@@ -30,6 +35,28 @@ AUTORETRY=${CR_WATCH_AUTORETRY:-1}
 MAX_RETRIES=${CR_WATCH_MAX_RETRIES:-2}
 declare -A FAILED_SEEN
 gh_fail=0
+
+# --- CodeRabbit presence probe (once, at startup) ---
+# Cheap and conservative: a committed config, or the bot having spoken anywhere in the
+# repo's recent comment history. Either is proof the app is wired; neither means it is not.
+detect_coderabbit() {
+  gh api "repos/$REPO/contents/.coderabbit.yaml" >/dev/null 2>&1 && { echo 1; return; }
+  gh api "repos/$REPO/contents/.coderabbit.yml"  >/dev/null 2>&1 && { echo 1; return; }
+  local n
+  for endpoint in "issues/comments" "pulls/comments"; do
+    n=$(gh api "repos/$REPO/$endpoint?per_page=100" \
+          --jq '[.[] | select(.user.login | test("coderabbit";"i"))] | length' 2>/dev/null)
+    case "$n" in ''|*[!0-9]*) n=0;; esac
+    [ "$n" -gt 0 ] && { echo 1; return; }
+  done
+  echo 0
+}
+CR_PRESENT=${CR_WATCH_ASSUME_CODERABBIT:-$(detect_coderabbit)}
+if [ "$CR_PRESENT" = "1" ]; then
+  echo "CODERABBIT ACTIVE on $REPO — watching reviews, rate limits, CI and merge state"
+else
+  echo "CODERABBIT ABSENT on $REPO — watching CI + merge state ONLY. No review will arrive, so silence here is NOT a clean review: get line-level coverage from the CodeRabbit CLI pre-push or a model review pass."
+fi
 
 # Minutes until the next review window, parsed from the rate-limit notice
 # ("Next review available in: **47 minutes**" / "**1 hour**"). Falls back to 60.
@@ -52,6 +79,7 @@ while [ ${#PRS[@]} -gt 0 ]; do
     fi
     next+=("$pr")
 
+    if [ "$CR_PRESENT" = "1" ]; then
     seen="$STATE_DIR/$KEY-pr$pr.seen"; touch "$seen"
     gh api "repos/$REPO/pulls/$pr/comments?per_page=100" \
       --jq '.[] | select(.user.login | test("coderabbit")) | "\(.id)\t\(.path):\(.line // .original_line)\t\(.in_reply_to_id // "root")\t\(.body | gsub("[\\n\\r\\t]"; " ") | .[0:150])"' 2>/dev/null |
@@ -110,6 +138,7 @@ while [ ${#PRS[@]} -gt 0 ]; do
         fi
       fi
     fi
+    fi  # CR_PRESENT
 
     # Read line-by-line: check names contain spaces ("Validate PR title (conventional
     # commits)"), and `for r in $reds` word-splits them into one bogus event per word
