@@ -26,6 +26,32 @@
         "id": "pre:agent:no-haiku"
       }
     ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/reap-watchers.sh\" end",
+            "timeout": 10
+          }
+        ],
+        "description": "Kill watcher processes at session end so a resumed session never replays their events over a full context window",
+        "id": "end:reap-watchers"
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/reap-watchers.sh\" start",
+            "timeout": 10
+          }
+        ],
+        "description": "Reap orphaned watcher processes (PPID 1) left by sessions that died without the SessionEnd hook",
+        "id": "start:reap-orphan-watchers"
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Bash",
