@@ -44,7 +44,7 @@
         "ROADMAP.md",
         "CONTRIBUTING.md"
       ],
-      "code_globs": ["packages/**"]
+      "code_globs": ["packages/*/src/**", "packages/@prismalens/*/src/**"]
     }
   }
 }
