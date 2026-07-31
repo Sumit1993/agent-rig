@@ -11,11 +11,30 @@ in=$(cat)
 # Resolve before any cd — $0 may be relative to the hook's launch cwd.
 KIT_META="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/scripts/kit-meta.sh"
 cmd=$(jq -r '.tool_input.command // ""' <<<"$in" 2>/dev/null) || exit 0
-grep -qE '(^|[^[:alnum:]_-])git[[:space:]]+push' <<<"$cmd" || exit 0
+# "git push" adjacency, or "git -C <dir> push" (quoted or not) — a bare
+# git[[:space:]]+push check misses the -C form entirely, so a worktree push
+# issued as `git -C <dir> push` would never reach the gate at all.
+push_re="(^|[^[:alnum:]_-])git([[:space:]]+-C[[:space:]]+(\"[^\"]*\"|'[^']*'|[^[:space:]]+))?[[:space:]]+push"
+grep -qE "$push_re" <<<"$cmd" || exit 0
 grep -q 'CR_GATE=skip' <<<"$cmd" && exit 0
 cwd=$(jq -r '.cwd // ""' <<<"$in" 2>/dev/null)
-[ -d "$cwd" ] || exit 0
-cd "$cwd" || exit 0
+# Resolve the push target from the command being pushed, not the session's
+# cwd — `.cwd` is wherever the main session happens to be sitting, which is
+# the wrong repo/branch entirely when the push runs from a git worktree.
+# `git -C <dir> push` and a leading `cd <dir> && `/`cd <dir>; ` both name
+# their own target explicitly; only fall back to `.cwd` when neither does,
+# and fall back (rather than exit) if the parsed dir turns out not to exist.
+target=""
+if [[ "$cmd" =~ git[[:space:]]+-C[[:space:]]+(\"[^\"]*\"|\'[^\']*\'|[^[:space:]]+) ]]; then
+  target="${BASH_REMATCH[1]}"
+elif [[ "$cmd" =~ ^[[:space:]]*cd[[:space:]]+(\"[^\"]*\"|\'[^\']*\'|[^[:space:]]+)[[:space:]]*(\&\&|\;) ]]; then
+  target="${BASH_REMATCH[1]}"
+fi
+if [[ "$target" == \"*\" ]]; then target="${target#\"}"; target="${target%\"}"; fi
+if [[ "$target" == \'*\' ]]; then target="${target#\'}"; target="${target%\'}"; fi
+[ -n "$target" ] && [ -d "$target" ] || target="$cwd"
+[ -d "$target" ] || exit 0
+cd "$target" || exit 0
 repo=$("$KIT_META" current 2>/dev/null | jq -r '.repo // empty')
 [ -n "$repo" ] || exit 0
 [ "$("$KIT_META" get "$repo" coderabbit 2>/dev/null)" = "true" ] || exit 0

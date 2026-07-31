@@ -36,6 +36,18 @@ MAX_RETRIES=${CR_WATCH_MAX_RETRIES:-2}
 declare -A FAILED_SEEN
 gh_fail=0
 
+# True (exit 0) iff stdin is valid JSON whose top-level type is "array".
+# gh api returns a JSON *object* (e.g. {"message":"Server Error"}) instead of
+# the expected array on transient failures (5xx, rate limiting). `.[]` still
+# "iterates" an object — over its values — so an unguarded filter treats that
+# garbage as real API records: phantom events, and worse, ids written into
+# the seen-state file that persist across sessions. Every gh api response
+# that gets iterated or counted as a list must clear this gate first; skip
+# the cycle (no event, no state write) when it doesn't.
+is_json_array() {
+  jq -e 'type == "array"' >/dev/null 2>&1
+}
+
 # --- CodeRabbit presence probe (once, at startup) ---
 # Fast path: the kit-meta registry (data/repo-meta.json + observed.json). Otherwise
 # cheap and conservative: a committed config, or the bot having spoken anywhere in the
@@ -50,10 +62,11 @@ detect_coderabbit() {
   if [ -x "$KIT_META" ] && [ "$("$KIT_META" get "$REPO" coderabbit 2>/dev/null)" = "true" ]; then echo 1; return; fi
   gh api "repos/$REPO/contents/.coderabbit.yaml" >/dev/null 2>&1 && { found; return; }
   gh api "repos/$REPO/contents/.coderabbit.yml"  >/dev/null 2>&1 && { found; return; }
-  local n
+  local n raw
   for endpoint in "issues/comments" "pulls/comments"; do
-    n=$(gh api "repos/$REPO/$endpoint?per_page=100" \
-          --jq '[.[] | select(.user.login | test("coderabbit";"i"))] | length' 2>/dev/null)
+    raw=$(gh api "repos/$REPO/$endpoint?per_page=100" 2>/dev/null)
+    is_json_array <<<"$raw" || continue
+    n=$(jq '[.[] | select(.user.login | test("coderabbit";"i"))] | length' <<<"$raw" 2>/dev/null)
     case "$n" in ''|*[!0-9]*) n=0;; esac
     [ "$n" -gt 0 ] && { found; return; }
   done
@@ -93,15 +106,17 @@ while [ ${#PRS[@]} -gt 0 ]; do
     # line carries its path plus a short excerpt. The session that owns the Monitor
     # routes the path to a seat — comment bodies never enter the main context.
     payload_dir="$STATE_DIR/$KEY-pr$pr-comments"; mkdir -p "$payload_dir"
-    gh api "repos/$REPO/pulls/$pr/comments?per_page=100" \
-      --jq '.[] | select(.user.login | test("coderabbit")) | "\(.id)\t\(.path):\(.line // .original_line)\t\(.in_reply_to_id // "root")\t\(.body | gsub("[\\n\\r\\t]"; " ") | .[0:80])"' 2>/dev/null |
-    while IFS=$'\t' read -r id path reply body; do
-      grep -qx "$id" "$seen" 2>/dev/null && continue
-      echo "$id" >> "$seen"
-      kind="thread"; [ "$reply" != "root" ] && kind="reply-in-$reply"
-      gh api "repos/$REPO/pulls/comments/$id" > "$payload_dir/$id.json" 2>/dev/null
-      echo "PR#$pr NEW coderabbit $kind — id $id — $path — payload $payload_dir/$id.json — $body"
-    done
+    comments_raw=$(gh api "repos/$REPO/pulls/$pr/comments?per_page=100" 2>/dev/null)
+    if is_json_array <<<"$comments_raw"; then
+      jq -r '.[] | select(.user.login | test("coderabbit")) | "\(.id)\t\(.path):\(.line // .original_line)\t\(.in_reply_to_id // "root")\t\(.body | gsub("[\\n\\r\\t]"; " ") | .[0:80])"' <<<"$comments_raw" |
+      while IFS=$'\t' read -r id path reply body; do
+        grep -qx "$id" "$seen" 2>/dev/null && continue
+        echo "$id" >> "$seen"
+        kind="thread"; [ "$reply" != "root" ] && kind="reply-in-$reply"
+        gh api "repos/$REPO/pulls/comments/$id" > "$payload_dir/$id.json" 2>/dev/null
+        echo "PR#$pr NEW coderabbit $kind — id $id — $path — payload $payload_dir/$id.json — $body"
+      done
+    fi
 
     # --- rate-limit channel (issue comments) ---
     # CodeRabbit keeps ONE summary issue comment per PR and EDITS it, so the comment id is
@@ -112,10 +127,10 @@ while [ ${#PRS[@]} -gt 0 ]; do
     case "$retry_at" in ''|*[!0-9]*) retry_at=0;; esac
     case "$used" in ''|*[!0-9]*) used=0;; esac
 
-    if rl=$(gh api "repos/$REPO/issues/$pr/comments?per_page=100" \
-              --jq '[.[] | select(.user.login | test("coderabbit"))
+    rl_raw=$(gh api "repos/$REPO/issues/$pr/comments?per_page=100" 2>/dev/null)
+    if is_json_array <<<"$rl_raw" && rl=$(jq -r '[.[] | select(.user.login | test("coderabbit"))
                          | select(.body | test("rate limited by coderabbit\\.ai"))]
-                    | last | "\(.updated_at)\t\(.body | gsub("[\\n\\r\\t]"; " "))"' 2>/dev/null); then
+                    | last | "\(.updated_at)\t\(.body | gsub("[\\n\\r\\t]"; " "))"' <<<"$rl_raw" 2>/dev/null); then
       if [ "$rl" = "null" ] || [ -z "$rl" ]; then
         # Notice gone => a real review ran and replaced it. Existing thread poll covers the findings.
         if [ -f "$rl_state" ]; then
