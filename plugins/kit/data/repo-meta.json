@@ -1,0 +1,50 @@
+{
+  "Sumit1993/mage-memory": {
+    "coderabbit": true,
+    "docs": {
+      "site": "docs/src/content/docs",
+      "surfaces": [
+        "README.md",
+        "AGENTS.md",
+        "CLAUDE.md",
+        "CONVENTIONS.md",
+        "docs/src/content/docs/",
+        "src/cli-program.ts (help strings)",
+        "skills/*/SKILL.md",
+        "package.json (description)"
+      ],
+      "code_globs": ["src/**"]
+    }
+  },
+  "Sumit1993/sreforge": {
+    "coderabbit": true,
+    "docs": {
+      "site": "docs/src/content/docs",
+      "surfaces": [
+        "README.md",
+        "CONTRIBUTING.md",
+        "docs/src/content/docs/reference/cli.md",
+        "docs/src/content/docs/",
+        "tools/*/README.md",
+        "use-cases/** (Taskfile desc lines)",
+        "CLI usage strings"
+      ],
+      "code_globs": ["tools/**", "use-cases/**", "infra/**", "core/src/**"]
+    }
+  },
+  "prismalens/prismalens": {
+    "coderabbit": true,
+    "docs": {
+      "surfaces": [
+        "README.md",
+        "packages/cli/README.md",
+        "packages/@prismalens/config/README.md",
+        "packages/@prismalens/engine/README.md",
+        "packages/@prismalens/contracts/README.md",
+        "ROADMAP.md",
+        "CONTRIBUTING.md"
+      ],
+      "code_globs": ["packages/**"]
+    }
+  }
+}

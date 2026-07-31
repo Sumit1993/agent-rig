@@ -1,6 +1,14 @@
 {
   "permissions": {
     "allow": ["Bash(agy *)"],
+    "deny": [
+      "Bash(npm run dev*)",
+      "Bash(pnpm dev*)",
+      "Bash(pnpm run dev*)",
+      "Bash(bun dev*)",
+      "Bash(bun run dev*)",
+      "Bash(next dev*)"
+    ],
     "defaultMode": "auto"
   },
   "statusLine": {

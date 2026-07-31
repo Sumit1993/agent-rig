@@ -1,0 +1,11 @@
+name: lint-docs
+on:
+  pull_request:
+  push:
+    branches: [master]
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash plugins/kit/scripts/lint-skill-docs.sh

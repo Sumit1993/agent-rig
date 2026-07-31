@@ -1,5 +1,69 @@
 {
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/pre-push-cr-gate.sh\"",
+            "timeout": 15
+          }
+        ],
+        "description": "Gate `git push` on CodeRabbit-enabled repos behind a fresh CLI preview (scripts/cr-preview.sh)",
+        "id": "pre:bash:cr-gate"
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/release-docs-gate.sh\"",
+            "timeout": 20
+          }
+        ],
+        "description": "Block merging a release PR on docs-governed repos without a fresh docs audit",
+        "id": "pre:bash:release-docs-gate"
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/no-haiku.sh\"",
+            "timeout": 5
+          }
+        ],
+        "description": "Block Agent calls with model=haiku (routing doctrine)",
+        "id": "pre:agent:no-haiku"
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/reap-watchers.sh\" end",
+            "timeout": 10
+          }
+        ],
+        "description": "Kill watcher processes at session end so a resumed session never replays their events over a full context window",
+        "id": "end:reap-watchers"
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/reap-watchers.sh\" start",
+            "timeout": 10
+          }
+        ],
+        "description": "Reap orphaned watcher processes (PPID 1) left by sessions that died without the SessionEnd hook",
+        "id": "start:reap-orphan-watchers"
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Bash",
