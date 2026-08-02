@@ -23,6 +23,43 @@ MARK_DIR="$HOME/ai-context/state/kit/cr-preview"
 mkdir -p "$MARK_DIR"
 mark="$MARK_DIR/$(echo "$repo-$branch" | tr '/' '-')"
 
+# Guard: this reviews LOCAL HEAD, but the review-evidence gate keys on the PR
+# HEAD. Normally local is simply ahead — you commit, preview, then push — and
+# that is fine. What is not fine is the remote having moved underneath you
+# (`gh pr update-branch`, a squash, someone else's push): then the review is
+# spent on a diff the gate will never key on, and the spend is unrecoverable
+# because it counts against the hourly allowance either way.
+# cr-evidence.sh already refuses to post evidence for a mismatched SHA, but by
+# then the review is gone. Checking here costs nothing and is the difference
+# between a wasted review and a clear message.
+local_head=$(git rev-parse HEAD 2>/dev/null)
+pr_info=$(gh pr list --repo "$repo" --head "$branch" --state open --limit 1 \
+          --json number,headRefOid \
+          -q 'if length > 0 then "\(.[0].number) \(.[0].headRefOid)" else empty end' 2>/dev/null)
+if [ -n "${pr_info:-}" ] && [ "${CR_PREVIEW_ALLOW_DIVERGED:-0}" != "1" ]; then
+  pr_num=${pr_info%% *}; pr_head=${pr_info##* }
+  if [ "$pr_head" != "$local_head" ]; then
+    # Make sure we actually have the PR head object before judging ancestry;
+    # without it `merge-base` errors and we would refuse a perfectly good review.
+    git cat-file -e "${pr_head}^{commit}" 2>/dev/null || git fetch -q origin "$branch" 2>/dev/null
+    if git cat-file -e "${pr_head}^{commit}" 2>/dev/null &&
+       git merge-base --is-ancestor "$pr_head" "$local_head" 2>/dev/null; then
+      : # local is ahead of the PR head — the normal pre-push case
+    else
+      cat >&2 <<EOM
+cr-preview: refusing to spend a review — local HEAD is not ahead of the PR head.
+  local HEAD    ${local_head:0:8}
+  PR #$pr_num head  ${pr_head:0:8}
+The remote branch moved (gh pr update-branch, a squash, or another push), so this
+review would be spent on a diff the gate will not key on. Sync first:
+  git fetch origin $branch && git reset --hard origin/$branch
+Override with CR_PREVIEW_ALLOW_DIVERGED=1 if reviewing local-only work is intended.
+EOM
+      exit 1
+    fi
+  fi
+fi
+
 coderabbit review --agent --committed --base "$base"
 rc=$?
 if [ "$rc" -eq 0 ]; then
