@@ -60,8 +60,37 @@ EOM
   fi
 fi
 
-coderabbit review --agent --committed --base "$base"
-rc=$?
+# Persist the findings.
+#
+# Under the CLI-first lane this review IS the review — cr-evidence.sh posts a
+# marker attesting it happened, and the merge gate keys on that. But the findings
+# themselves went to stdout and nowhere else, so unless the caller happened to
+# capture them they were gone, and recovering them cost another review from a
+# 3/hour allowance. Evidence that a review occurred, with no way to read what it
+# said, is a weak audit trail.
+#
+# Keyed by SHA so logs line up with the evidence markers, which are also per-SHA.
+LOG_DIR="$HOME/ai-context/state/kit/cr-preview/logs"
+mkdir -p "$LOG_DIR"
+log="$LOG_DIR/$(echo "$repo-$branch" | tr '/' '-').$(git rev-parse --short HEAD 2>/dev/null).jsonl"
+
+coderabbit review --agent --committed --base "$base" | tee "$log"
+rc=${PIPESTATUS[0]}
+
+# Prune to the 50 most recent so this cannot grow without bound.
+ls -1t "$LOG_DIR" 2>/dev/null | tail -n +51 | while read -r old; do rm -f "$LOG_DIR/$old"; done
+
+if [ "$rc" -eq 0 ]; then
+  printf 'cr-preview: findings saved to %s\n' "$log"
+  # Surface the severity mix immediately — a review whose output scrolls past is
+  # the same failure as one that was never read.
+  if command -v jq >/dev/null 2>&1; then
+    counts=$(jq -r 'select(.type=="finding")|.severity' "$log" 2>/dev/null | sort | uniq -c | tr '\n' ' ')
+    [ -n "$counts" ] && printf 'cr-preview: findings by severity: %s\n' "$counts" \
+                     || printf 'cr-preview: no findings\n'
+  fi
+fi
+
 if [ "$rc" -eq 0 ]; then
   # The marker file must stay a bare epoch: pre-push-cr-gate.sh does
   # `case "$ts" in *[!0-9]*) ts=0` and BLOCKS on anything non-numeric.
