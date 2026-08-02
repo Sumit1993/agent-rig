@@ -26,8 +26,16 @@ mark="$MARK_DIR/$(echo "$repo-$branch" | tr '/' '-')"
 coderabbit review --agent --committed --base "$base"
 rc=$?
 if [ "$rc" -eq 0 ]; then
+  # The marker file must stay a bare epoch: pre-push-cr-gate.sh does
+  # `case "$ts" in *[!0-9]*) ts=0` and BLOCKS on anything non-numeric.
+  # The reviewed SHA therefore goes in a sibling file, never appended here.
   date +%s > "$mark"
+  git rev-parse HEAD > "$mark.sha" 2>/dev/null
   echo "cr-preview: review complete — push gate open for $repo@$branch (30 min)"
+  # Durable evidence for the `review-evidence` merge gate. Best-effort: pre-push
+  # there is usually no PR yet, so this no-ops and pr-watch Phase 1 posts it after
+  # `gh pr create`. Never fail the preview over it. See prismalens/prismalens#301.
+  "$(dirname "$0")/cr-evidence.sh" --quiet || true
 else
   echo "cr-preview: coderabbit review exited $rc — gate NOT opened" >&2
 fi
