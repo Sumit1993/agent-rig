@@ -95,6 +95,8 @@ Merge widest-diff PR first so smaller ones absorb the update-branch merges. Afte
 
 ## Notes
 
+- **Evidence fires auto-merge — order your round accordingly.** `cr-preview.sh` posts the SHA-keyed evidence marker the moment a review completes, and an armed auto-merge can fire seconds later (mage-memory#133 merged 14s after evidence, orphaning the fix commit for that review's own findings). If you intend to fix what the preview finds: apply fixes, commit, THEN preview — or disarm auto-merge before previewing. Never preview-then-fix on a PR whose gate is the only blocker.
+
 - Watching is cheap (shell poll, 75s; zero tokens while quiet) — prefer over-watching to user-relaying.
 - **Rate limits are invisible on both obvious channels**: CodeRabbit posts the notice as an **issue** comment, not a review comment — so polling only `/pulls/N/comments` sees nothing — and the accompanying `Review rate limited` check **passes** by design so it never blocks merge on protected branches, so a red-check filter misses it too. A watcher that keys on either alone waits forever in silence. `watch-coderabbit.sh` polls `/issues/N/comments` for the `rate limited by coderabbit.ai` marker. It dedupes on `updated_at`, not comment id: CodeRabbit keeps ONE summary comment per PR and edits it in place, so the id never changes.
 - State dir `~/ai-context/state/cr-watch/` is durable across sessions; safe to re-arm anytime.
