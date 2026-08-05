@@ -37,6 +37,9 @@ while [ $# -gt 0 ]; do
   esac
 done
 say () { [ "$QUIET" = "1" ] || echo "cr-evidence: $*"; }
+# Refusals ignore --quiet: a refusal must never be silenced because silence
+# reads as success, leaving the operator with a red gate for no stated reason.
+refuse () { echo "cr-evidence: $*" >&2; }
 
 has_completion_record () {
   local repo="$1"
@@ -106,10 +109,10 @@ fi
 has_completion_record "$repo" "$branch" "$SHA"
 rc=$?
 if [ "$rc" -eq 2 ]; then
-  say "jq is required to verify review completion — evidence will not be posted" >&2
+  refuse "jq is required to verify review completion — evidence will not be posted"
   exit 1
 elif [ "$rc" -ne 0 ]; then
-  say "no completed CLI review found for $SHA — evidence will not be posted" >&2
+  refuse "no completed CLI review found for $SHA — evidence will not be posted"
   exit 1
 fi
 
