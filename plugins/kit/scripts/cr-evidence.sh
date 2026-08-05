@@ -15,6 +15,11 @@
 # and the marker no longer matches head, so the gate goes red until the branch is
 # re-previewed. That is intended.
 #
+# Evidence is only ever posted when a completion record for that exact SHA exists in
+# the CLI preview logs (`{"type":"complete"}`). The CLI exit code cannot serve as
+# that signal because a non-zero exit does not distinguish a review that found
+# problems from one that never ran to completion.
+#
 # Safe to call when no PR exists yet (cr-preview runs pre-push): it records
 # nothing and exits 0. Call it again after `gh pr create`.
 #
@@ -32,6 +37,45 @@ while [ $# -gt 0 ]; do
   esac
 done
 say () { [ "$QUIET" = "1" ] || echo "cr-evidence: $*"; }
+# Refusals ignore --quiet: a refusal must never be silenced because silence
+# reads as success, leaving the operator with a red gate for no stated reason.
+refuse () { echo "cr-evidence: $*" >&2; }
+
+has_completion_record () {
+  local repo="$1"
+  local branch="$2"
+  local sha="$3"
+
+  if ! command -v jq >/dev/null 2>&1; then
+    return 2
+  fi
+
+  local log_dir="$HOME/ai-context/state/kit/cr-preview/logs"
+  local slug
+  slug=$(echo "$repo-$branch" | tr '/' '-')
+
+  local old_nullglob
+  old_nullglob=$(shopt -p nullglob)
+  shopt -s nullglob
+  local logfiles=("$log_dir/$slug."*.jsonl)
+  eval "$old_nullglob"
+
+  local f fname fname_no_prefix short_sha
+  for f in "${logfiles[@]}"; do
+    [ -f "$f" ] || continue
+    fname=$(basename "$f")
+    fname_no_prefix="${fname#"$slug."}"
+    short_sha="${fname_no_prefix%.jsonl}"
+
+    if [ -n "$short_sha" ] && [[ "$sha" == "$short_sha"* ]]; then
+      if jq -e 'select(.type == "complete")' "$f" >/dev/null 2>&1; then
+        return 0
+      fi
+    fi
+  done
+
+  return 1
+}
 
 KIT_META="$(dirname "$0")/kit-meta.sh"
 repo=$("$KIT_META" current 2>/dev/null | jq -r '.repo // empty')
@@ -40,11 +84,10 @@ repo=$("$KIT_META" current 2>/dev/null | jq -r '.repo // empty')
 branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null) || exit 0
 
 # The SHA a CLI review vouches for. Prefer an explicit --sha, then the one
-# cr-preview.sh recorded, then current HEAD.
+# cr-preview.sh recorded.
 MARK_DIR="$HOME/ai-context/state/kit/cr-preview"
 shafile="$MARK_DIR/$(echo "$repo-$branch" | tr '/' '-').sha"
 [ -n "$SHA" ] || SHA=$(cat "$shafile" 2>/dev/null)
-[ -n "$SHA" ] || SHA=$(git rev-parse HEAD 2>/dev/null)
 case "$SHA" in ''|*[!0-9a-f]*) say "no usable sha — nothing to do"; exit 0 ;; esac
 
 # A PR may not exist yet; cr-preview runs pre-push. Not an error.
@@ -61,6 +104,16 @@ head=${pr##* }
 if [ "$head" != "$SHA" ]; then
   say "reviewed $SHA but PR #$num head is $head — not posting stale evidence"
   exit 0
+fi
+
+has_completion_record "$repo" "$branch" "$SHA"
+rc=$?
+if [ "$rc" -eq 2 ]; then
+  refuse "jq is required to verify review completion — evidence will not be posted"
+  exit 1
+elif [ "$rc" -ne 0 ]; then
+  refuse "no completed CLI review found for $SHA — evidence will not be posted"
+  exit 1
 fi
 
 marker="<!-- cr-cli-review: $SHA -->"
