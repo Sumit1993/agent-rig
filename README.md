@@ -16,12 +16,18 @@ exists so a fresh machine behaves identically in two minutes.
 | `skills/code-review` | CodeRabbit CLI review skill (vendored; no upstream update channel) |
 | `hooks/pr-created.sh` | PostToolUse(Bash): a successful `gh pr create` injects "arm pr-watch now" |
 
-`CLAUDE.md` stays deliberately thin — it is loaded on **every turn in every project**, so it
-carries only routing decisions (which model, which seat) and preferences. Anything procedural
-lives in a skill that loads on demand. When a section grows past a few lines, that's the signal
-to move it into a skill and leave a pointer.
+`dotfiles/AGENTS.md` stays deliberately thin — it is loaded on **every turn in every project**,
+so it carries only routing decisions (which model, which seat) and preferences. Anything
+procedural lives in a skill that loads on demand. When a section grows past a few lines, that's
+the signal to move it into a skill and leave a pointer.
 
-**Dotfiles** (what plugins can't carry): `CLAUDE.md` (routing/model tables, prefs),
+It is named `AGENTS.md` for the cross-tool convention, but Claude Code does not read that name
+on its own. `install.sh` writes `~/.claude/CLAUDE.md` as a one-line `@` import pointing at this
+checkout, so the body stays version-controlled here and there is no second copy to drift.
+Append machine-local rules below the import line; they stay out of the repo. A plugin cannot
+carry this itself — a `CLAUDE.md` at a plugin root is not loaded as context.
+
+**Dotfiles** (what plugins can't carry): `AGENTS.md` (routing/model tables, prefs),
 `statusline-command.sh`, `settings.fragment.json` (registers this repo as a marketplace
 + enables the plugin), `install.sh`, `dedupe.sh`.
 
