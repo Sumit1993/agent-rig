@@ -103,10 +103,13 @@ esac
 # --- Repos without the gate get no evidence noise ---------------------------
 export GH_STUB_CREATED=$(aged 10)
 stubs false 0
-c=$(run | ctx)
+out=$(run)
+valid_json "$out" && pass "non-enabled repo emits valid JSON" || fail "invalid JSON: $out"
+c=$(printf '%s' "$out" | ctx)
 case "$c" in
   *evidence*) fail "evidence noise on a repo the registry does not enable: $c" ;;
-  *) pass "non-enabled repo -> reminder only" ;;
+  *"arm the pr-watch monitor"*) pass "non-enabled repo -> reminder only" ;;
+  *) fail "non-enabled repo lost the watch reminder: $c" ;;
 esac
 
 # --- Undeterminable freshness fails toward doing the job -------------------
