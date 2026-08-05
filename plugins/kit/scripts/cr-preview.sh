@@ -99,8 +99,9 @@ if [ "$rc" -eq 0 ]; then
   git rev-parse HEAD > "$mark.sha" 2>/dev/null
   echo "cr-preview: review complete — push gate open for $repo@$branch (30 min)"
   # Durable evidence for the `review-evidence` merge gate. Best-effort: pre-push
-  # there is usually no PR yet, so this no-ops and pr-watch Phase 1 posts it after
-  # `gh pr create`. Never fail the preview over it. See prismalens/prismalens#301.
+  # there is usually no PR yet, so this no-ops and the `pr-created` PostToolUse
+  # hook posts it once `gh pr create` has produced one. Never fail the preview
+  # over it. See prismalens/prismalens#301.
   "$(dirname "$0")/cr-evidence.sh" --quiet || true
 else
   echo "cr-preview: coderabbit review exited $rc — gate NOT opened" >&2
