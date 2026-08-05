@@ -43,10 +43,17 @@ SHA=""
 REPO_ARG=""
 PR_ARG=""
 while [ $# -gt 0 ]; do
+  # `shift 2` with a single argument left fails and shifts nothing, so the loop
+  # re-reads the same flag forever: `cr-evidence.sh --sha` used to hang. A value
+  # flag must have its value checked before the shift, not after.
   case "$1" in
-    --sha)   SHA="${2:-}"; shift 2 ;;
-    --repo)  REPO_ARG="${2:-}"; shift 2 ;;
-    --pr)    PR_ARG="${2:-}"; shift 2 ;;
+    --sha|--repo|--pr)
+      [ $# -ge 2 ] || { echo "cr-evidence: $1 requires a value" >&2; exit 2; } ;;
+  esac
+  case "$1" in
+    --sha)   SHA="$2"; shift 2 ;;
+    --repo)  REPO_ARG="$2"; shift 2 ;;
+    --pr)    PR_ARG="$2"; shift 2 ;;
     --quiet) QUIET=1; shift ;;
     *) echo "cr-evidence: unknown arg '$1'" >&2; exit 2 ;;
   esac

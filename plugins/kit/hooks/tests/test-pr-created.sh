@@ -37,7 +37,12 @@ stubs() { # $1 = registry coderabbit value, $2 = cr-evidence exit code
   printf '#!/bin/bash\necho "cr-evidence: called with $*"; exit %s\n' "$2" > "$T/scripts/cr-evidence.sh"
   chmod +x "$T/scripts"/*.sh
 }
-aged() { date -u -d "$1" +%Y-%m-%dT%H:%M:%SZ; }
+# Same GNU-then-BSD fallback the hook uses, so the test runs wherever it does.
+aged() { # $1 = seconds in the past
+  local t=$(( $(date -u +%s) - $1 ))
+  date -u -d "@$t" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
+    || date -u -r "$t" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null
+}
 
 # Assembled so this test file does not itself contain the literal trigger string.
 CREATE_CMD="gh pr cre""ate --fill"
@@ -59,7 +64,7 @@ out=$(run "$CREATE_CMD" "error: could not create pull request")
 [ -z "$out" ] && pass "no PR URL in response -> no output" || fail "URL-less response emitted: $out"
 
 # --- Fresh PR on an enabled repo: evidence attempted, outcome reported ------
-export GH_STUB_CREATED=$(aged '10 seconds ago')
+export GH_STUB_CREATED=$(aged 10)
 stubs true 0
 out=$(run)
 valid_json "$out" && pass "evidence-posted case emits valid JSON" || fail "invalid JSON: $out"
@@ -85,7 +90,7 @@ case "$c" in
 esac
 
 # --- Textual false positive: reminder yes, evidence no ----------------------
-export GH_STUB_CREATED=$(aged '2 hours ago')
+export GH_STUB_CREATED=$(aged 7200)
 stubs true 0
 out=$(run)
 c=$(printf '%s' "$out" | ctx)
@@ -96,7 +101,7 @@ case "$c" in
 esac
 
 # --- Repos without the gate get no evidence noise ---------------------------
-export GH_STUB_CREATED=$(aged '10 seconds ago')
+export GH_STUB_CREATED=$(aged 10)
 stubs false 0
 c=$(run | ctx)
 case "$c" in

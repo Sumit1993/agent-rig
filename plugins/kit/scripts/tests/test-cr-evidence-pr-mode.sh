@@ -29,6 +29,10 @@ trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$TMP/bin"
 cat > "$TMP/bin/gh" <<'STUB'
 #!/bin/bash
+# Every invocation is recorded argv-first, so the test can assert what the script
+# actually addressed — a stub that answers without recording would pass even if
+# the script dropped --repo and hit the wrong repository's PR 12.
+printf '%s\n' "$*" >> "$GH_STUB_CALLS"
 case "$1 $2" in
   "pr view")  cat "$GH_STUB_PRVIEW" ;;
   "pr comment")
@@ -41,7 +45,7 @@ esac
 STUB
 chmod +x "$TMP/bin/gh"
 export PATH="$TMP/bin:$PATH"
-export GH_STUB_PRVIEW="$TMP/prview" GH_STUB_POSTED="$TMP/posted"
+export GH_STUB_PRVIEW="$TMP/prview" GH_STUB_POSTED="$TMP/posted" GH_STUB_CALLS="$TMP/calls"
 
 # --- Stub the preview-log tree the completion check reads --------------------
 # cr-evidence.sh derives it from $HOME, so relocating HOME relocates the logs.
@@ -62,10 +66,21 @@ complete_log () { printf '%s\n' \
 partial_log () { printf '%s\n' \
   '{"type":"status","msg":"start"}' \
   '{"type":"heartbeat"}' > "$LOGS/$SLUG.$SHORT.jsonl"; }
-reset () { rm -f "$LOGS"/*.jsonl "$GH_STUB_POSTED"; unset GH_STUB_COMMENTS; write_pr OPEN; }
+reset () { rm -f "$LOGS"/*.jsonl "$GH_STUB_POSTED" "$GH_STUB_CALLS"; unset GH_STUB_COMMENTS; write_pr OPEN; }
 
 run () { "$SCRIPT" "$@" >"$TMP/out" 2>"$TMP/err"; echo $?; }
 posted () { [ -s "$GH_STUB_POSTED" ]; }
+
+# --- A value flag with no value must not hang -------------------------------
+# `shift 2` with one argument left fails and shifts nothing, so the parse loop
+# re-reads the same flag forever. `cr-evidence.sh --sha` used to hang.
+reset
+for flag in --sha --repo --pr; do
+  timeout 5 "$SCRIPT" "$flag" >/dev/null 2>"$TMP/err"; rc=$?
+  { [ "$rc" = "2" ] && grep -q 'requires a value' "$TMP/err"; } \
+    && pass "$flag with no value -> usage error, no hang" \
+    || fail "$flag with no value: rc=$rc (124 = still hanging) err=$(cat "$TMP/err")"
+done
 
 # --- Argument validation: the flags are a pair ------------------------------
 reset
@@ -100,6 +115,18 @@ reset; complete_log
 grep -q "cr-cli-review: $HEAD_SHA" "$GH_STUB_POSTED" \
   && pass "marker vouches for the PR head sha, not a local HEAD" \
   || fail "marker sha wrong: $(cat "$GH_STUB_POSTED")"
+
+# Every call must name the repo explicitly. Without --repo, `gh` falls back to
+# whatever repo the working directory belongs to — the cwd dependency this mode
+# exists to remove — and would address some other project's PR 12.
+for expect in "pr view 12 --repo $REPO" "pr comment 12 --repo $REPO"; do
+  grep -qF -- "$expect" "$GH_STUB_CALLS" \
+    && pass "gh call targets the PR explicitly: ${expect% --repo*} --repo $REPO" \
+    || fail "no gh call matching '$expect'; calls were: $(tr '\n' '|' < "$GH_STUB_CALLS")"
+done
+grep -q '^api repos/'"$REPO"'/issues/12/comments' "$GH_STUB_CALLS" \
+  && pass "idempotency lookup reads the right repo and PR" \
+  || fail "idempotency lookup wrong: $(tr '\n' '|' < "$GH_STUB_CALLS")"
 
 reset; partial_log
 rc=$(run --repo "$REPO" --pr 12)

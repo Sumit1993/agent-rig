@@ -55,11 +55,22 @@ PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && p
 # This gates the evidence step ONLY. The reminder still fires on a stale match —
 # `gh pr create` against a branch that already has a PR prints that PR's URL as
 # an error, and arming a watcher for it is right.
+# GNU first, BSD second: `date -d` does not exist on macOS and `date -j` does not
+# exist on GNU. Prints nothing if neither parses the timestamp.
+iso_to_epoch () {
+  date -u -d "$1" +%s 2>/dev/null \
+    || date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$1" +%s 2>/dev/null
+}
+
+# Undeterminable freshness counts as fresh, deliberately. Skipping evidence would
+# leave a required check red with nothing saying why — the failure this track
+# exists to remove — whereas attempting it is safe: cr-evidence.sh still demands
+# a completion record, so the worst case is a refusal that states its reason.
 is_fresh () {
   local created created_epoch age
   created=$(gh pr view "$pr" --repo "$repo" --json createdAt -q .createdAt 2>/dev/null) || return 0
   [ -n "$created" ] || return 0
-  created_epoch=$(date -d "$created" +%s 2>/dev/null) || return 0
+  created_epoch=$(iso_to_epoch "$created")
   case "$created_epoch" in ''|*[!0-9]*) return 0 ;; esac
   age=$(( $(date +%s) - created_epoch ))
   [ "$age" -le "${KIT_PR_CREATED_WINDOW:-300}" ]
