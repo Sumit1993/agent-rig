@@ -41,8 +41,23 @@ if [ -f "$CLAUDE/CLAUDE.md" ] && grep -qxF "$stub" "$CLAUDE/CLAUDE.md"; then
   echo "  import already present — local additions left untouched"
 else
   if [ -f "$CLAUDE/CLAUDE.md" ]; then
-    cp "$CLAUDE/CLAUDE.md" "$CLAUDE/CLAUDE.md.bak-$(date +%s)"
-    echo "  existing CLAUDE.md backed up (its content now lives in dotfiles/AGENTS.md)"
+    # Replacing a body with a stub discards whatever the body held. When that body is
+    # byte-identical to AGENTS.md it is pure migration and nothing is lost. When it is
+    # NOT, the difference is machine-local content this script cannot carry over — and
+    # dropping it silently would be the same failure the stub exists to end. So say so,
+    # loudly, and hand over the exact command to see what differed.
+    bak="$CLAUDE/CLAUDE.md.bak-$(date +%s)"
+    cp "$CLAUDE/CLAUDE.md" "$bak"
+    if cmp -s "$CLAUDE/CLAUDE.md" "$src_root/dotfiles/AGENTS.md"; then
+      echo "  existing CLAUDE.md matched AGENTS.md exactly — migrated to the import"
+      echo "  backup: $bak"
+    else
+      echo "  WARNING: existing CLAUDE.md DIFFERS from dotfiles/AGENTS.md." >&2
+      echo "  Anything in it that is not in the repo is machine-local and is NOT carried over." >&2
+      echo "  backup:  $bak" >&2
+      echo "  compare: diff \"$bak\" \"$src_root/dotfiles/AGENTS.md\"" >&2
+      echo "  Re-add anything you still want BELOW the import line." >&2
+    fi
   fi
   printf '%s\n\nEdit the imported file in the claude-kit repo, not here. Anything below this line is machine-local.\n' \
     "$stub" > "$CLAUDE/CLAUDE.md"
