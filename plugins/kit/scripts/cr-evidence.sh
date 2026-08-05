@@ -21,17 +21,39 @@
 # problems from one that never ran to completion.
 #
 # Safe to call when no PR exists yet (cr-preview runs pre-push): it records
-# nothing and exits 0. Call it again after `gh pr create`.
+# nothing and exits 0. The `pr-created` PostToolUse hook calls it again with
+# `--repo`/`--pr` once `gh pr create` has produced a PR.
 #
-# Usage:  cr-evidence.sh [--sha <sha>] [--quiet]
+# TWO MODES
+# ---------
+#   cr-evidence.sh [--sha <sha>] [--quiet]
+#       Working-directory mode. Repo from the kit registry, branch from git HEAD,
+#       SHA from what cr-preview.sh recorded. This is the pre-push caller.
+#
+#   cr-evidence.sh --repo <owner/name> --pr <n> [--sha <sha>] [--quiet]
+#       Explicit-PR mode. Branch and head SHA come from the PR itself, so the
+#       caller needs nothing but the PR URL — the session's working directory is
+#       not reliably the repo that was just pushed.
+#
 # Tracked in prismalens/prismalens#301.
 set -u
 
 QUIET=0
 SHA=""
+REPO_ARG=""
+PR_ARG=""
 while [ $# -gt 0 ]; do
+  # `shift 2` with a single argument left fails and shifts nothing, so the loop
+  # re-reads the same flag forever: `cr-evidence.sh --sha` used to hang. A value
+  # flag must have its value checked before the shift, not after.
   case "$1" in
-    --sha)   SHA="${2:-}"; shift 2 ;;
+    --sha|--repo|--pr)
+      [ $# -ge 2 ] || { echo "cr-evidence: $1 requires a value" >&2; exit 2; } ;;
+  esac
+  case "$1" in
+    --sha)   SHA="$2"; shift 2 ;;
+    --repo)  REPO_ARG="$2"; shift 2 ;;
+    --pr)    PR_ARG="$2"; shift 2 ;;
     --quiet) QUIET=1; shift ;;
     *) echo "cr-evidence: unknown arg '$1'" >&2; exit 2 ;;
   esac
@@ -40,6 +62,20 @@ say () { [ "$QUIET" = "1" ] || echo "cr-evidence: $*"; }
 # Refusals ignore --quiet: a refusal must never be silenced because silence
 # reads as success, leaving the operator with a red gate for no stated reason.
 refuse () { echo "cr-evidence: $*" >&2; }
+
+# The two flags are a pair. Resolving the repo from the working directory while
+# the PR number came from somewhere else is how evidence lands on the wrong PR.
+if [ -n "$PR_ARG" ] || [ -n "$REPO_ARG" ]; then
+  case "$PR_ARG" in
+    '')       refuse "--repo requires --pr"; exit 2 ;;
+    *[!0-9]*) refuse "--pr must be a number, got '$PR_ARG'"; exit 2 ;;
+  esac
+  case "$REPO_ARG" in
+    /*|*/*/*|*[!A-Za-z0-9._/-]*) refuse "--repo must be <owner/name>, got '$REPO_ARG'"; exit 2 ;;
+    */?*) ;;
+    *) refuse "--pr requires --repo <owner/name>, got '$REPO_ARG'"; exit 2 ;;
+  esac
+fi
 
 has_completion_record () {
   local repo="$1"
@@ -77,29 +113,50 @@ has_completion_record () {
   return 1
 }
 
-KIT_META="$(dirname "$0")/kit-meta.sh"
-repo=$("$KIT_META" current 2>/dev/null | jq -r '.repo // empty')
-[ -n "$repo" ] || { say "not in a github repo — nothing to do"; exit 0; }
+if [ -n "$PR_ARG" ]; then
+  # Explicit-PR mode. Everything the completion check needs is derived from the
+  # PR, not from the shell that happens to be calling: `headRefName` gives the
+  # branch the preview logs are keyed by, `headRefOid` gives the commit the
+  # evidence would vouch for.
+  repo="$REPO_ARG"
+  prinfo=$(gh pr view "$PR_ARG" --repo "$repo" \
+           --json number,state,headRefName,headRefOid \
+           -q '"\(.number) \(.state) \(.headRefName) \(.headRefOid)"' 2>/dev/null) || prinfo=""
+  [ -n "$prinfo" ] || { refuse "cannot read $repo#$PR_ARG — evidence not posted"; exit 1; }
+  # shellcheck disable=SC2086 # fields are API-supplied and whitespace-free
+  set -- $prinfo
+  num="$1"; state="$2"; branch="$3"; head="$4"
+  [ "$state" = "OPEN" ] || { say "$repo#$num is $state — nothing to do"; exit 0; }
+  if [ -n "$SHA" ]; then
+    case "$SHA" in *[!0-9a-f]*) refuse "--sha '$SHA' is not a hex sha"; exit 2 ;; esac
+  else
+    SHA="$head"
+  fi
+else
+  KIT_META="$(dirname "$0")/kit-meta.sh"
+  repo=$("$KIT_META" current 2>/dev/null | jq -r '.repo // empty')
+  [ -n "$repo" ] || { say "not in a github repo — nothing to do"; exit 0; }
 
-branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null) || exit 0
+  branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null) || exit 0
 
-# The SHA a CLI review vouches for. Prefer an explicit --sha, then the one
-# cr-preview.sh recorded.
-MARK_DIR="$HOME/ai-context/state/kit/cr-preview"
-shafile="$MARK_DIR/$(echo "$repo-$branch" | tr '/' '-').sha"
-[ -n "$SHA" ] || SHA=$(cat "$shafile" 2>/dev/null)
-case "$SHA" in ''|*[!0-9a-f]*) say "no usable sha — nothing to do"; exit 0 ;; esac
+  # The SHA a CLI review vouches for. Prefer an explicit --sha, then the one
+  # cr-preview.sh recorded.
+  MARK_DIR="$HOME/ai-context/state/kit/cr-preview"
+  shafile="$MARK_DIR/$(echo "$repo-$branch" | tr '/' '-').sha"
+  [ -n "$SHA" ] || SHA=$(cat "$shafile" 2>/dev/null)
+  case "$SHA" in ''|*[!0-9a-f]*) say "no usable sha — nothing to do"; exit 0 ;; esac
 
-# A PR may not exist yet; cr-preview runs pre-push. Not an error.
-# `--head` selects by branch and is a `gh pr list` flag — `gh pr view` does not
-# take it and silently resolves something else, so list is the correct call here.
-# `.[0]` on an empty array yields "null null", not empty — guard on length.
-pr=$(gh pr list --repo "$repo" --head "$branch" --state open --limit 1 \
-     --json number,headRefOid \
-     -q 'if length > 0 then "\(.[0].number) \(.[0].headRefOid)" else empty end' 2>/dev/null) || pr=""
-[ -n "$pr" ] || { say "no open PR for $branch yet — re-run after 'gh pr create'"; exit 0; }
-num=${pr%% *}
-head=${pr##* }
+  # A PR may not exist yet; cr-preview runs pre-push. Not an error.
+  # `--head` selects by branch and is a `gh pr list` flag — `gh pr view` does not
+  # take it and silently resolves something else, so list is the correct call here.
+  # `.[0]` on an empty array yields "null null", not empty — guard on length.
+  pr=$(gh pr list --repo "$repo" --head "$branch" --state open --limit 1 \
+       --json number,headRefOid \
+       -q 'if length > 0 then "\(.[0].number) \(.[0].headRefOid)" else empty end' 2>/dev/null) || pr=""
+  [ -n "$pr" ] || { say "no open PR for $branch yet — re-run after 'gh pr create'"; exit 0; }
+  num=${pr%% *}
+  head=${pr##* }
+fi
 
 if [ "$head" != "$SHA" ]; then
   say "reviewed $SHA but PR #$num head is $head — not posting stale evidence"
