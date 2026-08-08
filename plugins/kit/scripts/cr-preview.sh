@@ -1,10 +1,16 @@
 #!/bin/bash
 # cr-preview.sh — CodeRabbit CLI review of the current branch, pre-push.
 # Spends the CLI counter (larger than the PR counter on young OSS repos) so the
-# scarce PR-side review isn't wasted on line-level nits. On completion records a
-# marker that opens the pre-push gate (hooks/pre-push-cr-gate.sh) for this
-# repo+branch. Marker TTL 30 min: preview -> fix -> push inside one window
-# without spending a second CLI review.
+# scarce PR-side review isn't wasted on line-level nits. On success it records the
+# reviewed SHA and calls cr-evidence.sh, which posts the marker comment the
+# `review-evidence` merge gate reads.
+#
+# Nothing here blocks a push. This is a tool you reach for, not a checkpoint —
+# the required check on the PR is what holds the merge.
+#
+# The counter is ORG-WIDE, shared across every session and subagent, and a
+# successful review costs roughly a 40-minute cooldown. Run one at a time.
+#
 # Flags per CodeRabbit CLI 0.7.0: --agent emits structured findings
 # (--prompt-only no longer exists).
 set -u
@@ -92,12 +98,11 @@ if [ "$rc" -eq 0 ]; then
 fi
 
 if [ "$rc" -eq 0 ]; then
-  # The marker file must stay a bare epoch: pre-push-cr-gate.sh does
-  # `case "$ts" in *[!0-9]*) ts=0` and BLOCKS on anything non-numeric.
-  # The reviewed SHA therefore goes in a sibling file, never appended here.
-  date +%s > "$mark"
+  # The SHA this review actually covers. cr-evidence.sh reads it to decide whether
+  # the marker it is about to post still describes the PR head, and refuses when
+  # they disagree rather than vouching for a commit nobody reviewed.
   git rev-parse HEAD > "$mark.sha" 2>/dev/null
-  echo "cr-preview: review complete — push gate open for $repo@$branch (30 min)"
+  echo "cr-preview: review complete for $repo@$branch"
   # Durable evidence for the `review-evidence` merge gate. Best-effort: pre-push
   # there is usually no PR yet, so this no-ops and the `pr-created` PostToolUse
   # hook posts it once `gh pr create` has produced one. Never fail the preview

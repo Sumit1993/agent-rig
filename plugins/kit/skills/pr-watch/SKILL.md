@@ -21,7 +21,7 @@ Escalate by risk; never pay model tokens for review a cheaper layer already cove
 
 | Tier | When | What |
 |---|---|---|
-| CodeRabbit **CLI**, pre-push | Every non-trivial change, before `gh pr create` | Line-level review that spends the *abundant* counter — run `<plugin>/scripts/cr-preview.sh`; it records the marker that opens the pre-push gate (see quota table below) |
+| CodeRabbit **CLI**, pre-push | Every non-trivial change, before `gh pr create` | Line-level review that spends the *abundant* counter — run `<plugin>/scripts/cr-preview.sh`; on success it posts the SHA-keyed evidence marker the merge gate reads (see quota table below) |
 | CodeRabbit **PR** review | Every PR, automatically | Same engine on the pushed diff. Scarce on OSS — don't burn it on findings the CLI would have caught |
 | One Opus 5 pass | Non-trivial PRs | The layer CodeRabbit *can't* do: spec/ADR conformance, since design truth often lives in an external hub it can't see |
 | Multi-agent extreme (`/code-review ultra`) | Rare | Engine-core, security/sandbox boundary, contract/schema changes only |
@@ -38,10 +38,14 @@ Per-developer, per-hour, rolling (docs.coderabbit.ai/management/plans#rate-limit
 
 † varies with the project's community and popularity — **a young repo sits near the bottom**, so assume ~1–2 PR reviews/hour.
 
-The load-bearing consequence: **on a young OSS repo the CLI counter (3/hr) is larger than the PR counter (~1–2/hr).** So the CLI preview pre-push is not just "nice to catch things early" — it spends the resource you have more of, and protects the one you have least of. The kit plugin's pre-push hook enforces this on registry-enabled repos: `git push` on a non-default branch is blocked until `cr-preview.sh` has run for that branch within 30 minutes. Docs-only branches (nothing but `.md`/`.txt` changed) are exempt — markdown doesn't earn a CLI spend. `CR_GATE=skip` in the command overrides (user-approved only).
+The load-bearing consequence: **on a young OSS repo the CLI counter (3/hr) is larger than the PR counter (~1–2/hr).** So a CLI review before you push spends the resource you have more of and protects the one you have least of. It is a tool you reach for, not a checkpoint — nothing blocks `git push`; the `review-evidence` required check holds the merge.
+
+**Both counters are org-wide**, shared across every session and subagent, not per-branch or per-session. Measured on prismalens: contention between parallel agents drove the reported `waitTime` from 2 minutes to 31 to 50, and it collapsed back to 2 the moment the other agents stopped. A *successful* CLI review costs a genuine ~40-minute cooldown on top. **Run at most one review at a time across the whole org** — fanning them out over parallel agents does not parallelise anything, it serialises them and slows every lane.
+
+Evidence is keyed to the head SHA, so **batch every fix before the first review**: a review spent on a commit you are about to amend is spent for nothing.
 
 - **Every PR review run spends one PR review** — the initial review, *each automatic incremental review after a push*, and manual `@coderabbitai review`. A fix-push loop on one PR drains the hourly budget by itself. Hence `auto_pause_after_reviewed_commits: 1` in `.coderabbit.yaml` on every enabled repo: one review per PR, then batch your fixes and re-request once.
-- **`@coderabbitai rate limit`** as a PR comment reports remaining capacity **without consuming a review**. Use it before a push batch instead of guessing.
+- **Remaining capacity is not readable.** `@coderabbitai rate limit` answers with a documentation link, never a number — three to five sessions have each tried it. Do not suggest it and do not wait on it. The only signal is the `waitTime` in a `rate_limit` error from an attempt that already spent one.
 - **CodeRabbit's limits:** diff only, no test runs, Sonnet-tier depth, nitpick noise. Tame with `profile: chill` in `.coderabbit.yaml`, and distil key repo invariants into its path instructions — that file is the only channel by which design decisions reach its reviews.
 - Related skills: `code-review` (CodeRabbit CLI; note it shadows the built-in Standards/Spec review skill), `autofix` (apply PR-thread feedback with per-change approval).
 
