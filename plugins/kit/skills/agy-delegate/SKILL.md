@@ -1,8 +1,8 @@
 ---
 name: agy-delegate
-description: Run Antigravity CLI (agy) headless jobs — exact model display strings, flags, prompt-in-a-file wrapper pattern, failure modes, agy skills. Load BEFORE any agy delegation (Gemini 3.6 Flash / Opus 4.6 / Sonnet 4.6) or when an agy run returns empty/truncated output.
+description: "Run bounded, mechanical work on the separate abundant quota (Antigravity CLI — Gemini 3.6 Flash / Opus 4.6 / Sonnet 4.6) rather than a Claude subagent. Load when deciding HOW to delegate, before reaching for the Agent tool, whenever the work is expressible as a written procedure with verify commands — implementing to a spec, rebases, evidence collection, log or CI triage, smoke runs, repetitive per-item procedure, research, doc review, bulk reading — and when an agy run returns empty or truncated output."
 metadata:
-  version: "2.0.0"
+  version: "2.1.0"
 ---
 
 # Delegating to Antigravity CLI (agy)

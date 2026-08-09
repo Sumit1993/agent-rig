@@ -10,6 +10,7 @@ exists so a fresh machine behaves identically in two minutes.
 | Piece | What it does |
 |---|---|
 | `skills/anti-stall` | How to wait on long work without dozing: sentinel-first launches, evidence-keyed background until-loops, batch scripts over agent-per-step. Governs all long waits (agy, Workflows, builds, CI) |
+| `skills/nightly-run` | Holding an unattended multi-hour run: organizer never types, lane count derived from the actually-scarce resource, the stall rule ("standing by" = stalled), evidence-not-green, rebase-before-push, park-don't-decide, per-tick wake-up checklist |
 | `skills/pr-watch` | Review tiers (CodeRabbit → Opus → extreme) + post-PR lifecycle: seed and arm a deterministic CodeRabbit/CI Monitor (zero tokens while quiet), in-thread reply protocol, `merge-cascade.sh` for GitHub auto-merge's BEHIND stranding |
 | `skills/agy-delegate` | Antigravity CLI delegation mechanics (models, wrapper pattern, failure-mode table) + `run-agy-watchdog.sh` for the hang-after-report reaper |
 | `skills/autofix` | CodeRabbit's official autofix skill, **patched** (2026-07-12): per-issue replies go IN-THREAD (`/replies` + verify-and-resolve) — upstream's "summary-comment only" rule blocks merges under `required_review_thread_resolution` rulesets |
