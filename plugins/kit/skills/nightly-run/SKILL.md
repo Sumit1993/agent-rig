@@ -2,7 +2,7 @@
 name: nightly-run
 description: "Rules for holding an unattended multi-hour run — organizer discipline, lane count from the scarce resource, stall detection, evidence-not-green, verify-every-claim, park-don't-decide. Load BEFORE starting any session where the operator is away for hours, at the first wake-up of a cron-driven organizer, and whenever a dispatched lane reports \"standing by\"."
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Nightly run — holding an unattended session
@@ -29,12 +29,16 @@ Lanes work in worktrees (`~/worktrees/<repo>/<branch-slug>`), never in the main 
 
 **Every dispatch prompt carries, explicitly:** the absolute worktree path · the exact verify commands and the expectation that the lane runs them itself · the report format (findings, evidence, SHAs, blockers — no prose) · the stop conditions ("abort and report rather than improvise" on any conflict, any frozen path, any gate still red after N minutes) · what the lane may **not** do (merge, close, bypass, edit a frozen path) · the stall rule (§4).
 
+Never override a delegate's brief with reasoning invented on the spot. Incident: the organizer told a lane to spend the run's last unit of a scarce counter on an action its own brief had named as a guaranteed-empty burn, backing the order with a plausible-sounding claim that had no source — the lane refused, and was right to. If you contradict a delegate's brief, cite the source that supersedes it; with no source, the brief wins.
+
 ## 2. Lane count is a function of the scarce resource, not a constant
 
 There is no correct number of lanes. Each run names its own limit from whatever is actually scarce and writes it in the plan file. Two kinds recur:
 
 - **A shared external counter.** One org-wide review counter with a cooldown means one review in flight across the whole org; parallel lanes do not parallelise it, they serialise behind it and slow every lane.
 - **A serialising invariant.** Merges to one branch re-BEHIND every other PR (§7), so merging is one-at-a-time regardless of how many lanes exist.
+
+Name the resource's **scope**, not just its existence, before parallelising — a limit assumed per-repo can turn out to be org-wide. Incident: a review counter turned out to be per-developer, not per-repo; three repositories drew on the same pool, work queued as independent was actually in contention, and a spend on one repo starved another. State the resource and its scope explicitly in the plan file; serialise everything inside that scope.
 
 Everything not contending on a named scarce resource may run wide.
 
@@ -100,9 +104,13 @@ Every merge re-BEHINDs every other open PR, and auto-merge never updates a BEHIN
 
 A returned report is a hypothesis. Before it changes a decision, confirm it against the thing itself: the head SHA, the check's description string, the job log, the file at that SHA. A diff claimed as one line gets read. Two independent lanes agreeing raises no confidence — they can share one stale input, and did.
 
+A PR body that claims what the PR does **not** do gets checked against the file list, not taken on faith — a body stating two scripts would be kept, whose diff deleted them, was merged with the deletions on screen. Cheap to check; body/diff divergence is invisible afterward.
+
 ## 9. Never bypass a ruleset or a gate
 
 When a gate blocks the only available fix, **escalate; do not override.** Waiting out a cooldown inside an eight-hour window is cheap; a bypass is unrecoverable.
+
+First tell a gate that is **failing** (retrying is right) from one that is **unsatisfiable** (retrying burns the run's remaining time for nothing). Incident: a required check demanded a reviewer artifact that the reviewer only emits when it has findings, so a correct, trivial change on a protected path could never obtain evidence from any producer — the fix for the gate could not pass the gate. The tell: the same action produces the same empty result twice, with no error. On the second identical empty result, stop and escalate; do not try a third.
 
 The reasoning that makes this bite: the PR that *repairs* the gate is the **worst** candidate in the repo for skipping review. The repo's own committed high-risk path list — the one the gate reads to decide who needs an independent reviewer — records that every independent-reviewer catch on that track landed in exactly that territory — **including ones the adjudicating model had already ruled acceptable.** A gate change reviewed only by the model that wrote it is precisely the failure the list exists to prevent.
 
@@ -120,6 +128,10 @@ The reasoning that makes this bite: the PR that *repairs* the gate is the **wors
 ## 11. Terse output — the operator reads a terminal
 
 Findings, decisions, evidence, SHAs, blockers. No restating the plan, no narrating what is about to happen, no re-summarising work already logged. Every dispatched agent gets the same instruction. **A tick with no dispatch is a valid tick** — one line, with the reason.
+
+A report leads with what **landed** — SHAs of anything merged or pushed — before what is pending. Incident: a lane merged the first PR of an eight-hour run, then reported only that it was waiting on a cooldown; the organizer learned the merge happened only by independently checking. Silence about a completed step reads as "did not happen" and costs a verification round.
+
+A delegate that refuses an unsourced instruction to spend a one-shot resource is behaving correctly, not insubordinately (§1) — say so in the report rather than treating the refusal as a failure to complete the dispatch.
 
 ## Wake-up checklist (each cron tick)
 
