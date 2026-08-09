@@ -87,7 +87,12 @@ Env knobs: `CR_WATCH_AUTORETRY=0` makes rate-limit handling detect-only (no comm
   ```bash
   "${CLAUDE_PLUGIN_ROOT}/scripts/cr-reply.sh" <pr> <root_id> "@coderabbitai Fixed in <sha>: <what changed>. Please verify and resolve."
   ```
-  Never self-resolve threads via the GraphQL mutation — that bypasses the review gate.
+  Never self-resolve a thread you are claiming to have **fixed** — let the reviewer verify and resolve it, or the gate is vouching for your own say-so.
+- **Deferring or declining a finding** is the one case where you resolve it yourself, because the reviewer only self-resolves when it agrees a fix landed — so a deferred thread stays open forever and `required_review_thread_resolution` blocks the merge permanently. Three rules for it:
+  1. **State the disposition in the reply** — accepted-and-deferred (with where it will land) or rejected (with why). "Noted" is not a disposition.
+  2. **Wait for the reviewer's counter-reply before resolving — 60s is enough.** It frequently pushes back, confirms your reasoning, or *offers to open a follow-up issue*, and resolving first orphans that offer. Measured: replies posted at `08:15:39–44` drew responses at `08:15:53–08:16:09`, and a resolve fired in the same step as the reply beat all of them.
+  3. **Point at the tracking issue by number.** A deferred finding with no ticket is a dropped finding; if you are declining the reviewer's follow-up-issue offer, say which issue already covers it.
+- **Never post a reply and resolve in one step.** Post, wait, read the response, then resolve. A script that does both in one breath will silently swallow every counter-reply.
 - **Reply-in events** are CodeRabbit's verdicts on your fixes — read them; it may push back or resolve.
 - **CI FAIL:** diagnose from the failed job log, fix, push. Verify locally with explicit exit codes (`cmd >/dev/null; echo $?`) — never let a `| tail` mask a red gate.
 - **`CODERABBIT RATE-LIMITED`:** no review ran — the diff is **unreviewed**, not clean. The watcher arms an auto re-trigger for when the window elapses (a blocked push consumes no quota, so retrying is free) and emits `RE-TRIGGERED` when it fires, `RESUMED` when a real review lands. **Do not sit idle waiting.** The rate-limit check *passes* by design, so merge is never actually blocked — decide by risk: low-risk diff, merge on CI + the auto re-trigger; otherwise run the Opus 5 pass now rather than spending 45 minutes waiting for a tier that would have found less. On `auto-retry budget spent`, the model pass *is* the review.
