@@ -118,6 +118,27 @@ while [ ${#PRS[@]} -gt 0 ]; do
       done
     fi
 
+    # --- chat-misread channel (issue comments) ---
+    # A `@coderabbitai review` comment carrying prose and questions can be answered as a
+    # CHAT instead of running a review. From outside it is indistinguishable from a slow
+    # review: no rate-limit notice, no findings, nothing red — just silence. Observed on
+    # prismalens#400, where it cost ~50 minutes before anyone looked at the reply body.
+    #
+    # The tell is CodeRabbit's own hint, which it appends to chat answers and not to
+    # reviews. Reported once per occurrence (dedupe on updated_at, same reason as below).
+    chat_state="$STATE_DIR/$KEY-pr$pr.chatmisread"
+    chat_prev=""; [ -f "$chat_state" ] && chat_prev=$(cat "$chat_state" 2>/dev/null)
+    if is_json_array <<<"$(gh api "repos/$REPO/issues/$pr/comments?per_page=100" 2>/dev/null)"; then
+      chat_ts=$(gh api "repos/$REPO/issues/$pr/comments?per_page=100" 2>/dev/null \
+        | jq -r '[.[] | select(.user.login | test("coderabbit"))
+                      | select(.body | test("initiate chat on the files"))]
+                 | last | .updated_at // empty' 2>/dev/null)
+      if [ -n "$chat_ts" ] && [ "$chat_ts" != "$chat_prev" ]; then
+        printf '%s' "$chat_ts" > "$chat_state"
+        echo "PR#$pr CODERABBIT ANSWERED AS CHAT — no review ran. Re-trigger with a BARE '@coderabbitai review'; put context in the PR body."
+      fi
+    fi
+
     # --- rate-limit channel (issue comments) ---
     # CodeRabbit keeps ONE summary issue comment per PR and EDITS it, so the comment id is
     # stable across pushes — dedupe on updated_at, not id, or a second block never fires.
