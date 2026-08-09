@@ -60,8 +60,22 @@ The orchestrator holds the whole goal: sequences work, tracks done-vs-pending, c
 ## Long-running work — never poll, never doze
 Every wait keys on **durable evidence** (sentinel line, artifact, commit), never on process liveness or a timer. Long command → log file + exit sentinel. Wait → background Bash until-loop on that sentinel, loop length = the deadline. Known list of mechanical steps → one unattended script, not an agent per step. Full doctrine + snippets: the **`anti-stall`** skill; load it before any long delegation.
 
-## Review — CLI-first lane, online CodeRabbit by admission only
-Since 2026-08-04 the valve is flipped on all three repos — mage-memory, prismalens and sreforge: CodeRabbit does NOT auto-review — every PR gets a CLI review pre-push (claude-kit `cr-preview.sh`/`cr-evidence.sh`; the `review-evidence` required check blocks merge without evidence), and the scarce online counter is spent only by applying the `review-ready` label (high-risk paths, or unresolved non-nit CLI findings). Never spend model tokens on line-level diff review the CLI covers. One Opus 5 pass on top for non-trivial PRs (spec/ADR conformance, which diff reviewers can't see). Multi-agent extreme review only for engine-core, security/sandbox, or contract/schema changes. Protocol details: the **`pr-watch`** skill — arm it after every `gh pr create`. Rollout state + drip design constraints: prismalens#301 RESUME BRIEF v3.
+## Review — the merge gate is the gate
+On mage-memory, prismalens and sreforge, every PR is reviewed by Claude Code in GitHub Actions, which submits a formal review under `claude[bot]` at the head SHA. Nothing local runs; push freely and let the gate hold the merge.
+
+What blocks a merge is the `review-evidence` required check, and nothing else. It goes green only on a **posted review** by an allowlisted bot (`claude[bot]` or `coderabbitai[bot]`) keyed to the current head SHA, or a patch-identical carry-forward of one. **A green job is never evidence** — a workflow can report success having posted nothing, and has.
+
+The org-wide CodeRabbit counter is spent in exactly two cases:
+1. **High-risk paths** — the PR touches `.github/**`, engine core, security/sandbox, crypto, or contract/schema. Admission is automatic; the publisher keeps those paths red until `coderabbitai[bot]` evidence exists, so a Claude review alone does not green them.
+2. **The Claude lane is down** — comment `@coderabbitai review`.
+
+Never bypass the ruleset. Reviews serialize behind one counter with roughly a 40-minute cooldown, so run at most one at a time — parallel agents do not parallelise reviews, they slow every lane. The org is on the Free plan, where seat assignment is disabled outright, so this cannot be bought away.
+
+Evidence keys to the head SHA, so **batch every fix before requesting any review** — one spent on a commit you are about to amend is spent for nothing.
+
+One Opus 5 pass on top for non-trivial PRs (spec/ADR conformance, which diff reviewers structurally cannot see). Multi-agent extreme review only for engine-core, security/sandbox, or contract/schema changes. Never spend model tokens on line-level diff review the automated reviewers cover.
+
+Protocol details: the **`pr-watch`** skill — arm it after every `gh pr create`. Architecture record: prismalens#301 (Fable rulings 5–7).
 
 ## Parallel work — worktrees
 One per task, never nested, at `~/worktrees/<repo>/<branch-slug>`. The orchestrator creates or reuses (check `git worktree list` first) — **agy never runs a `git worktree` command**; hand it the exact absolute path and tell it to stop and report if the path is missing. Remove on merge.

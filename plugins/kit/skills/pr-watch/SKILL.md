@@ -21,7 +21,7 @@ Escalate by risk; never pay model tokens for review a cheaper layer already cove
 
 | Tier | When | What |
 |---|---|---|
-| CodeRabbit **CLI**, pre-push | Every non-trivial change, before `gh pr create` | Line-level review that spends the *abundant* counter — run `<plugin>/scripts/cr-preview.sh`; it records the marker that opens the pre-push gate (see quota table below) |
+| CodeRabbit **CLI**, pre-push | Every non-trivial change, before `gh pr create` | Line-level review that spends the *abundant* counter — run `<plugin>/scripts/cr-preview.sh`; on success it posts the SHA-keyed evidence marker the merge gate reads (see quota table below) |
 | CodeRabbit **PR** review | Every PR, automatically | Same engine on the pushed diff. Scarce on OSS — don't burn it on findings the CLI would have caught |
 | One Opus 5 pass | Non-trivial PRs | The layer CodeRabbit *can't* do: spec/ADR conformance, since design truth often lives in an external hub it can't see |
 | Multi-agent extreme (`/code-review ultra`) | Rare | Engine-core, security/sandbox boundary, contract/schema changes only |
@@ -38,10 +38,17 @@ Per-developer, per-hour, rolling (docs.coderabbit.ai/management/plans#rate-limit
 
 † varies with the project's community and popularity — **a young repo sits near the bottom**, so assume ~1–2 PR reviews/hour.
 
-The load-bearing consequence: **on a young OSS repo the CLI counter (3/hr) is larger than the PR counter (~1–2/hr).** So the CLI preview pre-push is not just "nice to catch things early" — it spends the resource you have more of, and protects the one you have least of. The kit plugin's pre-push hook enforces this on registry-enabled repos: `git push` on a non-default branch is blocked until `cr-preview.sh` has run for that branch within 30 minutes. Docs-only branches (nothing but `.md`/`.txt` changed) are exempt — markdown doesn't earn a CLI spend. `CR_GATE=skip` in the command overrides (user-approved only).
+The load-bearing consequence: **on a young OSS repo the CLI counter (3/hr) is larger than the PR counter (~1–2/hr).** So a CLI review before you push spends the resource you have more of and protects the one you have least of. It is a tool you reach for, not a checkpoint — nothing blocks `git push`; the `review-evidence` required check holds the merge.
+
+**Both counters are org-wide**, shared across every session and subagent, not per-branch or per-session. Measured on prismalens: contention between parallel agents drove the reported `waitTime` from 2 minutes to 31 to 50, and it collapsed back to 2 the moment the other agents stopped. A *successful* CLI review costs a genuine ~40-minute cooldown on top. **Run at most one review at a time across the whole org** — fanning them out over parallel agents does not parallelise anything, it serialises them and slows every lane.
+
+Evidence is keyed to the head SHA, so **batch every fix before the first review**: a review spent on a commit you are about to amend is spent for nothing.
 
 - **Every PR review run spends one PR review** — the initial review, *each automatic incremental review after a push*, and manual `@coderabbitai review`. A fix-push loop on one PR drains the hourly budget by itself. Hence `auto_pause_after_reviewed_commits: 1` in `.coderabbit.yaml` on every enabled repo: one review per PR, then batch your fixes and re-request once.
-- **`@coderabbitai rate limit`** as a PR comment reports remaining capacity **without consuming a review**. Use it before a push batch instead of guessing.
+- **Remaining capacity is not readable.** `@coderabbitai rate limit` answers with a documentation link, never a number — three to five sessions have each tried it. Do not suggest it and do not wait on it. The only signal is the `waitTime` in a `rate_limit` error from an attempt that already spent one.
+- **Keep the trigger comment BARE — `@coderabbitai review`, nothing else.** A request carrying several bullet points and direct questions was read as a **chat** instead of the review command: CodeRabbit answered with an analysis chain and the hint *"For best results, initiate chat on the files or code changes"*, and **no review ran**. It looks identical to a slow review from the outside; fifty minutes were lost to it. Put the context in the **PR body**, which is read as part of the review anyway — so nothing is given up by keeping the trigger unambiguous.
+- **A cooldown retry too soon is spent for nothing.** Measured: a retry 37 minutes after a successful review was rejected outright, with no wait time returned; a retry at 83 minutes was accepted. Budget **≥45 minutes**, and confirm acceptance rather than assuming it.
+- **Three outcomes to distinguish when polling, not two.** After posting the trigger, wait ~60s and read the *last* `coderabbitai[bot]` comment: `rate limited` means it was rejected and nothing is coming; `initiate chat on the files` means it was misread as chat and nothing is coming; anything else means it was accepted and the review is in flight. Polling only for the review object cannot tell "working" from "never started".
 - **CodeRabbit's limits:** diff only, no test runs, Sonnet-tier depth, nitpick noise. Tame with `profile: chill` in `.coderabbit.yaml`, and distil key repo invariants into its path instructions — that file is the only channel by which design decisions reach its reviews.
 - Related skills: `code-review` (CodeRabbit CLI; note it shadows the built-in Standards/Spec review skill), `autofix` (apply PR-thread feedback with per-change approval).
 
@@ -80,7 +87,12 @@ Env knobs: `CR_WATCH_AUTORETRY=0` makes rate-limit handling detect-only (no comm
   ```bash
   "${CLAUDE_PLUGIN_ROOT}/scripts/cr-reply.sh" <pr> <root_id> "@coderabbitai Fixed in <sha>: <what changed>. Please verify and resolve."
   ```
-  Never self-resolve threads via the GraphQL mutation — that bypasses the review gate.
+  Never self-resolve a thread you are claiming to have **fixed** — let the reviewer verify and resolve it, or the gate is vouching for your own say-so.
+- **Deferring or declining a finding** is the one case where you resolve it yourself, because the reviewer only self-resolves when it agrees a fix landed — so a deferred thread stays open forever and `required_review_thread_resolution` blocks the merge permanently. Three rules for it:
+  1. **State the disposition in the reply** — accepted-and-deferred (with where it will land) or rejected (with why). "Noted" is not a disposition.
+  2. **Wait for the reviewer's counter-reply before resolving — 60s is enough.** It frequently pushes back, confirms your reasoning, or *offers to open a follow-up issue*, and resolving first orphans that offer. Measured: replies posted at `08:15:39–44` drew responses at `08:15:53–08:16:09`, and a resolve fired in the same step as the reply beat all of them.
+  3. **Point at the tracking issue by number.** A deferred finding with no ticket is a dropped finding; if you are declining the reviewer's follow-up-issue offer, say which issue already covers it.
+- **Never post a reply and resolve in one step.** Post, wait, read the response, then resolve. A script that does both in one breath will silently swallow every counter-reply.
 - **Reply-in events** are CodeRabbit's verdicts on your fixes — read them; it may push back or resolve.
 - **CI FAIL:** diagnose from the failed job log, fix, push. Verify locally with explicit exit codes (`cmd >/dev/null; echo $?`) — never let a `| tail` mask a red gate.
 - **`CODERABBIT RATE-LIMITED`:** no review ran — the diff is **unreviewed**, not clean. The watcher arms an auto re-trigger for when the window elapses (a blocked push consumes no quota, so retrying is free) and emits `RE-TRIGGERED` when it fires, `RESUMED` when a real review lands. **Do not sit idle waiting.** The rate-limit check *passes* by design, so merge is never actually blocked — decide by risk: low-risk diff, merge on CI + the auto re-trigger; otherwise run the Opus 5 pass now rather than spending 45 minutes waiting for a tier that would have found less. On `auto-retry budget spent`, the model pass *is* the review.

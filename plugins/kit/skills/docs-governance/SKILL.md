@@ -47,7 +47,7 @@ One branch (`wt.sh create docs-refresh`), one delegated coding run, one PR. Non-
 - **Prune, don't append**: rewrite each stale sentence to be currently-true; never "but now also…". Delete false claims.
 - **Verify every claim against code before writing it** (verb lists ↔ dispatcher source, record fields ↔ serializer, defaults ↔ task runner). The coding agent skips-with-reason rather than invents.
 - **Verification gate**: docs-site build passes; the diff contains ONLY docs/comment/usage-string changes — check every non-markdown file in the diff file-by-file (delegates smuggle behavior changes into "docs-only" diffs).
-- CLI pre-review before push: `scripts/cr-preview.sh` (the pre-push gate enforces this on CodeRabbit repos anyway).
+- CLI pre-review before push: `scripts/cr-preview.sh` — the `review-evidence` required check is what holds the merge, so run it when you want the diff read before the PR exists.
 
 ## Phase 3 — retrofit the open backlog
 
