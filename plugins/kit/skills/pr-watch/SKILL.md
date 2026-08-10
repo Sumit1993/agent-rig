@@ -101,17 +101,19 @@ Env knobs: `CR_WATCH_AUTORETRY=0` makes rate-limit handling detect-only (no comm
 - **CI FAIL:** diagnose from the failed job log, fix, push. Verify locally with explicit exit codes (`cmd >/dev/null; echo $?`) — never let a `| tail` mask a red gate.
 - **`CODERABBIT RATE-LIMITED`:** no review ran — the diff is **unreviewed**, not clean. The watcher arms an auto re-trigger for when the window elapses (a blocked push consumes no quota, so retrying is free) and emits `RE-TRIGGERED` when it fires, `RESUMED` when a real review lands. **Do not sit idle waiting.** The rate-limit check *passes* by design, so merge is never actually blocked — decide by risk: low-risk diff, merge on CI + the auto re-trigger; otherwise run the Opus 5 pass now rather than spending 45 minutes waiting for a tier that would have found less. On `auto-retry budget spent`, the model pass *is* the review.
 
-## Phase 3 — merge cascade (once the user says merge)
+## Phase 3 — merge (once the user says merge)
 
-GitHub auto-merge never updates BEHIND branches; each merge strands the remaining armed PRs. Arm auto-merge per PR (`gh pr merge <n> --auto --squash`), then run as a background Bash (not Monitor — single completion):
+**Merges are attended — do not arm auto-merge.** No required check waits on a review, so `--auto` fires the instant CI is green, routinely before the reviewer has finished (measured 41s ahead on prismalens#388), and the findings then land on an already-merged PR with nothing left to block on. The rule, its corollary for an unattended run, and the exit from it: `unattended-run` §7. Merge by hand, one at a time, once the round's threads are resolved: `gh pr merge <n> --squash`.
+
+GitHub never updates a BEHIND branch, so each merge strands the rest — update the next branch and wait for its required checks to re-green before merging it. Merge widest-diff PR first so smaller ones absorb the update-branch merges. Where auto-merge *is* legitimately armed (a review-related requirement now exists for it to wait on), `merge-cascade.sh` shepherds the armed set through the BEHIND stranding as a background Bash (not Monitor — single completion):
 ```bash
 <skill-dir>/merge-cascade.sh <pr> [<pr>...]
 ```
-Merge widest-diff PR first so smaller ones absorb the update-branch merges. Afterward: remove merged worktrees (`git worktree remove <path>` + delete local branch).
+Afterward: remove merged worktrees (`git worktree remove <path>` + delete local branch).
 
 ## Notes
 
-- **Auto-merge outruns every reviewer — order your round accordingly.** No review check sits in `required_status_checks`, so an armed auto-merge fires the moment `CI gate` and the title check go green, which is typically before any reviewer has posted; findings that land after it are findings on a closed PR (mage-memory#133 merged 14s ahead of one, orphaning the fix commit for that review's own findings). Arm auto-merge only when you do not intend to act on review at all. Otherwise: request the review, fix, resolve the threads, merge by hand.
+- **Auto-merge outruns every reviewer** — which is why Phase 3's merges are attended (`unattended-run` §7). A review that has already posted is no protection either: mage-memory#133 merged 14s after one landed, orphaning the fix commit for that review's own findings. Order the round as request → fix → resolve → merge, and never the reverse.
 
 - Watching is cheap (shell poll, 75s; zero tokens while quiet) — prefer over-watching to user-relaying.
 - **Rate limits are invisible on both obvious channels**: CodeRabbit posts the notice as an **issue** comment, not a review comment — so polling only `/pulls/N/comments` sees nothing — and the accompanying `Review rate limited` check **passes** by design so it never blocks merge on protected branches, so a red-check filter misses it too. A watcher that keys on either alone waits forever in silence. `watch-coderabbit.sh` polls `/issues/N/comments` for the `rate limited by coderabbit.ai` marker. It dedupes on `updated_at`, not comment id: CodeRabbit keeps ONE summary comment per PR and edits it in place, so the id never changes.

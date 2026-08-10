@@ -88,6 +88,12 @@ A gate is a subsystem, and when it is wrong it is wrong for the whole repo. Six 
 
 ## 7. One merge in flight; cascade by hand
 
+**Never arm auto-merge while reviewers are advisory-only.** When no review-related check is required, auto-merge fires the instant CI is green — routinely *before* the reviewer has finished. Measured on prismalens#388 at `2bcdbcaf`: `CI gate` ran 05:42:58→05:43:01 while the `review` job ran 05:40:58→05:43:42, so the merge condition was satisfiable **41 seconds ahead of the reviewer**. The findings then land on an already-merged PR, `required_review_thread_resolution` gets nothing to block on, and review enforcement is exactly zero. Until a review-related requirement exists for auto-merge to wait on — a required approving review, or the review job itself as a required check — **merges are attended.**
+
+The corollary for an unattended run: an orchestrator that cannot merge attended does **not** arm auto-merge instead. It takes the PR to green, reports it ready, and leaves the merge to the operator (§10).
+
+The exit from the constraint — under active consideration, not settled: `required_approving_review_count: 1` satisfied by a job that submits the approval after the reviewer has run, with the **token held by the job, never by the reviewing agent** — that agent reads attacker-controlled diff content, so a prompt injection would otherwise become a self-approval.
+
 Every merge re-BEHINDs every other open PR, and auto-merge never updates a BEHIND branch.
 
 - Serial merges only, one at a time, verifying the gate after each.
