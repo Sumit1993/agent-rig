@@ -56,8 +56,15 @@ The orchestrator holds the whole goal: sequences work, tracks done-vs-pending, c
 - Effort `medium` for the organizer/dispatch seat; `high`+ only for judgment invocations. Effort controls thinking, NOT visible output — control that by prompting. Never disable thinking (causes leaked tool-calls-as-text and XML artifacts).
 - Verbosity is a communication rule, not a routing one — see `Language & Communication Style`.
 
-## Review — the merge gate is the gate
-On mage-memory, prismalens and sreforge, CI posts the merge-gate evidence — nothing local to run before `gh pr create`. Never bypass the ruleset. Full mechanics (which bot's post counts, high-risk-path admission, cooldown/counter handling, when to add an Opus/multi-agent pass) and the post-PR lifecycle: the **`pr-watch`** skill — arm it after every `gh pr create`. Architecture record: prismalens#301 (Fable rulings 5–7).
+## Long-running work — never poll, never doze
+A wait is valid only while the agent **still holds its turn**: a foreground loop keyed on durable evidence (a sentinel line, an artifact, a commit — never process liveness, never a timer), the loop's length being the deadline. **Backgrounding the work and returning control guarantees the wait is lost** — a completion notification fires only when an agent has no live background children, so returning leaves nothing watching. "Standing by" is a stall, not a wait. A known list of mechanical steps is one unattended script, not an agent per step. Launch patterns and snippets: the **`anti-stall`** skill.
+
+## Review — reviewers advise; unresolved threads are the gate
+On mage-memory, prismalens and sreforge the merge contract is exactly two required checks — `CI gate` and `Validate PR title (conventional commits)`, so the PR title must be a conventional commit — plus **`required_review_thread_resolution`**, the only mechanism that enforces a finding: one unresolved review thread blocks the merge. Nothing runs locally before `gh pr create`; there is no evidence artifact, no marker, no high-risk path list. Never bypass the ruleset.
+- **A green job is never evidence.** A reviewing workflow can report `success` having posted nothing — one did for two weeks. Judge a review by its posted comments, never by a check's colour.
+- Claude's reviewer runs on every PR and posts findings as inline comments — **advisory**, it blocks nothing directly; the threads it opens do. **CodeRabbit is manual admission only**: apply the `review-ready` label by hand, for sensitive changes only. The counter is roughly one review per 40 minutes org-wide across all three repos, so spending one is a budget decision, not a step.
+- **Batch every fix before requesting any review** — one spent on a commit you are about to amend is spent for nothing.
+- One Opus 5 pass on non-trivial PRs (spec/ADR conformance neither bot can see). Post-PR lifecycle, in-thread reply protocol and the BEHIND merge cascade: the **`pr-watch`** skill — arm it after every `gh pr create`.
 
 ## Parallel work — worktrees
 One per task, never nested, at `~/worktrees/<repo>/<branch-slug>`. The orchestrator creates or reuses (check `git worktree list` first) — **agy never runs a `git worktree` command**; hand it the exact absolute path and tell it to stop and report if the path is missing. Remove on merge.

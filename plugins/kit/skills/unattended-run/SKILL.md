@@ -2,7 +2,7 @@
 name: unattended-run
 description: "Rules for holding a long unattended run — organizer discipline, lane count from the scarce resource, stall detection, evidence-not-green, verify-every-claim, park-don't-decide. Load BEFORE starting any session where the operator is away or unreachable and the work is expected to outlast their attention — an overnight run, a multi-hour delegation, a cron-driven organizer's first wake-up — and whenever a dispatched lane reports \"standing by\"."
 metadata:
-  version: "1.2.0"
+  version: "1.3.0"
 ---
 
 # Unattended run — holding a long autonomous session
@@ -63,39 +63,35 @@ The mechanism: a completion notification fires only when an agent has **no live 
 
 Every dispatch prompt carries this rule. Assume the lane will otherwise walk into it.
 
+**The mirror failure: a watch that outlives its task.** Anything armed to watch one piece of work — a monitor, a poller, a cron tick — is torn down the moment that work ends: merged, closed, reassigned, or abandoned. One left standing kept acting on a PR that had since been repurposed into something else, and autonomously spent a scarce shared counter on it. Arming something durable creates a teardown obligation in the same breath; record it in the plan file's lane table beside the thing it watches, and disarm as part of closing the lane.
+
 ## 5. A green job is never evidence — only a posted artifact is
 
-A workflow can report success having posted nothing, and does.
+A workflow can report `success` having posted nothing, and does. A reviewing lane reported success while posting no review at all for two weeks; every status-only read of it said the PR had been reviewed.
 
 - Check the **producing** job, not the wrapper check. A green review step means the lane ran; only the artifact it was supposed to post counts.
 - A green gate whose description names a **retired producer** is a stale artifact, not a pass. It flips red the instant anything re-evaluates it, and a status-only read cannot see that coming.
 - Independent triage lanes read exactly that stale green as real and called the PR "clean, ready to merge" — two of them, separately. Hence §8.
 
-## 6. Rebase before push is a precondition, not hygiene
+## 6. Changing enforcement machinery — settings first, and only if it must exist
 
-A branch that predates the reviewing workflow **cannot mint evidence at all**, so pushing it unrebased burns a full CI cycle and guarantees a red gate.
+A gate is a subsystem, and when it is wrong it is wrong for the whole repo. Six PRs in one series each had to pass the very check they were repairing, so every bug in it became a repo-wide merge outage.
 
-The mechanism, because it is not guessable — the review workflow runs from the **base** ref, so it fires on every PR, but the action no-ops when the PR head's own copy of that workflow differs from the default branch's, and it no-ops by **exiting success having posted nothing**:
-
-```
-stale branch (workflow file absent at head)
-  → review job: runs from base, detects head drift, posts nothing, exits SUCCESS  ✅
-  → marker job: "did the reviewer post an artifact at this SHA?" → no → refuses to mint  ❌
-  → gate: red, with a green producing job sitting right above it
-```
-
-A branch cut before the workflow existed does not contain the file at all, which is maximal drift — so it can never earn evidence, no matter how many times it is pushed.
-
-The order is always **rebase → push → let the lane mint evidence → verify the artifact**. Corollary: a green review check on its own means nothing; only the minted artifact counts (§5).
-
-Batch every fix before requesting any review — evidence keys to the head SHA, so one spent on a commit about to be amended is spent for nothing.
+- **Ask "should this exist?" first, not fourth.** Consult per subsystem, not per hole: four adjudications on one gate were each locally sound and globally wrong, because whether the gate should exist at all was asked after all four had landed.
+- **Prefer a native platform feature to a workflow that emulates one.** That gate was a hand-built re-implementation of `required_review_thread_resolution` — already switched on in the same ruleset.
+- **Never write predicates over a vendor's artifacts** — comment bodies, review states, marker strings, walkthrough stubs. None is a documented contract, and all are summonable by anyone who can leave a comment. Tightening a parser of an adversarial, unversioned grammar does not terminate; it relocates the hole. Five sound fixes produced five holes in the same place. Where a control is genuinely needed, prefer a **capability boundary** — a tool the agent simply does not have — over a grammar.
+- **Size the control to the asset.** Single-tenant, dev-phase, no outside contributors, and an adversary model of a drifted agent holding the maintainer's credential — the same credential that administers the ruleset, so it defeats any in-repo gate by construction. A control that cannot bind its own adversary costs without buying.
+- **Fail-closed is for security decisions, not for plumbing.** Pointed at an unreliable evaluator it manufactures outages: an unreadable policy file classified *every* PR as high-risk, turning one file-path bug into a repo-wide merge block.
+- **Enforcement changes are settings-first.** Rulesets are API-editable, atomically, with no PR. Flip the setting, then land the code that matches it — never ship a change whose own merge depends on the thing it is changing.
+- **No check enters `required_status_checks` until one live PR has passed through it happy-path, observed.** That gate went required before a single clean PR had greened through its intended path, and the path turned out to be unable to fire at all.
+- **Product PRs never wait on gate PRs.** The gate series is its own lane; queue product work behind it and one subsystem's outage becomes the whole run's.
 
 ## 7. One merge in flight; cascade by hand
 
 Every merge re-BEHINDs every other open PR, and auto-merge never updates a BEHIND branch.
 
 - Serial merges only, one at a time, verifying the gate after each.
-- Cascade manually: after each merge, update the next branch, re-earn its evidence (§6), then merge.
+- Cascade manually: after each merge, update the next branch, wait for its required checks to re-green on the new base, then merge.
 - When PRs contend on one shared file (a lockfile, a generated artifact), land the smallest delta first; each landing forces a regenerate on the rest.
 - With no scheduled sweeper, a PR that merely goes BEHIND fires **nothing** — its status sits stale indefinitely. Staleness is silent; go look.
 - Rebase the PRs you are deliberately parking at the **end** of the drain. Rebasing them early only re-BEHINDs them behind every subsequent merge.
@@ -112,11 +108,11 @@ When a gate blocks the only available fix, **escalate; do not override.** Waitin
 
 First tell a gate that is **failing** (retrying is right) from one that is **unsatisfiable** (retrying burns the run's remaining time for nothing). Incident: a required check demanded a reviewer artifact that the reviewer only emits when it has findings, so a correct, trivial change on a protected path could never obtain evidence from any producer — the fix for the gate could not pass the gate. The tell: the same action produces the same empty result twice, with no error. On the second identical empty result, stop and escalate; do not try a third.
 
-The reasoning that makes this bite: the PR that *repairs* the gate is the **worst** candidate in the repo for skipping review. The repo's own committed high-risk path list — the one the gate reads to decide who needs an independent reviewer — records that every independent-reviewer catch on that track landed in exactly that territory — **including ones the adjudicating model had already ruled acceptable.** A gate change reviewed only by the model that wrote it is precisely the failure the list exists to prevent.
+The reasoning that makes this bite: the PR that *repairs* the gate is the **worst** candidate in the repo for skipping review. Every independent-reviewer catch on that track landed in exactly that territory — **including ones the adjudicating model had already ruled acceptable.** A gate change reviewed only by the model that wrote it is precisely the failure independent review exists to prevent (§6).
 
 - A **conditional** pre-authorization ("this might need a bypass") is a reserve, not an instruction. Write down the exact condition that would spend it, and do not spend it for mere slowness.
 - Never reach for a skip flag, an `--admin` merge, a `--no-verify` push, or a ruleset edit. If a lane already used one, record it and stop that lane; do not quietly bank the result.
-- Dilemma → consult the planner seat: a fresh agent on the strongest planning model, given the decision, the constraints, and the options — not the whole run. If the last consult is more than an hour old, start a new one rather than resuming it; a stale consult reasons from premises the run has since disproved. Its ruling is binding for that decision, and its explicit deferrals stay deferred.
+- Dilemma → consult the planner seat: a fresh agent on the strongest planning model, given the decision, the constraints, and the options — not the whole run. Frame the consult around the **subsystem**, not the hole in front of you (§6). If the last consult is more than an hour old, start a new one rather than resuming it; a stale consult reasons from premises the run has since disproved. Its ruling is binding for that decision, and its explicit deferrals stay deferred.
 
 ## 10. Park anything needing operator sign-off
 

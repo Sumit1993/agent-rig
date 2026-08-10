@@ -47,7 +47,7 @@ One branch (`wt.sh create docs-refresh`), one delegated coding run, one PR. Non-
 - **Prune, don't append**: rewrite each stale sentence to be currently-true; never "but now also…". Delete false claims.
 - **Verify every claim against code before writing it** (verb lists ↔ dispatcher source, record fields ↔ serializer, defaults ↔ task runner). The coding agent skips-with-reason rather than invents.
 - **Verification gate**: docs-site build passes; the diff contains ONLY docs/comment/usage-string changes — check every non-markdown file in the diff file-by-file (delegates smuggle behavior changes into "docs-only" diffs).
-- The `review-evidence` required check is what holds the merge; CI posts the review automatically, nothing to run locally before the PR exists (see the `pr-watch` skill, Phase 0).
+- Nothing local runs before the PR exists: `CI gate` and the conventional-commit title check are the only required checks, and unresolved review threads are what hold the merge (see the `pr-watch` skill, Phase 0).
 
 ## Phase 3 — retrofit the open backlog
 

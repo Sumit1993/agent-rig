@@ -2,7 +2,7 @@
 name: pr-watch
 description: "Stand watch on a raised PR: arm the CodeRabbit/CI Monitor, process feedback via in-thread replies, then shepherd auto-merge through the BEHIND cascade. Trigger AFTER any `gh pr create`, when a PostToolUse hook reports a PR was raised, or when the user asks to watch/babysit a PR."
 metadata:
-  version: "1.3.0"
+  version: "1.4.0"
 ---
 
 # PR watch — the post-PR lifecycle
@@ -15,20 +15,24 @@ Per-repo facts (CodeRabbit enablement, review tier) come from the kit registry �
 
 Current repo metadata: !`"${CLAUDE_PLUGIN_ROOT}/scripts/kit-meta.sh" current`
 
-## Phase 0 — how the merge gate is earned (nothing runs pre-push)
+## Phase 0 — the merge contract (nothing runs pre-push)
 
-On mage-memory, prismalens and sreforge, CI does the reviewing. The `review-evidence` required check is what blocks a merge, and nothing else — it goes green only on a **posted review** by an allowlisted bot (`claude[bot]`, via the CI review lane, or `coderabbitai[bot]`) keyed to the current head SHA, or a patch-identical carry-forward of one. **A green job is never evidence** — a workflow can report success having posted nothing, and has. There is no local pre-push step: push freely and let the gate hold the merge. `cr-preview.sh` and `cr-evidence.sh` do not exist — don't reach for either.
+On mage-memory, prismalens and sreforge the contract is the whole of this:
 
-Escalate the independent lane by risk; never pay model tokens for review a cheaper layer already covers.
+- **Required status checks are `CI gate` and `Validate PR title (conventional commits)`. Nothing else.** No review check, no evidence artifact, no marker job, no SHA-pinning, no carry-forward, no committed high-risk path list. Anything describing those describes machinery that no longer exists — including `cr-preview.sh` and `cr-evidence.sh`, which don't exist either.
+- **`required_review_thread_resolution: true`** — one unresolved review thread blocks the merge. This is the only mechanism that enforces a finding, which is what makes Phase 2's in-thread protocol load-bearing rather than etiquette: a finding matters exactly as much as the thread it lives in.
+- **Reviewers are advisory.** They post; no check waits on them. **A green job is never evidence** — a reviewing workflow can report `success` having posted nothing, and one did for two weeks. Read for posted comments; never read a check's colour as a review.
+
+There is no local pre-push step: push freely. Escalate the independent lane by risk; never pay model tokens for review a cheaper layer already covers.
 
 | Tier | When | What |
 |---|---|---|
-| CI `claude[bot]` review | Every PR, automatic | The default reviewer; posts the evidence the gate reads — nothing to run locally |
-| CodeRabbit **PR** review (`coderabbitai[bot]`) | Automatic on high-risk paths; manual (`@coderabbitai review`) if the Claude lane is down | The independent lane. **Admission is automatic, not a convention**: `review-admit.yml` labels a PR `review-ready` the moment it touches a high-risk path (`.github/**`, engine core, security/sandbox, crypto, contract/schema — `.github/high-risk-paths.txt`), and `review-evidence.sh` re-derives the same match from the default branch and holds the PR red until `coderabbitai[bot]` evidence exists — a Claude review alone does not green a high-risk PR, and removing the label can't fake it past the re-derived check |
+| Claude review (`claude[bot]`) | Every PR, automatic | The default reviewer. Posts findings as **inline comments** — advisory, so it blocks nothing directly, but every thread it opens does |
+| CodeRabbit **PR** review (`coderabbitai[bot]`) | **Manual admission only** — apply the `review-ready` label by hand, or comment `@coderabbitai review` | The independent lane, and a scarce one: ~one review per 40 minutes **org-wide across all three repos**, Free plan, seat assignment disabled. Spending one is a deliberate human budget decision for a sensitive change, never a routine step |
 | One Opus 5 pass | Non-trivial PRs | The layer neither bot can do: spec/ADR conformance, since design truth often lives in an external hub they can't see |
 | Multi-agent extreme (`/code-review ultra`) | Rare | Engine-core, security/sandbox boundary, contract/schema changes only |
 
-Never bypass the ruleset. Evidence keys to the head SHA, so **batch every fix before requesting any review** — one spent on a commit you are about to amend is spent for nothing. Architecture record: prismalens#301 (Fable rulings 5–7).
+Never bypass the ruleset. **Batch every fix before requesting any review** — a CodeRabbit slot spent on a commit you are about to amend is spent for nothing.
 
 ### Quota — the `coderabbitai[bot]` PR lane is a shared, cooldown-gated counter
 
@@ -107,11 +111,11 @@ Merge widest-diff PR first so smaller ones absorb the update-branch merges. Afte
 
 ## Notes
 
-- **Evidence fires auto-merge — order your round accordingly.** A posted review (`claude[bot]` or `coderabbitai[bot]`) satisfies `review-evidence` the moment it lands, and an armed auto-merge can fire seconds later (mage-memory#133 merged 14s after evidence, orphaning the fix commit for that review's own findings). If you intend to fix what a review finds: apply fixes, commit, THEN request the next review — or disarm auto-merge first. Never request-then-fix on a PR whose gate is the only blocker.
+- **Auto-merge outruns every reviewer — order your round accordingly.** No review check sits in `required_status_checks`, so an armed auto-merge fires the moment `CI gate` and the title check go green, which is typically before any reviewer has posted; findings that land after it are findings on a closed PR (mage-memory#133 merged 14s ahead of one, orphaning the fix commit for that review's own findings). Arm auto-merge only when you do not intend to act on review at all. Otherwise: request the review, fix, resolve the threads, merge by hand.
 
 - Watching is cheap (shell poll, 75s; zero tokens while quiet) — prefer over-watching to user-relaying.
 - **Rate limits are invisible on both obvious channels**: CodeRabbit posts the notice as an **issue** comment, not a review comment — so polling only `/pulls/N/comments` sees nothing — and the accompanying `Review rate limited` check **passes** by design so it never blocks merge on protected branches, so a red-check filter misses it too. A watcher that keys on either alone waits forever in silence. `watch-coderabbit.sh` polls `/issues/N/comments` for the `rate limited by coderabbit.ai` marker. It dedupes on `updated_at`, not comment id: CodeRabbit keeps ONE summary comment per PR and edits it in place, so the id never changes.
 - State dir `~/ai-context/state/cr-watch/` is durable across sessions; safe to re-arm anytime.
-- Watchers never outlive the session: the plugin's SessionEnd hook kills them (a surviving monitor would inject its buffered event on resume and pay for the whole context window) and SessionStart reaps orphans from crashed sessions. Re-arming after either is free — the seen-state replays nothing.
-- The plugin's PostToolUse hook (`hooks/pr-created.sh`) injects a reminder line whenever a `gh pr create` succeeds — respond to it by running Phase 1 for that PR. Evidence itself is CI's job now (Phase 0); the hook posts nothing else.
+- **A watcher dies with the task that armed it, not with the session.** Disarm (TaskStop) the moment its PR is merged, closed, or handed to another lane. A monitor left running past its lane kept acting on a PR that had since been repurposed into something else and autonomously spent a scarce CodeRabbit review on it. Watchers also never outlive the session: the plugin's SessionEnd hook kills them (a surviving monitor would inject its buffered event on resume and pay for the whole context window) and SessionStart reaps orphans from crashed sessions. Re-arming after either is free — the seen-state replays nothing.
+- The plugin's PostToolUse hook (`hooks/pr-created.sh`) injects a reminder line whenever a `gh pr create` succeeds — respond to it by running Phase 1 for that PR. Nothing local gates the merge (Phase 0); the hook posts nothing else.
 - Phase 3's cascade is a background Bash with a single completion, not a Monitor — see the `anti-stall` skill for why waits key on evidence, never on liveness.
