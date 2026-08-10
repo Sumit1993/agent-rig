@@ -2,12 +2,16 @@
 name: agy-delegate
 description: "Run bounded, mechanical work on the separate abundant quota (Antigravity CLI — Gemini 3.6 Flash / Opus 4.6 / Sonnet 4.6) rather than a Claude subagent. Load when deciding HOW to delegate, before reaching for the Agent tool, whenever the work is expressible as a written procedure with verify commands — implementing to a spec, rebases, evidence collection, log or CI triage, smoke runs, repetitive per-item procedure, research, doc review, bulk reading — and when an agy run returns empty or truncated output."
 metadata:
-  version: "2.1.0"
+  version: "2.2.0"
 ---
 
 # Delegating to Antigravity CLI (agy)
 
 Routing (which model gets which task, quota) lives in `~/.claude/CLAUDE.md`. Waiting on the run correctly lives in the **`anti-stall`** skill — load it too; this skill assumes its sentinel/until-loop pattern and does not repeat it.
+
+**Lane count is not a fixed number.** How many agy runs to fan out at once is derived from whatever is actually scarce that round (a shared review counter, a serialising merge invariant, agy-Claude's weekly pool) — never a constant. Full doctrine, including how to name the resource's scope before parallelising: the **`unattended-run`** skill §2 (applies to any dispatch decision, not only unattended sessions).
+
+**Gemini quota exhausted ≠ agy exhausted.** Before parking work on a reset timer, probe agy-Claude availability — `-p "say ok"` on the Opus/Sonnet 4.6 display strings — and use it if live, one job at a time, never parallel. Park on the timer only when all agy lanes are dry.
 
 Global standards for every agy run live in `~/.gemini/GEMINI.md` (evidence-not-narration, new-test-must-execute, both-directions verification, never-weaken-tests, byte-exact commit messages). agy loads it automatically. Prompts can stay lean on those points — but still verify agy's claims yourself; standards reduce hollow reports, they don't eliminate them.
 

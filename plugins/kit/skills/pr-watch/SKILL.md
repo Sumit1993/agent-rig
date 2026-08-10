@@ -2,55 +2,55 @@
 name: pr-watch
 description: "Stand watch on a raised PR: arm the CodeRabbit/CI Monitor, process feedback via in-thread replies, then shepherd auto-merge through the BEHIND cascade. Trigger AFTER any `gh pr create`, when a PostToolUse hook reports a PR was raised, or when the user asks to watch/babysit a PR."
 metadata:
-  version: "1.2.0"
+  version: "1.3.0"
 ---
 
 # PR watch — the post-PR lifecycle
 
 After a PR is raised, reviews arrive asynchronously (CodeRabbit ~3-5 min after each push; CI in ~5-10). Never poll with model turns and never rely on the user to relay events — arm deterministic watchers and process only deltas.
 
-Scripts live in this skill's own directory (`<skill-dir>` below) — `${CLAUDE_PLUGIN_ROOT}/skills/pr-watch/` when loaded as `kit:pr-watch`; shared kit scripts (`cr-preview.sh`, `cr-reply.sh`, `kit-meta.sh`) live in `${CLAUDE_PLUGIN_ROOT}/scripts/`. Resolve to absolute paths before handing them to a Monitor or background Bash; those shells may not inherit the variable. Watch scripts auto-detect the repo from the cwd's origin remote (`--repo owner/name` to override).
+Scripts live in this skill's own directory (`<skill-dir>` below) — `${CLAUDE_PLUGIN_ROOT}/skills/pr-watch/` when loaded as `kit:pr-watch`; shared kit scripts (`cr-reply.sh`, `kit-meta.sh`) live in `${CLAUDE_PLUGIN_ROOT}/scripts/`. Resolve to absolute paths before handing them to a Monitor or background Bash; those shells may not inherit the variable. Watch scripts auto-detect the repo from the cwd's origin remote (`--repo owner/name` to override).
 
 Per-repo facts (CodeRabbit enablement, review tier) come from the kit registry — `kit-meta.sh current`, backed by `data/repo-meta.json` folded with runtime observations — never from memory:
 
 Current repo metadata: !`"${CLAUDE_PLUGIN_ROOT}/scripts/kit-meta.sh" current`
 
-## Phase 0 — pick the review tier (before and around the PR)
+## Phase 0 — how the merge gate is earned (nothing runs pre-push)
 
-Escalate by risk; never pay model tokens for review a cheaper layer already covers.
+On mage-memory, prismalens and sreforge, CI does the reviewing. The `review-evidence` required check is what blocks a merge, and nothing else — it goes green only on a **posted review** by an allowlisted bot (`claude[bot]`, via the CI review lane, or `coderabbitai[bot]`) keyed to the current head SHA, or a patch-identical carry-forward of one. **A green job is never evidence** — a workflow can report success having posted nothing, and has. There is no local pre-push step: push freely and let the gate hold the merge. `cr-preview.sh` and `cr-evidence.sh` do not exist — don't reach for either.
+
+Escalate the independent lane by risk; never pay model tokens for review a cheaper layer already covers.
 
 | Tier | When | What |
 |---|---|---|
-| CodeRabbit **CLI**, pre-push | Every non-trivial change, before `gh pr create` | Line-level review that spends the *abundant* counter — run `<plugin>/scripts/cr-preview.sh`; on success it posts the SHA-keyed evidence marker the merge gate reads (see quota table below) |
-| CodeRabbit **PR** review | Every PR, automatically | Same engine on the pushed diff. Scarce on OSS — don't burn it on findings the CLI would have caught |
-| One Opus 5 pass | Non-trivial PRs | The layer CodeRabbit *can't* do: spec/ADR conformance, since design truth often lives in an external hub it can't see |
+| CI `claude[bot]` review | Every PR, automatic | The default reviewer; posts the evidence the gate reads — nothing to run locally |
+| CodeRabbit **PR** review (`coderabbitai[bot]`) | Automatic on high-risk paths; manual (`@coderabbitai review`) if the Claude lane is down | The independent lane. **Admission is automatic, not a convention**: `review-admit.yml` labels a PR `review-ready` the moment it touches a high-risk path (`.github/**`, engine core, security/sandbox, crypto, contract/schema — `.github/high-risk-paths.txt`), and `review-evidence.sh` re-derives the same match from the default branch and holds the PR red until `coderabbitai[bot]` evidence exists — a Claude review alone does not green a high-risk PR, and removing the label can't fake it past the re-derived check |
+| One Opus 5 pass | Non-trivial PRs | The layer neither bot can do: spec/ADR conformance, since design truth often lives in an external hub they can't see |
 | Multi-agent extreme (`/code-review ultra`) | Rare | Engine-core, security/sandbox boundary, contract/schema changes only |
 
-### Quota — PR, IDE and CLI are three SEPARATE counters
+Never bypass the ruleset. Evidence keys to the head SHA, so **batch every fix before requesting any review** — one spent on a commit you are about to amend is spent for nothing. Architecture record: prismalens#301 (Fable rulings 5–7).
+
+### Quota — the `coderabbitai[bot]` PR lane is a shared, cooldown-gated counter
 
 Per-developer, per-hour, rolling (docs.coderabbit.ai/management/plans#rate-limits):
 
-| Plan | PR/hr | IDE/hr | CLI/hr | Files per review |
-|---|---|---|---|---|
-| **OSS** (our public repos) | **1–10** † | 1 | **3** | 50–150 † |
-| Pro | 5 | 5 | 5 | 150 |
-| Pro+ | 10 | 10 | 10 | 300 |
+| Plan | PR/hr | Files per review |
+|---|---|---|
+| **OSS** (our public repos) | **1–10** † | 50–150 † |
+| Pro | 5 | 150 |
+| Pro+ | 10 | 300 |
 
-† varies with the project's community and popularity — **a young repo sits near the bottom**, so assume ~1–2 PR reviews/hour.
+† varies with the project's community and popularity — **a young repo sits near the bottom**, so assume ~1–2 PR reviews/hour. The org is on the Free plan, where seat assignment is disabled outright, so this cannot be bought away.
 
-The load-bearing consequence: **on a young OSS repo the CLI counter (3/hr) is larger than the PR counter (~1–2/hr).** So a CLI review before you push spends the resource you have more of and protects the one you have least of. It is a tool you reach for, not a checkpoint — nothing blocks `git push`; the `review-evidence` required check holds the merge.
+**This counter is org-wide**, shared across every session and subagent, not per-branch or per-session. Measured on prismalens: contention between parallel agents drove the reported `waitTime` from 2 minutes to 31 to 50, and it collapsed back to 2 the moment the other agents stopped. A *successful* review costs a genuine ~40-minute cooldown on top. **Run at most one review at a time across the whole org** — fanning them out over parallel agents does not parallelise anything, it serialises them and slows every lane.
 
-**Both counters are org-wide**, shared across every session and subagent, not per-branch or per-session. Measured on prismalens: contention between parallel agents drove the reported `waitTime` from 2 minutes to 31 to 50, and it collapsed back to 2 the moment the other agents stopped. A *successful* CLI review costs a genuine ~40-minute cooldown on top. **Run at most one review at a time across the whole org** — fanning them out over parallel agents does not parallelise anything, it serialises them and slows every lane.
-
-Evidence is keyed to the head SHA, so **batch every fix before the first review**: a review spent on a commit you are about to amend is spent for nothing.
-
-- **Every PR review run spends one PR review** — the initial review, *each automatic incremental review after a push*, and manual `@coderabbitai review`. A fix-push loop on one PR drains the hourly budget by itself. Hence `auto_pause_after_reviewed_commits: 1` in `.coderabbit.yaml` on every enabled repo: one review per PR, then batch your fixes and re-request once.
+- **Every PR review run spends one** — the initial review, *each automatic incremental review after a push*, and manual `@coderabbitai review`. A fix-push loop on one PR drains the hourly budget by itself. Hence `auto_pause_after_reviewed_commits: 1` in `.coderabbit.yaml` on every enabled repo: one review per PR, then batch your fixes and re-request once.
 - **Remaining capacity is not readable.** `@coderabbitai rate limit` answers with a documentation link, never a number — three to five sessions have each tried it. Do not suggest it and do not wait on it. The only signal is the `waitTime` in a `rate_limit` error from an attempt that already spent one.
 - **Keep the trigger comment BARE — `@coderabbitai review`, nothing else.** A request carrying several bullet points and direct questions was read as a **chat** instead of the review command: CodeRabbit answered with an analysis chain and the hint *"For best results, initiate chat on the files or code changes"*, and **no review ran**. It looks identical to a slow review from the outside; fifty minutes were lost to it. Put the context in the **PR body**, which is read as part of the review anyway — so nothing is given up by keeping the trigger unambiguous.
 - **A cooldown retry too soon is spent for nothing.** Measured: a retry 37 minutes after a successful review was rejected outright, with no wait time returned; a retry at 83 minutes was accepted. Budget **≥45 minutes**, and confirm acceptance rather than assuming it.
 - **Three outcomes to distinguish when polling, not two.** After posting the trigger, wait ~60s and read the *last* `coderabbitai[bot]` comment: `rate limited` means it was rejected and nothing is coming; `initiate chat on the files` means it was misread as chat and nothing is coming; anything else means it was accepted and the review is in flight. Polling only for the review object cannot tell "working" from "never started".
 - **CodeRabbit's limits:** diff only, no test runs, Sonnet-tier depth, nitpick noise. Tame with `profile: chill` in `.coderabbit.yaml`, and distil key repo invariants into its path instructions — that file is the only channel by which design decisions reach its reviews.
-- Related skills: `code-review` (CodeRabbit CLI; note it shadows the built-in Standards/Spec review skill), `autofix` (apply PR-thread feedback with per-change approval).
+- Related skills: `code-review` (CodeRabbit CLI; a manual, non-gating local look — note it shadows the built-in Standards/Spec review skill), `autofix` (apply PR-thread feedback with per-change approval).
 
 ## Phase 1 — arm the watcher (immediately after `gh pr create`)
 
@@ -74,7 +74,7 @@ Event lines: `NEW coderabbit <thread|reply-in-ID> — id N — path — payload 
 - `CODERABBIT ACTIVE on <repo> — watching reviews, rate limits, CI and merge state`
 - `CODERABBIT ABSENT on <repo> — watching CI + merge state ONLY. …silence here is NOT a clean review…`
 
-On ABSENT it skips both CodeRabbit polls and watches only CI and merge state. **Treat ABSENT exactly like a rate-limit block: the diff is unreviewed, not clean.** A repo with no reviewer produces a *perfectly quiet watch*, which is byte-identical to "reviewed, found nothing" — the same trap the rate-limit channel sets, and the reason both are announced rather than inferred from silence. Decide by risk: KB-only or trivial can merge on CI alone; anything non-trivial wants the CLI preview (`cr-preview.sh` — the CLI works locally regardless of whether the app is installed on the repo) or a model review pass.
+On ABSENT it skips both CodeRabbit polls and watches only CI and merge state. **Treat ABSENT exactly like a rate-limit block: the diff is unreviewed, not clean.** A repo with no reviewer produces a *perfectly quiet watch*, which is byte-identical to "reviewed, found nothing" — the same trap the rate-limit channel sets, and the reason both are announced rather than inferred from silence. Decide by risk: KB-only or trivial can merge on CI alone; anything non-trivial wants a model review pass (the Opus 5 layer) — there's no local CLI step left to substitute.
 
 Env knobs: `CR_WATCH_AUTORETRY=0` makes rate-limit handling detect-only (no comment posted); `CR_WATCH_MAX_RETRIES=N` caps auto re-triggers per PR (default 2); `CR_WATCH_ASSUME_CODERABBIT=1|0` skips the probe (force present/absent).
 
@@ -107,11 +107,11 @@ Merge widest-diff PR first so smaller ones absorb the update-branch merges. Afte
 
 ## Notes
 
-- **Evidence fires auto-merge — order your round accordingly.** `cr-preview.sh` posts the SHA-keyed evidence marker the moment a review completes, and an armed auto-merge can fire seconds later (mage-memory#133 merged 14s after evidence, orphaning the fix commit for that review's own findings). If you intend to fix what the preview finds: apply fixes, commit, THEN preview — or disarm auto-merge before previewing. Never preview-then-fix on a PR whose gate is the only blocker.
+- **Evidence fires auto-merge — order your round accordingly.** A posted review (`claude[bot]` or `coderabbitai[bot]`) satisfies `review-evidence` the moment it lands, and an armed auto-merge can fire seconds later (mage-memory#133 merged 14s after evidence, orphaning the fix commit for that review's own findings). If you intend to fix what a review finds: apply fixes, commit, THEN request the next review — or disarm auto-merge first. Never request-then-fix on a PR whose gate is the only blocker.
 
 - Watching is cheap (shell poll, 75s; zero tokens while quiet) — prefer over-watching to user-relaying.
 - **Rate limits are invisible on both obvious channels**: CodeRabbit posts the notice as an **issue** comment, not a review comment — so polling only `/pulls/N/comments` sees nothing — and the accompanying `Review rate limited` check **passes** by design so it never blocks merge on protected branches, so a red-check filter misses it too. A watcher that keys on either alone waits forever in silence. `watch-coderabbit.sh` polls `/issues/N/comments` for the `rate limited by coderabbit.ai` marker. It dedupes on `updated_at`, not comment id: CodeRabbit keeps ONE summary comment per PR and edits it in place, so the id never changes.
 - State dir `~/ai-context/state/cr-watch/` is durable across sessions; safe to re-arm anytime.
 - Watchers never outlive the session: the plugin's SessionEnd hook kills them (a surviving monitor would inject its buffered event on resume and pay for the whole context window) and SessionStart reaps orphans from crashed sessions. Re-arming after either is free — the seen-state replays nothing.
-- The plugin's PostToolUse hook (`hooks/pr-created.sh`) injects a reminder line whenever a `gh pr create` succeeds — respond to it by running Phase 1 for that PR. On registry-enabled repos the same hook also posts the CLI review evidence marker (`scripts/cr-evidence.sh --repo <r> --pr <n>`) and reports the outcome in that line. **If it reports a refusal, do not hand-post the marker** — the refusal means no completed CLI review exists for that head, and the marker would vouch for a review that never ran. Re-run `cr-preview.sh` and let the script post it.
+- The plugin's PostToolUse hook (`hooks/pr-created.sh`) injects a reminder line whenever a `gh pr create` succeeds — respond to it by running Phase 1 for that PR. Evidence itself is CI's job now (Phase 0); the hook posts nothing else.
 - Phase 3's cascade is a background Bash with a single completion, not a Monitor — see the `anti-stall` skill for why waits key on evidence, never on liveness.
