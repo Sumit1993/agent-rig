@@ -1,11 +1,11 @@
 ---
-name: nightly-run
-description: "Rules for holding an unattended multi-hour run — organizer discipline, lane count from the scarce resource, stall detection, evidence-not-green, verify-every-claim, park-don't-decide. Load BEFORE starting any session where the operator is away for hours, at the first wake-up of a cron-driven organizer, and whenever a dispatched lane reports \"standing by\"."
+name: unattended-run
+description: "Rules for holding a long unattended run — organizer discipline, lane count from the scarce resource, stall detection, evidence-not-green, verify-every-claim, park-don't-decide. Load BEFORE starting any session where the operator is away or unreachable and the work is expected to outlast their attention — an overnight run, a multi-hour delegation, a cron-driven organizer's first wake-up — and whenever a dispatched lane reports \"standing by\"."
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
-# Nightly run — holding an unattended session
+# Unattended run — holding a long autonomous session
 
 One seat holds the goal across many wake-ups; every other seat is disposable. Everything below is a failure that has already cost hours of an unattended window, stated as the mechanism rather than the prohibition — prose alone demonstrably does not prevent the stall (§4).
 
