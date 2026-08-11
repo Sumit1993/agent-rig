@@ -62,7 +62,7 @@
             "timeout": 30
           }
         ],
-        "description": "After a successful `gh pr create`, publish CLI review evidence for the new PR and inject a reminder to arm the pr-watch monitor",
+        "description": "After a successful `gh pr create`, inject a reminder to arm the pr-watch monitor",
         "id": "post:bash:pr-created"
       }
     ]

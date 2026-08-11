@@ -5,7 +5,7 @@
 set -u
 root=$(git rev-parse --show-toplevel 2>/dev/null) || root=$(cd "$(dirname "$0")/../../.." && pwd)
 pattern='20[0-9]{2}-[0-9]{2}-[0-9]{2}|found live|last session|we learned|earlier attempt'
-hits=$(grep -rnE "$pattern" "$root"/plugins/*/skills/*/SKILL.md "$root"/dotfiles/CLAUDE.md 2>/dev/null || true)
+hits=$(grep -rnE "$pattern" "$root"/plugins/*/skills/*/SKILL.md "$root"/dotfiles/AGENTS.md 2>/dev/null || true)
 if [ -n "$hits" ]; then
   echo "doc lint: narrative/date markers found — state the constraint, leave provenance to git history:"
   echo "$hits"

@@ -2,7 +2,7 @@
 name: docs-governance
 description: "Audit and fix docs drift, then install prevention nets — the four-phase docs-governance playbook. Trigger: before merging a release PR on a repo whose registry entry has a `docs` block (the release gate points here), when the user asks for a docs audit/refresh, or when docs drift is suspected."
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Docs governance — audit → fix → retrofit → nets
@@ -47,7 +47,7 @@ One branch (`wt.sh create docs-refresh`), one delegated coding run, one PR. Non-
 - **Prune, don't append**: rewrite each stale sentence to be currently-true; never "but now also…". Delete false claims.
 - **Verify every claim against code before writing it** (verb lists ↔ dispatcher source, record fields ↔ serializer, defaults ↔ task runner). The coding agent skips-with-reason rather than invents.
 - **Verification gate**: docs-site build passes; the diff contains ONLY docs/comment/usage-string changes — check every non-markdown file in the diff file-by-file (delegates smuggle behavior changes into "docs-only" diffs).
-- CLI pre-review before push: `scripts/cr-preview.sh` — the `review-evidence` required check is what holds the merge, so run it when you want the diff read before the PR exists.
+- Nothing local runs before the PR exists: `CI gate` and the conventional-commit title check are the only required checks, and unresolved review threads are what hold the merge (see the `pr-watch` skill, Phase 0).
 
 ## Phase 3 — retrofit the open backlog
 

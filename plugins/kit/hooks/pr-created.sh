@@ -3,9 +3,9 @@
 # inject a reminder to arm the pr-watch monitor.
 # Silent (exit 0, no output) for every other Bash call.
 #
-# Review evidence is published by the repo's own `review-evidence.yml`, from the
-# review the GitHub Actions lane posts. Nothing local needs to run for a required
-# check to go green, so this hook's whole job is the reminder.
+# Reviews are advisory and posted by CI; no required check waits on one, and
+# nothing local has to run for a required check to go green. So this hook's whole
+# job is the reminder.
 set -u
 in=$(cat)
 cmd=$(jq -r '.tool_input.command // ""' <<<"$in" 2>/dev/null) || exit 0

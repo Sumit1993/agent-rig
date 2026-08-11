@@ -10,10 +10,13 @@ exists so a fresh machine behaves identically in two minutes.
 | Piece | What it does |
 |---|---|
 | `skills/anti-stall` | How to wait on long work without dozing: sentinel-first launches, evidence-keyed background until-loops, batch scripts over agent-per-step. Governs all long waits (agy, Workflows, builds, CI) |
-| `skills/pr-watch` | Review tiers (CodeRabbit → Opus → extreme) + post-PR lifecycle: seed and arm a deterministic CodeRabbit/CI Monitor (zero tokens while quiet), in-thread reply protocol, `merge-cascade.sh` for GitHub auto-merge's BEHIND stranding |
-| `skills/agy-delegate` | Antigravity CLI delegation mechanics (models, wrapper pattern, failure-mode table) + `run-agy-watchdog.sh` for the hang-after-report reaper |
+| `skills/unattended-run` | Holding a long unattended run: organizer never types, lane count derived from the actually-scarce resource, the stall rule ("standing by" = stalled), tear down a watch with its task, green-is-not-evidence, how to change enforcement machinery without taking the repo down, park-don't-decide, per-tick wake-up checklist |
+| `skills/pr-watch` | The merge contract (two required checks + unresolved-thread resolution; reviewers advisory, CodeRabbit by manual `review-ready` admission) + review tiers (`claude[bot]` → CodeRabbit → Opus → extreme) + post-PR lifecycle: seed and arm a deterministic CodeRabbit/CI Monitor (zero tokens while quiet), in-thread reply protocol, `merge-cascade.sh` for GitHub auto-merge's BEHIND stranding |
+| `skills/agy-delegate` | Antigravity CLI delegation mechanics (models, wrapper pattern, failure-mode table) + `run-agy-watchdog.sh` for the hang-after-report reaper + lane-count-from-scarce-resource pointer |
+| `skills/docs-governance` | Four-phase docs-drift playbook (audit → fix → retrofit → prevention nets) + the illustration standard (when a passage needs a worked example/transcript/diagram/screenshot, not just prose) |
+| `skills/html-explainer` | Mechanics for a standalone HTML explainer page (inline CSS/SVG, `~/ai-context/`, `explorer.exe` offer) — the WHEN to build one lives in `AGENTS.md` so it stays always-loaded |
 | `skills/autofix` | CodeRabbit's official autofix skill, **patched** (2026-07-12): per-issue replies go IN-THREAD (`/replies` + verify-and-resolve) — upstream's "summary-comment only" rule blocks merges under `required_review_thread_resolution` rulesets |
-| `skills/code-review` | CodeRabbit CLI review skill (vendored; no upstream update channel) |
+| `skills/code-review` | CodeRabbit CLI review skill (vendored; no upstream update channel) — manual local look, does not feed the merge gate |
 | `hooks/pr-created.sh` | PostToolUse(Bash): a successful `gh pr create` injects "arm pr-watch now" |
 
 `dotfiles/AGENTS.md` stays deliberately thin — it is loaded on **every turn in every project**,
