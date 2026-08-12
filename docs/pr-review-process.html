@@ -52,7 +52,7 @@
         <rect x="30" y="122" width="270" height="112" rx="8" fill="#fff" stroke="#e2ddd2"/>
         <text x="165" y="144" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2430">prismalens/prismalens</text>
         <text x="165" y="165" text-anchor="middle" font-size="11" fill="#6b7280">review · mention · fixer lanes</text>
-        <text x="165" y="183" text-anchor="middle" font-size="11" fill="#6b7280">CodeRabbit via review-ready</text>
+        <text x="165" y="183" text-anchor="middle" font-size="11" fill="#6b7280">CodeRabbit via coderabbit_review</text>
         <text x="165" y="205" text-anchor="middle" font-size="12" fill="#2e7d4f" font-weight="600">merge: QUEUE (squash)</text>
       </g>
       <g>
@@ -82,7 +82,7 @@
         <rect x="10" y="80" width="100" height="44" rx="7" fill="#2b5f9e"/><text x="60" y="106" text-anchor="middle" fill="#fff">PR opened</text>
         <rect x="150" y="20" width="150" height="40" rx="7" fill="#fff" stroke="#e2ddd2"/><text x="225" y="44" text-anchor="middle">CI + title check</text>
         <rect x="150" y="80" width="150" height="44" rx="7" fill="#fff" stroke="#e2ddd2"/><text x="225" y="98" text-anchor="middle">Claude review lane</text><text x="225" y="114" text-anchor="middle" fill="#6b7280" font-size="10">auto, every same-repo PR</text>
-        <rect x="150" y="146" width="150" height="44" rx="7" fill="#fff" stroke="#e2ddd2" stroke-dasharray="4 3"/><text x="225" y="164" text-anchor="middle">CodeRabbit</text><text x="225" y="180" text-anchor="middle" fill="#6b7280" font-size="10">only via review-ready label</text>
+        <rect x="150" y="146" width="150" height="44" rx="7" fill="#fff" stroke="#e2ddd2" stroke-dasharray="4 3"/><text x="225" y="164" text-anchor="middle">CodeRabbit</text><text x="225" y="180" text-anchor="middle" fill="#6b7280" font-size="10">only via coderabbit_review label</text>
         <rect x="345" y="80" width="130" height="44" rx="7" fill="#fdf3e4" stroke="#ecd9b0"/><text x="410" y="98" text-anchor="middle">liveness comment</text><text x="410" y="114" text-anchor="middle" fill="#6b7280" font-size="10">posted N / posted nothing</text>
         <rect x="520" y="80" width="120" height="44" rx="7" fill="#fff" stroke="#e2ddd2"/><text x="580" y="98" text-anchor="middle">threads open</text><text x="580" y="114" text-anchor="middle" fill="#6b7280" font-size="10">each blocks merge</text>
         <rect x="680" y="20" width="190" height="52" rx="7" fill="#fff" stroke="#e2ddd2"/><text x="775" y="40" text-anchor="middle">fix loop</text><text x="775" y="58" text-anchor="middle" fill="#6b7280" font-size="10">@claude fix (once) or local seat</text>
@@ -126,10 +126,10 @@
   <p>Every PR gets one auto-updated comment from <code>github-actions[bot]</code>:
   <em>"reviewed <code>abc12345</code> and posted N inline / M summary comment(s)"</em> means the reviewer ran and published.
   <em>"posted <b>nothing</b>"</em> means this head has <strong>no machine review on record</strong> — silence is never approval.
-  A PR that edits <code>claude-code-review.yml</code> itself is never reviewed by the lane (self-skip is a security control): label it <code>review-ready</code> for a CodeRabbit read instead.</p>
+  A PR that edits <code>claude-code-review.yml</code> itself is never reviewed by the lane (self-skip is a security control): label it <code>coderabbit_review</code> for a CodeRabbit read instead.</p>
 
   <h3>When to spend a CodeRabbit review</h3>
-  <p>Apply the <code>review-ready</code> label (or comment a <em>bare</em> <code>@coderabbitai review</code>). A PR without the label shows "Review skipped: excluded by label configuration" — that is the valve working, not an error. It's an org-wide,
+  <p>Apply the <code>coderabbit_review</code> label (or comment a <em>bare</em> <code>@coderabbitai review</code>). A PR without the label shows "Review skipped: excluded by label configuration" — that is the valve working, not an error. It's an org-wide,
   ~40-min-cooldown counter — spend it on security-sensitive paths, workflow changes, or a second opinion; never routinely. Batch your
   fixes before re-requesting.</p>
 
