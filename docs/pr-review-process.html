@@ -104,7 +104,7 @@
   <h2><span class="n">3</span>Operator cheat-sheet — the questions that actually come up</h2>
 
   <h3>Reviewers left 3 comments. One <code>@claude fix</code> or three?</h3>
-  <p><strong>One.</strong> Post a single top-level PR comment: <code>@claude fix</code>. The fixer's prompt tells it to read
+  <p><strong>One.</strong> One summon comment per round — this is the @claude fix trigger, not a reply protocol; fix replies always go in-thread: <code>@claude fix</code>. The fixer's prompt tells it to read
   <em>all</em> unresolved review threads on the PR and address each — replying in every thread it touched with the fix commit SHA.
   Commenting per-thread would start one full agent run per comment (they serialize per-PR, but each spends subscription for nothing).
   Add scoping words only to <em>exclude</em>: e.g. <code>@claude fix — only the two SCHEMA.md threads, leave the API design one for me</code>.</p>
@@ -130,7 +130,7 @@
   A PR that edits <code>claude-code-review.yml</code> itself is never reviewed by the lane (self-skip is a security control): label it <code>review-ready</code> for a CodeRabbit read instead.</p>
 
   <h3>When to spend a CodeRabbit review</h3>
-  <p>Apply the <code>review-ready</code> label (or comment a <em>bare</em> <code>@coderabbitai review</code>). It's an org-wide,
+  <p>Apply the <code>review-ready</code> label (or comment a <em>bare</em> <code>@coderabbitai review</code>). A PR without the label shows "Review skipped: excluded by label configuration" — that is the valve working, not an error. It's an org-wide,
   ~40-min-cooldown counter — spend it on security-sensitive paths, workflow changes, or a second opinion; never routinely. Batch your
   fixes before re-requesting.</p>
 
