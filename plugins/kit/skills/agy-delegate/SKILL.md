@@ -13,6 +13,8 @@ Routing (which model gets which task, quota) lives in `~/.claude/CLAUDE.md`. Wai
 
 **Gemini quota exhausted ≠ agy exhausted.** Before parking work on a reset timer, probe agy-Claude availability — `-p "say ok"` on the Opus/Sonnet 4.6 display strings — and use it if live, one job at a time, never parallel. Park on the timer only when all agy lanes are dry.
 
+**Reference repo content = live refs, never a working tree.** When a prompt tells agy to copy or consult files from another repo, it must fetch live content — `gh api repos/<r>/contents/<path>`, or `git fetch` + `git show origin/main:<path>` — never read a local checkout's working tree, and the prompt must say so explicitly. A checkout's files lag its refs (fetch updates refs, not files); on 2026-08-12 a stale prismalens working tree seeded pre-fix workflow copies into a canon repo and two consumer repos, and only a canary PR caught it.
+
 Global standards for every agy run live in `~/.gemini/GEMINI.md` (evidence-not-narration, new-test-must-execute, both-directions verification, never-weaken-tests, byte-exact commit messages). agy loads it automatically. Prompts can stay lean on those points — but still verify agy's claims yourself; standards reduce hollow reports, they don't eliminate them.
 
 ## Reaching the models

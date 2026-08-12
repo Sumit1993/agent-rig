@@ -27,7 +27,7 @@ if [ "${1:-}" = "--repo" ]; then REPO="$2"; shift 2; else
   REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null) || { echo "watch-coderabbit: cannot resolve repo (pass --repo owner/name)"; exit 1; }
 fi
 KEY=$(echo "$REPO" | tr '/' '-')
-STATE_DIR="$HOME/ai-context/state/cr-watch"
+STATE_DIR="${CR_WATCH_STATE_DIR:-$HOME/ai-context/state/cr-watch}"
 mkdir -p "$STATE_DIR"
 PRS=("$@")
 [ ${#PRS[@]} -eq 0 ] && { echo "watch-coderabbit: no PR numbers given"; exit 1; }
@@ -188,6 +188,38 @@ while [ ${#PRS[@]} -gt 0 ]; do
       fi
     fi
     fi  # CR_PRESENT
+
+    # --- Claude review lane channel (inline comments + liveness verdict) ---
+    seen_claude="$STATE_DIR/$KEY-pr$pr-claude.seen"; touch "$seen_claude"
+    payload_dir="$STATE_DIR/$KEY-pr$pr-comments"; mkdir -p "$payload_dir"
+    claude_comments_raw=$(gh api "repos/$REPO/pulls/$pr/comments?per_page=100" 2>/dev/null)
+    if is_json_array <<<"$claude_comments_raw"; then
+      jq -r '.[] | select(.user.login == "claude[bot]" or (.user.login | test("claude"; "i"))) | "\(.id)\t\(.path):\(.line // .original_line)\t\(.in_reply_to_id // "root")\t\(.body | gsub("[\\n\\r\\t]"; " ") | .[0:80])"' <<<"$claude_comments_raw" |
+      while IFS=$'\t' read -r id path reply body; do
+        grep -qx "$id" "$seen_claude" 2>/dev/null && continue
+        echo "$id" >> "$seen_claude"
+        kind="thread"; [ "$reply" != "root" ] && kind="reply-in-$reply"
+        gh api "repos/$REPO/pulls/comments/$id" > "$payload_dir/$id.json" 2>/dev/null
+        echo "PR#$pr NEW claude $kind — id $id — $path — payload $payload_dir/$id.json — $body"
+      done
+    fi
+
+    liveness_state="$STATE_DIR/$KEY-pr$pr.claudeliveness"
+    liveness_prev=""
+    [ -f "$liveness_state" ] && liveness_prev=$(cat "$liveness_state" 2>/dev/null)
+    liveness_raw=$(gh api "repos/$REPO/issues/$pr/comments?per_page=100" 2>/dev/null)
+    if is_json_array <<<"$liveness_raw"; then
+      liveness_info=$(jq -r '[.[] | select((.user.login == "github-actions[bot]" or (.user.login | test("github-actions"; "i"))) and (.body | startswith("<!-- claude-review-liveness -->")))]
+                             | if length > 0 then last | "\(.updated_at)\t\(.body | sub("^<!-- claude-review-liveness -->\\s*"; "") | split("\n") | map(select(length > 0)) | first)" else empty end' <<<"$liveness_raw" 2>/dev/null)
+      if [ -n "$liveness_info" ]; then
+        liveness_ts=${liveness_info%%$'\t'*}
+        liveness_text=${liveness_info#*$'\t'}
+        if [ "$liveness_ts" != "$liveness_prev" ]; then
+          printf '%s' "$liveness_ts" > "$liveness_state"
+          echo "PR#$pr CLAUDE LIVENESS — $liveness_text"
+        fi
+      fi
+    fi
 
     # Read line-by-line: check names contain spaces ("Validate PR title (conventional
     # commits)"), and `for r in $reds` word-splits them into one bogus event per word.

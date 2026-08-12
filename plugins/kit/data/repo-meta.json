@@ -1,6 +1,10 @@
 {
   "Sumit1993/mage-memory": {
     "coderabbit": true,
+    "claude_lane": true,
+    "fixer_lane": false,
+    "merge_queue": false,
+    "canon": "prismalens/gh-workflows",
     "docs": {
       "site": "docs/src/content/docs",
       "surfaces": [
@@ -16,8 +20,12 @@
       "code_globs": ["src/**"]
     }
   },
-  "Sumit1993/sreforge": {
+  "prismalens/sreforge": {
     "coderabbit": true,
+    "claude_lane": true,
+    "fixer_lane": false,
+    "merge_queue": true,
+    "canon": "prismalens/gh-workflows",
     "docs": {
       "site": "docs/src/content/docs",
       "surfaces": [
@@ -34,6 +42,10 @@
   },
   "prismalens/prismalens": {
     "coderabbit": true,
+    "claude_lane": true,
+    "fixer_lane": true,
+    "merge_queue": true,
+    "canon": "prismalens/gh-workflows",
     "docs": {
       "surfaces": [
         "README.md",
