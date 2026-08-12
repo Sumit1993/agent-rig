@@ -113,7 +113,7 @@
   <table>
     <tr><th>Thread author</th><th>After a fix lands</th><th>After a decline/defer</th></tr>
     <tr><td>CodeRabbit</td>
-        <td><span class="who-c">CodeRabbit</span> — reply in-thread with the SHA (<em>never</em> use the word "resolve" in the reply; it parses as a command and answers with boilerplate), then one top-level <code>@coderabbitai resolve</code> once you're satisfied.</td>
+        <td><span class="who-c">CodeRabbit</span> — batch ALL fixes, push, reply in each thread with the SHA (<em>never</em> the word "resolve" in a reply — it parses as a command and no-ops), then spend one <code>@coderabbitai review</code>: it re-verifies and self-resolves what's genuinely addressed. Threads it leaves open get individually resolved with stated rationale (operator, or session under operator credential). <strong>Bare <code>@coderabbitai resolve</code> is discouraged</strong> — it blanket-resolves with zero validation; reserve it for rounds that are entirely declines/deferrals with dispositions already stated.</td>
         <td><span class="who-o">Operator</span> resolves, after stating the disposition in-thread and waiting ~60s for its counter-reply. Point at a tracking issue by number.</td></tr>
     <tr><td>claude[bot] (review lane)</td>
         <td><span class="who-o">Operator</span> verifies the fix and resolves (GraphQL/UI). Giving the review lane verify-and-resolve capability is an open #403 item — until then this is manual.</td>
