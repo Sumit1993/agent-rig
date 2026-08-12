@@ -115,7 +115,7 @@
         <td><span class="who-c">CodeRabbit</span> — batch ALL fixes, push, reply in each thread with the SHA (<em>never</em> the word "resolve" in a reply — it parses as a command and no-ops), then spend one <code>@coderabbitai review</code>: it re-verifies and self-resolves what's genuinely addressed. Threads it leaves open get individually resolved with stated rationale (operator, or session under operator credential). <strong>Bare <code>@coderabbitai resolve</code> is discouraged</strong> — it blanket-resolves with zero validation; reserve it for rounds that are entirely declines/deferrals with dispositions already stated.</td>
         <td><span class="who-o">Operator</span> resolves, after stating the disposition in-thread and waiting ~60s for its counter-reply. Point at a tracking issue by number.</td></tr>
     <tr><td>claude[bot] (review lane)</td>
-        <td><span class="who-o">Operator</span> verifies the fix and resolves (GraphQL/UI). Giving the review lane verify-and-resolve capability is an open #403 item — until then this is manual.</td>
+        <td><span class="who-o">Operator</span> verifies the fix and resolves (GraphQL/UI). Giving the review lane verify-and-resolve capability is an open #403 item — until then this is manual. Verification-round verdicts are consumed by <code>plugins/kit/scripts/resolve-verified.sh &lt;pr&gt;</code> — one confirm resolves all reviewer-verified threads; "not addressed" threads stay for judgment.</td>
         <td><span class="who-o">Operator</span> resolves with reasoning in-thread.</td></tr>
     <tr><td>Human</td><td colspan="2">Whoever opened it resolves it.</td></tr>
   </table>
