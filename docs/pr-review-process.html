@@ -41,10 +41,10 @@
   <h2><span class="n">1</span>Topology — who reviews, who fixes, who merges</h2>
   <figure>
     <figcaption>Canon repo feeds three consumers; every reviewer is advisory; humans and queues merge</figcaption>
-    <svg viewBox="0 0 900 300" role="img" aria-label="Topology: gh-workflows canon syncs to three repos; each repo has review, mention, fixer lanes; merge via queue or classic">
+    <svg viewBox="0 0 900 300" role="img" aria-label="Topology: gh-workflows canon serves reusable workflows to three repos; each repo has review, mention, fixer lanes; merge via queue or classic">
       <rect x="330" y="14" width="240" height="54" rx="8" fill="#2b5f9e"/>
       <text x="450" y="36" text-anchor="middle" fill="#fff" font-size="14" font-weight="600">prismalens/gh-workflows</text>
-      <text x="450" y="55" text-anchor="middle" fill="#dbe7f5" font-size="11">canonical workflows · sync-by-PR · drift check</text>
+      <text x="450" y="55" text-anchor="middle" fill="#dbe7f5" font-size="11">reusable workflows (workflow_call) + composite actions · consumers hold thin caller stubs</text>
       <line x1="380" y1="68" x2="160" y2="120" stroke="#2b5f9e" stroke-width="2" marker-end="url(#a1)"/>
       <line x1="450" y1="68" x2="450" y2="120" stroke="#2b5f9e" stroke-width="2" marker-end="url(#a1)"/>
       <line x1="520" y1="68" x2="740" y2="120" stroke="#2b5f9e" stroke-width="2" marker-end="url(#a1)"/>
@@ -58,19 +58,18 @@
       <g>
         <rect x="320" y="122" width="260" height="112" rx="8" fill="#fff" stroke="#e2ddd2"/>
         <text x="450" y="144" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2430">prismalens/sreforge</text>
-        <text x="450" y="165" text-anchor="middle" font-size="11" fill="#6b7280">review · mention lanes</text>
-        <text x="450" y="183" text-anchor="middle" font-size="11" fill="#6b7280">(fixer lane: port when proven)</text>
+        <text x="450" y="165" text-anchor="middle" font-size="11" fill="#6b7280">review · mention · fixer lanes</text>
         <text x="450" y="205" text-anchor="middle" font-size="12" fill="#2e7d4f" font-weight="600">merge: QUEUE (squash)</text>
       </g>
       <g>
         <rect x="600" y="122" width="270" height="112" rx="8" fill="#fff" stroke="#e2ddd2"/>
         <text x="735" y="144" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2430">Sumit1993/mage-memory</text>
-        <text x="735" y="165" text-anchor="middle" font-size="11" fill="#6b7280">review · mention lanes</text>
+        <text x="735" y="165" text-anchor="middle" font-size="11" fill="#6b7280">review · mention · fixer lanes</text>
         <text x="735" y="183" text-anchor="middle" font-size="11" fill="#b3403a">merge queue unavailable (personal repo)</text>
         <text x="735" y="205" text-anchor="middle" font-size="12" fill="#b4552d" font-weight="600">merge: classic squash, attended</text>
       </g>
       <text x="450" y="262" text-anchor="middle" font-size="12" fill="#6b7280">Required to merge, everywhere: CI gate + PR-title check + all review threads resolved. Reviewers gate nothing.</text>
-      <text x="450" y="282" text-anchor="middle" font-size="12" fill="#6b7280">Secrets (CLAUDE_CODE_OAUTH_TOKEN) live per-repo, never in canon. Never edit lane workflows in a consumer — sync from canon.</text>
+      <text x="450" y="282" text-anchor="middle" font-size="12" fill="#6b7280">Secrets (CLAUDE_CODE_OAUTH_TOKEN) live per-repo, never in canon. Consumers hold thin caller stubs; lane logic changes happen in prismalens/gh-workflows only.</text>
       <defs><marker id="a1" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#2b5f9e"/></marker></defs>
     </svg>
   </figure>
@@ -144,8 +143,8 @@
   <h2><span class="n">4</span>Standing doctrine</h2>
   <ul>
     <li><strong>A green job is never evidence a review happened.</strong> The action exits <code>success</code> when the reviewer posts nothing. Only posted output counts: inline threads, a <code>## Code review</code> summary, the liveness count.</li>
-    <li><strong>Canary before trust.</strong> After any lane lands on a new repo or a workflow sync merges: open a trivial docs PR, wait for the review run, read the liveness comment. Close the canary unmerged.</li>
-    <li><strong>Sync from canon, never hand-edit a consumer.</strong> <code>gh-workflows/scripts/check-drift.sh</code> tells you who drifted; <code>sync-consumer.sh &lt;repo&gt;</code> opens the fix PR. Seed lesson (2026-08-12): copies must come from <em>live</em> GitHub content, never from a local checkout's working tree — a stale tree shipped a broken lane to two repos and only the canary caught it.</li>
+    <li><strong>Canary before trust.</strong> After any lane lands on a new repo or a workflow change merges: open a trivial docs PR, wait for the review run, read the liveness comment. Close the canary unmerged.</li>
+    <li><strong>Consumers hold thin caller stubs; lane logic changes happen in prismalens/gh-workflows only.</strong> Reusable workflows live in canon (<code>prismalens/gh-workflows</code>); consumers hold thin caller stubs. Lane logic changes happen in <code>prismalens/gh-workflows</code> only.</li>
     <li><strong><code>CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1</code> stays on every lane</strong> until upstream print mode survives background-subagent gaps (async launches end one-shot sessions before results arrive — the bug that silenced reviews for two days). Unpin = remove the env var, then re-canary; a green run is not verification.</li>
     <li><strong>Reviewer lanes are read-only; the fixer holds the only model-adjacent write</strong>, fork-guarded (resolve-pr job) and tool-denied from reviewing/resolving/merging. Don't add writes to any other lane.</li>
   </ul>
