@@ -10,6 +10,7 @@
 - Concise and simple wins. If there's a simpler way, propose it. Don't handroll — use good libraries.
 - TypeScript: never `any` unless unavoidable or instructed.
 - Match the repo's existing stack; don't import preferences it doesn't already use. Greenfield default: Next.js + Postgres. Scripting: Google Apps Script.
+- **Comment budget.** A comment states the one non-obvious constraint ("X must stay Y because Z breaks") in ≤3 lines, plus a pointer (issue #, doc path) for the story. History, incident narratives, measured evidence, and threat-model essays go to the issue/PR/living doc the pointer names — never inline. Do not instruct delegated agents to "match the comment discipline" of a file that violates this; a repo whose existing comments are essays gets pointers on NEW code, and the essays get slimmed only as a deliberate, separate task. Applies to me and to every spec I hand a delegate.
 
 # Routing — which model gets which task
 
