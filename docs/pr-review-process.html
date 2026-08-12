@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PR Review &amp; Resolution Process</title>
+<style>
+  :root { --bg:#f7f5f0; --panel:#fff; --ink:#1f2430; --muted:#6b7280; --accent:#b4552d;
+          --good:#2e7d4f; --bad:#b3403a; --info:#2b5f9e; --code:#f0ede6; --line:#e2ddd2; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--ink); font:16px/1.6 "Segoe UI",system-ui,sans-serif; padding:2.5rem 1rem 5rem; }
+  main { max-width:980px; margin:0 auto; }
+  h1 { font-size:1.85rem; margin-bottom:.3rem; }
+  .sub { color:var(--muted); margin-bottom:1.6rem; }
+  h2 { font-size:1.25rem; margin:2.4rem 0 .8rem; padding-top:1.1rem; border-top:2px solid var(--line); }
+  h2 .n { color:var(--accent); margin-right:.45rem; }
+  h3 { font-size:1.02rem; margin:1.3rem 0 .5rem; }
+  p, li { max-width:78ch; } p { margin-bottom:.85rem; } ul,ol { margin:0 0 1rem 1.4rem; } li { margin-bottom:.35rem; }
+  code { font-family:Consolas,monospace; font-size:.86em; background:var(--code); padding:.08em .35em; border-radius:4px; }
+  pre { font-family:Consolas,monospace; font-size:.84em; background:var(--code); border:1px solid var(--line);
+        border-radius:6px; padding:.8rem 1rem; overflow-x:auto; margin-bottom:1rem; line-height:1.5; }
+  table { border-collapse:collapse; width:100%; margin-bottom:1.1rem; font-size:.9rem; }
+  th,td { border:1px solid var(--line); padding:.5rem .65rem; text-align:left; vertical-align:top; }
+  th { background:var(--code); }
+  .rule { background:#fdf3e4; border:1px solid #ecd9b0; border-radius:6px; padding:.8rem 1rem; margin:1rem 0; max-width:78ch; }
+  .rule strong:first-child { color:var(--accent); }
+  figure { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:1rem; margin:1.2rem 0; }
+  figcaption { font-weight:600; margin-bottom:.6rem; }
+  svg { width:100%; height:auto; display:block; } svg text { font-family:"Segoe UI",system-ui,sans-serif; }
+  .foot { margin-top:3rem; color:var(--muted); font-size:.85rem; border-top:2px solid var(--line); padding-top:1rem; }
+  .who-c { color:var(--info); font-weight:600; } .who-r { color:var(--good); font-weight:600; } .who-o { color:var(--accent); font-weight:600; }
+</style>
+</head>
+<body>
+<main>
+  <h1>The PR review &amp; resolution process</h1>
+  <p class="sub">Living doc for <code>prismalens/prismalens</code>, <code>prismalens/sreforge</code>, <code>Sumit1993/mage-memory</code>.
+  Owner: the operator. Update trigger: any change to a <code>claude-*.yml</code> workflow, the canon repo, a ruleset, or the resolution protocol
+  <em>must</em> update this page in the same working session. Established 2026-08-12 (prismalens#403).</p>
+
+  <h2><span class="n">1</span>Topology — who reviews, who fixes, who merges</h2>
+  <figure>
+    <figcaption>Canon repo feeds three consumers; every reviewer is advisory; humans and queues merge</figcaption>
+    <svg viewBox="0 0 900 300" role="img" aria-label="Topology: gh-workflows canon syncs to three repos; each repo has review, mention, fixer lanes; merge via queue or classic">
+      <rect x="330" y="14" width="240" height="54" rx="8" fill="#2b5f9e"/>
+      <text x="450" y="36" text-anchor="middle" fill="#fff" font-size="14" font-weight="600">prismalens/gh-workflows</text>
+      <text x="450" y="55" text-anchor="middle" fill="#dbe7f5" font-size="11">canonical workflows · sync-by-PR · drift check</text>
+      <line x1="380" y1="68" x2="160" y2="120" stroke="#2b5f9e" stroke-width="2" marker-end="url(#a1)"/>
+      <line x1="450" y1="68" x2="450" y2="120" stroke="#2b5f9e" stroke-width="2" marker-end="url(#a1)"/>
+      <line x1="520" y1="68" x2="740" y2="120" stroke="#2b5f9e" stroke-width="2" marker-end="url(#a1)"/>
+      <g>
+        <rect x="30" y="122" width="270" height="112" rx="8" fill="#fff" stroke="#e2ddd2"/>
+        <text x="165" y="144" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2430">prismalens/prismalens</text>
+        <text x="165" y="165" text-anchor="middle" font-size="11" fill="#6b7280">review · mention · fixer lanes</text>
+        <text x="165" y="183" text-anchor="middle" font-size="11" fill="#6b7280">CodeRabbit via review-ready</text>
+        <text x="165" y="205" text-anchor="middle" font-size="12" fill="#2e7d4f" font-weight="600">merge: QUEUE (squash)</text>
+      </g>
+      <g>
+        <rect x="320" y="122" width="260" height="112" rx="8" fill="#fff" stroke="#e2ddd2"/>
+        <text x="450" y="144" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2430">prismalens/sreforge</text>
+        <text x="450" y="165" text-anchor="middle" font-size="11" fill="#6b7280">review · mention lanes</text>
+        <text x="450" y="183" text-anchor="middle" font-size="11" fill="#6b7280">(fixer lane: port when proven)</text>
+        <text x="450" y="205" text-anchor="middle" font-size="12" fill="#2e7d4f" font-weight="600">merge: QUEUE (squash)</text>
+      </g>
+      <g>
+        <rect x="600" y="122" width="270" height="112" rx="8" fill="#fff" stroke="#e2ddd2"/>
+        <text x="735" y="144" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2430">Sumit1993/mage-memory</text>
+        <text x="735" y="165" text-anchor="middle" font-size="11" fill="#6b7280">review · mention lanes</text>
+        <text x="735" y="183" text-anchor="middle" font-size="11" fill="#b3403a">merge queue unavailable (personal repo)</text>
+        <text x="735" y="205" text-anchor="middle" font-size="12" fill="#b4552d" font-weight="600">merge: classic squash, attended</text>
+      </g>
+      <text x="450" y="262" text-anchor="middle" font-size="12" fill="#6b7280">Required to merge, everywhere: CI gate + PR-title check + all review threads resolved. Reviewers gate nothing.</text>
+      <text x="450" y="282" text-anchor="middle" font-size="12" fill="#6b7280">Secrets (CLAUDE_CODE_OAUTH_TOKEN) live per-repo, never in canon. Never edit lane workflows in a consumer — sync from canon.</text>
+      <defs><marker id="a1" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#2b5f9e"/></marker></defs>
+    </svg>
+  </figure>
+
+  <h2><span class="n">2</span>Lifecycle of a PR</h2>
+  <figure>
+    <figcaption>From open to merged — advisory reviews, one fix loop, native thread gate</figcaption>
+    <svg viewBox="0 0 900 210" role="img" aria-label="Flow: PR opened; CI and Claude review run; optional CodeRabbit; threads open; @claude fix once; replies; resolution; queue merge">
+      <g font-size="12">
+        <rect x="10" y="80" width="100" height="44" rx="7" fill="#2b5f9e"/><text x="60" y="106" text-anchor="middle" fill="#fff">PR opened</text>
+        <rect x="150" y="20" width="150" height="40" rx="7" fill="#fff" stroke="#e2ddd2"/><text x="225" y="44" text-anchor="middle">CI + title check</text>
+        <rect x="150" y="80" width="150" height="44" rx="7" fill="#fff" stroke="#e2ddd2"/><text x="225" y="98" text-anchor="middle">Claude review lane</text><text x="225" y="114" text-anchor="middle" fill="#6b7280" font-size="10">auto, every same-repo PR</text>
+        <rect x="150" y="146" width="150" height="44" rx="7" fill="#fff" stroke="#e2ddd2" stroke-dasharray="4 3"/><text x="225" y="164" text-anchor="middle">CodeRabbit</text><text x="225" y="180" text-anchor="middle" fill="#6b7280" font-size="10">only via review-ready label</text>
+        <rect x="345" y="80" width="130" height="44" rx="7" fill="#fdf3e4" stroke="#ecd9b0"/><text x="410" y="98" text-anchor="middle">liveness comment</text><text x="410" y="114" text-anchor="middle" fill="#6b7280" font-size="10">posted N / posted nothing</text>
+        <rect x="520" y="80" width="120" height="44" rx="7" fill="#fff" stroke="#e2ddd2"/><text x="580" y="98" text-anchor="middle">threads open</text><text x="580" y="114" text-anchor="middle" fill="#6b7280" font-size="10">each blocks merge</text>
+        <rect x="680" y="20" width="190" height="52" rx="7" fill="#fff" stroke="#e2ddd2"/><text x="775" y="40" text-anchor="middle">fix loop</text><text x="775" y="58" text-anchor="middle" fill="#6b7280" font-size="10">@claude fix (once) or local seat</text>
+        <rect x="680" y="146" width="190" height="52" rx="7" fill="#2e7d4f"/><text x="775" y="166" text-anchor="middle" fill="#fff">resolve threads → merge</text><text x="775" y="184" text-anchor="middle" fill="#d9ead9" font-size="10">queue (org) / classic (personal)</text>
+        <line x1="110" y1="95" x2="150" y2="45" stroke="#9aa" stroke-width="2" marker-end="url(#a2)"/>
+        <line x1="110" y1="102" x2="150" y2="102" stroke="#9aa" stroke-width="2" marker-end="url(#a2)"/>
+        <line x1="110" y1="110" x2="150" y2="165" stroke="#9aa" stroke-width="2" marker-end="url(#a2)"/>
+        <line x1="300" y1="102" x2="345" y2="102" stroke="#9aa" stroke-width="2" marker-end="url(#a2)"/>
+        <line x1="475" y1="102" x2="520" y2="102" stroke="#9aa" stroke-width="2" marker-end="url(#a2)"/>
+        <line x1="640" y1="92" x2="680" y2="52" stroke="#9aa" stroke-width="2" marker-end="url(#a2)"/>
+        <line x1="775" y1="72" x2="775" y2="146" stroke="#9aa" stroke-width="2" marker-end="url(#a2)"/>
+        <line x1="640" y1="112" x2="680" y2="160" stroke="#9aa" stroke-width="2" marker-end="url(#a2)"/>
+      </g>
+      <defs><marker id="a2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9aa"/></marker></defs>
+    </svg>
+  </figure>
+
+  <h2><span class="n">3</span>Operator cheat-sheet — the questions that actually come up</h2>
+
+  <h3>Reviewers left 3 comments. One <code>@claude fix</code> or three?</h3>
+  <p><strong>One.</strong> Post a single top-level PR comment: <code>@claude fix</code>. The fixer's prompt tells it to read
+  <em>all</em> unresolved review threads on the PR and address each — replying in every thread it touched with the fix commit SHA.
+  Commenting per-thread would start one full agent run per comment (they serialize per-PR, but each spends subscription for nothing).
+  Add scoping words only to <em>exclude</em>: e.g. <code>@claude fix — only the two SCHEMA.md threads, leave the API design one for me</code>.</p>
+
+  <h3>Who resolves which thread?</h3>
+  <table>
+    <tr><th>Thread author</th><th>After a fix lands</th><th>After a decline/defer</th></tr>
+    <tr><td>CodeRabbit</td>
+        <td><span class="who-c">CodeRabbit</span> — reply in-thread with the SHA (<em>never</em> use the word "resolve" in the reply; it parses as a command and answers with boilerplate), then one top-level <code>@coderabbitai resolve</code> once you're satisfied.</td>
+        <td><span class="who-o">Operator</span> resolves, after stating the disposition in-thread and waiting ~60s for its counter-reply. Point at a tracking issue by number.</td></tr>
+    <tr><td>claude[bot] (review lane)</td>
+        <td><span class="who-o">Operator</span> verifies the fix and resolves (GraphQL/UI). Giving the review lane verify-and-resolve capability is an open #403 item — until then this is manual.</td>
+        <td><span class="who-o">Operator</span> resolves with reasoning in-thread.</td></tr>
+    <tr><td>Human</td><td colspan="2">Whoever opened it resolves it.</td></tr>
+  </table>
+  <div class="rule"><strong>Never</strong> let the fixer resolve anything — it is denied the tools, and the deny list is load-bearing:
+  threads are the only thing standing between a pushed "fix" and a merge. The fixer fixes and replies; verification belongs to a different party. Disputes: operator tie-breaks.</div>
+
+  <h3>Reading the liveness comment</h3>
+  <p>Every PR gets one auto-updated comment from <code>github-actions[bot]</code>:
+  <em>"reviewed <code>abc12345</code> and posted N inline / M summary comment(s)"</em> means the reviewer ran and published.
+  <em>"posted <b>nothing</b>"</em> means this head has <strong>no machine review on record</strong> — silence is never approval.
+  A PR that edits <code>claude-code-review.yml</code> itself is never reviewed by the lane (self-skip is a security control): label it <code>review-ready</code> for a CodeRabbit read instead.</p>
+
+  <h3>When to spend a CodeRabbit review</h3>
+  <p>Apply the <code>review-ready</code> label (or comment a <em>bare</em> <code>@coderabbitai review</code>). It's an org-wide,
+  ~40-min-cooldown counter — spend it on security-sensitive paths, workflow changes, or a second opinion; never routinely. Batch your
+  fixes before re-requesting.</p>
+
+  <h3>Merging</h3>
+  <ul>
+    <li><strong>prismalens, sreforge:</strong> <code>gh pr merge N --squash</code> enqueues; the queue tests a speculative merge onto main and lands it. No more update-branch / BEHIND cascades, no full-CI reruns per sibling merge.</li>
+    <li><strong>mage-memory:</strong> classic squash (merge queue is org-only). Update-branch still applies there.</li>
+    <li>Bots never merge, anywhere. The fixer is tool-denied both <code>gh pr merge</code> and the REST merge endpoint.</li>
+  </ul>
+
+  <h2><span class="n">4</span>Standing doctrine</h2>
+  <ul>
+    <li><strong>A green job is never evidence a review happened.</strong> The action exits <code>success</code> when the reviewer posts nothing. Only posted output counts: inline threads, a <code>## Code review</code> summary, the liveness count.</li>
+    <li><strong>Canary before trust.</strong> After any lane lands on a new repo or a workflow sync merges: open a trivial docs PR, wait for the review run, read the liveness comment. Close the canary unmerged.</li>
+    <li><strong>Sync from canon, never hand-edit a consumer.</strong> <code>gh-workflows/scripts/check-drift.sh</code> tells you who drifted; <code>sync-consumer.sh &lt;repo&gt;</code> opens the fix PR. Seed lesson (2026-08-12): copies must come from <em>live</em> GitHub content, never from a local checkout's working tree — a stale tree shipped a broken lane to two repos and only the canary caught it.</li>
+    <li><strong><code>CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1</code> stays on every lane</strong> until upstream print mode survives background-subagent gaps (async launches end one-shot sessions before results arrive — the bug that silenced reviews for two days). Unpin = remove the env var, then re-canary; a green run is not verification.</li>
+    <li><strong>Reviewer lanes are read-only; the fixer holds the only model-adjacent write</strong>, fork-guarded (resolve-pr job) and tool-denied from reviewing/resolving/merging. Don't add writes to any other lane.</li>
+  </ul>
+
+  <h2><span class="n">5</span>claude-kit changes this rollout requires</h2>
+  <table>
+    <tr><th>Where</th><th>Change</th><th>Why</th></tr>
+    <tr><td><code>skills/pr-watch</code> Phase 0/3</td><td>Rewrite merge mechanics: queue-enabled repos have no BEHIND cascade, no <code>merge-cascade.sh</code>, no update-branch babysitting; <code>gh pr merge</code> = enqueue. Keep classic path only for mage-memory. Revisit "never arm auto-merge": with the queue + thread gate, "merge when ready" after threads resolve is acceptable.</td><td>Merge queue (prismalens, sreforge)</td></tr>
+    <tr><td><code>skills/pr-watch</code> watcher</td><td><code>watch-coderabbit.sh</code> should also emit claude[bot] inline threads and the liveness comment verdict — claude threads block merges exactly like CodeRabbit's.</td><td>Claude lane is now the default reviewer</td></tr>
+    <tr><td><code>skills/pr-watch</code> Phase 2</td><td>Add the online fix route: mechanical findings → one top-level <code>@claude fix</code>; judgment findings → local seat. Add the "no 'resolve' in replies to CodeRabbit; top-level <code>@coderabbitai resolve</code>" gotcha.</td><td>Fixer lane exists</td></tr>
+    <tr><td><code>data/repo-meta.json</code></td><td>Per-repo fields: <code>merge_queue</code>, <code>claude_lane</code>, <code>fixer_lane</code>, <code>canon: prismalens/gh-workflows</code>.</td><td>Watchers/skills must not guess</td></tr>
+    <tr><td><code>skills/agy-delegate</code> / global standards</td><td>Add: "reference repo content = fetch live refs (gh api / git show origin/main:path), never a checkout's working tree."</td><td>The stale-seed incident</td></tr>
+    <tr><td><code>skills/unattended-run</code> §7</td><td>Align the auto-merge rule with queue semantics (reviewer can still be outrun — the thread gate only blocks if a thread exists; keep "wait for the liveness comment before enqueueing" as the unattended rule).</td><td>Queue changes timing, not the race</td></tr>
+    <tr><td>mage hub note</td><td>Mark <code>github-automerge-behind-branches</code> gotcha stale for queue-enabled repos.</td><td>Superseded mechanics</td></tr>
+  </table>
+
+  <p class="foot">Living doc · established 2026-08-12 · sources: prismalens#403 (rollout + root cause), #415 (advisory doctrine), #419/#421/#422 (liveness, env pin, fixer lane), sreforge#143/#146, mage-memory#146/#148, canon repo <code>prismalens/gh-workflows</code>.
+  Companion deep-dive: <code>~/ai-context/prismalens-301/review-lane-async-subagent-bug.html</code>.</p>
+</main>
+</body>
+</html>
