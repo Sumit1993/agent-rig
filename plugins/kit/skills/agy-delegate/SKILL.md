@@ -1,6 +1,6 @@
 ---
 name: agy-delegate
-description: "Run bounded, mechanical work on the separate abundant quota (Antigravity CLI — Gemini 3.6 Flash / Opus 4.6 / Sonnet 4.6) rather than a Claude subagent. Load when deciding HOW to delegate, before reaching for the Agent tool, whenever the work is expressible as a written procedure with verify commands — implementing to a spec, rebases, evidence collection, log or CI triage, smoke runs, repetitive per-item procedure, research, doc review, bulk reading — and when an agy run returns empty or truncated output."
+description: "Run bounded, mechanical work on the separate abundant quota (Antigravity CLI — Gemini 3.7 Flash / Opus 4.6 / Sonnet 4.6) rather than a Claude subagent. Load when deciding HOW to delegate, before reaching for the Agent tool, whenever the work is expressible as a written procedure with verify commands — implementing to a spec, rebases, evidence collection, log or CI triage, smoke runs, repetitive per-item procedure, research, doc review, bulk reading — and when an agy run returns empty or truncated output."
 metadata:
   version: "2.2.0"
 ---
@@ -19,15 +19,15 @@ Global standards for every agy run live in `~/.gemini/GEMINI.md` (evidence-not-n
 
 ## Reaching the models
 ```bash
-agy --model "Gemini 3.6 Flash (High)" -p "$(cat <prompt-file>)" \
+agy --model "Gemini 3.7 Flash (High)" -p "$(cat <prompt-file>)" \
     --dangerously-skip-permissions --print-timeout 40m
 ```
-- Exact display strings required: `"Gemini 3.6 Flash (High)"`, `"Claude Opus 4.6 (Thinking)"`, `"Claude Sonnet 4.6 (Thinking)"`. (`agy models` prints slugs like `gemini-3.6-flash-high`; `--model` still wants the display string.)
+- Exact display strings required: `"Gemini 3.7 Flash (High)"`, `"Claude Opus 4.6 (Thinking)"`, `"Claude Sonnet 4.6 (Thinking)"`. (`agy models` prints slugs like `gemini-3.7-flash-high`; `--model` still wants the display string.)
 - `--print-timeout` takes a **Go duration** (`40m`, `1h`), never bare seconds — `2400` exits 2 with `missing unit in duration`.
 - `--dangerously-skip-permissions` is required whenever agy needs tools (edits, commands).
 
 ## Model choice inside agy
-- **"Gemini 3.6 Flash (High)" for all delegable work**: research, doc/market review, second opinions, plan critique, bounded multi-step tool tasks. Envelope: strict template, clear spec. Unreliable at open-ended unsupervised coding — don't hand it that.
+- **"Gemini 3.7 Flash (High)" for all delegable work**: research, doc/market review, second opinions, plan critique, bounded multi-step tool tasks. Envelope: strict template, clear spec. Unreliable at open-ended unsupervised coding — don't hand it that. Newly released 2026-08-13; "Gemini 3.6 Flash (High)" remains available as fallback if 3.7 misbehaves.
 - Avoid "Gemini 3.5 Flash" (verbose, token-hungry, weak at code) and "GPT-OSS 120B" (not competitive).
 - agy has its own skills mechanism; Matt Pocock's set (grilling, tdd, code-review, domain-modeling…) is installed at `~/ai-context/vendor/mattpocock-skills` — invoke them for agy-side planning/review.
 

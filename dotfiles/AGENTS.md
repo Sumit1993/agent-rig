@@ -20,7 +20,7 @@ Higher = better. **Affordability** = how freely I can spend it (quota + price; 9
 | :--- | :-: | :-: | :-: | :--- |
 | **Fable 5** | 2 | 9 | 9 | Plan-hard problems, taste-critical output |
 | **Opus 5 (1M)** | 4 | 9 | 8 | Session/orchestrator seat, default review + escalated coding |
-| **Gemini 3.6 Flash** | 6 | 7 | 5 | Default executor (via agy) — bounded specs |
+| **Gemini 3.7 Flash** | 6 | 7 | 5 | Default executor (via agy) — bounded specs |
 | **Sonnet 5** | 7 | 6 | 6 | Thin wrappers, light passes, mechanical work |
 | **Opus 4.6** | 2 | 7 | 7 | agy-only; scarce weekly pool |
 | **Sonnet 4.6** | 2 | 5 | 5 | agy-only; same scarce pool |
