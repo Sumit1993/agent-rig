@@ -95,7 +95,9 @@ A gate is a subsystem, and when it is wrong it is wrong for the whole repo. Six 
 > What survives unchanged is the race: **the queue gates on checks and threads, not
 > on whether a reviewer has spoken.** Unattended rule on queue repos: enqueue only
 > after the PR's liveness comment reports posted review output; otherwise report
-> ready and leave it (§10). Classic repos (mage-memory) still follow everything below.
+> ready and leave it (§10). A liveness comment reading *auto-paused* is not review
+> evidence — the lane declined this head, so summon `@claude review` and get a posted
+> review before enqueueing. Classic repos (mage-memory) still follow everything below.
 
 **Never arm auto-merge while reviewers are advisory-only.** When no review-related check is required, auto-merge fires the instant CI is green — routinely *before* the reviewer has finished. Measured on prismalens#388 at `2bcdbcaf`: `CI gate` ran 05:42:58→05:43:01 while the `review` job ran 05:40:58→05:43:42, so the merge condition was satisfiable **41 seconds ahead of the reviewer**. The findings then land on an already-merged PR, `required_review_thread_resolution` gets nothing to block on, and review enforcement is exactly zero. Until a review-related requirement exists for auto-merge to wait on — a required approving review, or the review job itself as a required check — **merges are attended.**
 

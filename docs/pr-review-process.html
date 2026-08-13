@@ -81,7 +81,7 @@
       <g font-size="12">
         <rect x="10" y="80" width="100" height="44" rx="7" fill="#2b5f9e"/><text x="60" y="106" text-anchor="middle" fill="#fff">PR opened</text>
         <rect x="150" y="20" width="150" height="40" rx="7" fill="#fff" stroke="#e2ddd2"/><text x="225" y="44" text-anchor="middle">CI + title check</text>
-        <rect x="150" y="80" width="150" height="44" rx="7" fill="#fff" stroke="#e2ddd2"/><text x="225" y="98" text-anchor="middle">Claude review lane</text><text x="225" y="114" text-anchor="middle" fill="#6b7280" font-size="10">auto, every same-repo PR</text>
+        <rect x="150" y="80" width="150" height="44" rx="7" fill="#fff" stroke="#e2ddd2"/><text x="225" y="98" text-anchor="middle">Claude review lane</text><text x="225" y="114" text-anchor="middle" fill="#6b7280" font-size="10">auto, same-repo PRs · pauses after 3 rounds</text>
         <rect x="150" y="146" width="150" height="44" rx="7" fill="#fff" stroke="#e2ddd2" stroke-dasharray="4 3"/><text x="225" y="164" text-anchor="middle">CodeRabbit</text><text x="225" y="180" text-anchor="middle" fill="#6b7280" font-size="10">only via coderabbit_review label</text>
         <rect x="345" y="80" width="130" height="44" rx="7" fill="#fdf3e4" stroke="#ecd9b0"/><text x="410" y="98" text-anchor="middle">liveness comment</text><text x="410" y="114" text-anchor="middle" fill="#6b7280" font-size="10">posted N / posted nothing</text>
         <rect x="520" y="80" width="120" height="44" rx="7" fill="#fff" stroke="#e2ddd2"/><text x="580" y="98" text-anchor="middle">threads open</text><text x="580" y="114" text-anchor="middle" fill="#6b7280" font-size="10">each blocks merge</text>
@@ -101,6 +101,31 @@
   </figure>
 
   <h2><span class="n">3</span>Operator cheat-sheet — the questions that actually come up</h2>
+
+  <h3>Summon grammar — the three verbs</h3>
+  <p>Bare PR comments, <strong>org members only</strong> (<code>OWNER</code>, <code>MEMBER</code> or <code>COLLABORATOR</code>). The comment body is read only by workflow <code>contains()</code> expressions — it never reaches a prompt or a shell string.</p>
+  <table>
+    <tr><th>Comment</th><th>Lane</th><th>Behaviour</th></tr>
+    <tr><td><code>@claude review</code></td><td>review</td>
+        <td><strong>Incremental.</strong> The lane's own mode detection decides: a verify round when unresolved <code>claude[bot]</code> threads exist, otherwise a normal review.</td></tr>
+    <tr><td><code>@claude full review</code></td><td>review</td>
+        <td><strong>From scratch, dedup disabled.</strong> Existing comments and threads are explicitly not dedup targets — without that the plugin's dedup makes a re-review publish nothing (prismalens#410). Posts a <code>## Code review — full review</code> summary.</td></tr>
+    <tr><td><code>@claude fix</code></td><td>fixer</td>
+        <td>Applies fixes on the PR branch (<code>claude-fix.yml</code>).</td></tr>
+    <tr><td>bare <code>@claude …</code></td><td>mention</td>
+        <td>Anything not matching the verbs above.</td></tr>
+  </table>
+  <p>Summons run on <strong>draft</strong> PRs (explicit intent overrides the draft skip), bypass <code>skip_authors</code>, and always run past the auto-pause counter. Fork-head PRs stay refused even when summoned (v1). Each summon is a full agent run — <strong>one per round</strong>, same economy as the fixer.</p>
+  <div class="rule"><strong>The mention stub must exclude all three verbs.</strong> The <code>claude.yml</code> caller stub carries a caller-level <code>if:</code> excluding comment bodies containing <code>@claude fix</code>, <code>@claude review</code>, or <code>@claude full review</code>. Those verbs belong to the fixer and review lanes; without the exclusion each such comment fires <em>two</em> lanes on the same PR — which is also what ends the fixer's existing double-fire. All three checks are needed: <code>@claude full review</code> does not contain <code>@claude review</code> as a substring.</div>
+
+  <h3>Review lane inputs</h3>
+  <table>
+    <tr><th>Input</th><th>Default</th><th>Meaning</th></tr>
+    <tr><td><code>skip_authors</code></td><td><code>dependabot[bot]</code></td>
+        <td>Comma-separated PR author logins whose <strong>automatic</strong> <code>pull_request</code> rounds are skipped entirely — no review, no verify, no liveness comment. Matching is exact-login (the list is delimiter-wrapped), so <code>bot</code> never collides with <code>dependabot[bot]</code>; use no spaces after the commas. A <code>@claude review</code> summon bypasses the list: manual intent wins.</td></tr>
+    <tr><td><code>auto_pause_rounds</code></td><td><code>3</code></td>
+        <td>Automatic rounds allowed on one PR before the lane pauses itself. The count lives in the liveness marker (<code>&lt;!-- claude-review-liveness rounds=N --&gt;</code>) and only automatic rounds that actually ran increment it. On pause the lane posts <em>auto-paused after N automatic rounds</em> instead of reviewing. <strong>Monotonic</strong> — v1 never resets it, so a summon resumes for exactly that one run.</td></tr>
+  </table>
 
   <h3>Reviewers left 3 comments. One <code>@claude fix</code> or three?</h3>
   <p><strong>One.</strong> One summon comment per round — this is the @claude fix trigger, not a reply protocol; fix replies always go in-thread: <code>@claude fix</code>. The fixer's prompt tells it to read
@@ -123,10 +148,18 @@
   threads are the only thing standing between a pushed "fix" and a merge. The fixer fixes and replies; verification belongs to a different party. Disputes: operator tie-breaks.</div>
 
   <h3>Reading the liveness comment</h3>
-  <p>Every PR gets one auto-updated comment from <code>github-actions[bot]</code>:
-  <em>"reviewed <code>abc12345</code> and posted N inline / M summary comment(s)"</em> means the reviewer ran and published.
-  <em>"posted <b>nothing</b>"</em> means this head has <strong>no machine review on record</strong> — silence is never approval.
-  A PR that edits <code>claude-code-review.yml</code> itself is never reviewed by the lane (self-skip is a security control): label it <code>coderabbit_review</code> for a CodeRabbit read instead.</p>
+  <p>Every PR gets one auto-updated comment from <code>github-actions[bot]</code>, marked <code>&lt;!-- claude-review-liveness rounds=N --&gt;</code>.
+  <strong>Match the marker prefix, never the whole string</strong> — <code>rounds=N</code> changes on every automatic round, so an exact-string matcher silently stops seeing the comment. Four verdicts:</p>
+  <ul>
+    <li><em>"reviewed <code>abc12345</code> and posted N inline / M summary comment(s)"</em> — the reviewer ran and published.</li>
+    <li><em>"posted <b>nothing</b>"</em> — this head has <strong>no machine review on record</strong>; silence is never approval. First-line re-request is <code>@claude full review</code> (dedup off), not another push.</li>
+    <li><em>"auto-paused after N automatic rounds at <code>abc12345</code> — re-request with <code>@claude review</code>"</em> — the lane hit <code>auto_pause_rounds</code> and stopped reviewing this PR automatically. <strong>A paused PR is not reviewed on push; waiting for one waits forever.</strong> Summon, or report the pause. Not review evidence — never enqueue on it.</li>
+    <li><em>"did not run … no CLAUDE_CODE_OAUTH_TOKEN reached this lane"</em> — the secret is not mapped in the caller stub (<code>inherit</code> does not cross owners). No review on record.</li>
+  </ul>
+  <p>A PR that edits <code>claude-code-review.yml</code> itself is never reviewed by the lane (self-skip is a security control) and <strong>no summon fixes that one</strong>: label it <code>coderabbit_review</code> for a CodeRabbit read instead.</p>
+
+  <h3>Fork PRs</h3>
+  <p>Fork heads never reach the reviewer: GitHub withholds the repository's secrets from fork code, and the lane deliberately does not use <code>pull_request_target</code>. A summon does not override this (v1). Instead a <code>fork-notice</code> job upserts a comment marked <code>&lt;!-- claude-review-fork-notice --&gt;</code> saying so and pointing at the <code>coderabbit_review</code> label — so a fork PR is <em>refused out loud</em> rather than silently quiet. Fork <code>pull_request</code> runs also hold a read-only <code>GITHUB_TOKEN</code> unless the repo enables <em>Send write tokens to workflows from fork pull requests</em> (off by default); when the comment is denied the job falls back to a workflow warning annotation carrying the same text.</p>
 
   <h3>When to spend a CodeRabbit review</h3>
   <p>Apply the <code>coderabbit_review</code> label (or comment a <em>bare</em> <code>@coderabbitai review</code>). A PR without the label shows "Review skipped: excluded by label configuration" — that is the valve working, not an error. It's an org-wide,
@@ -143,6 +176,7 @@
   <h2><span class="n">4</span>Standing doctrine</h2>
   <ul>
     <li><strong>A green job is never evidence a review happened.</strong> The action exits <code>success</code> when the reviewer posts nothing. Only posted output counts: inline threads, a <code>## Code review</code> summary, the liveness count.</li>
+    <li><strong>Automatic review is finite; a summon is the only resume.</strong> Automatic rounds stop after <code>auto_pause_rounds</code> and the counter is monotonic in v1 — pushing more commits produces nothing. Anything that waits on a machine review must read the liveness verdict, not the absence of one.</li>
     <li><strong>Canary before trust.</strong> After any lane lands on a new repo or a workflow change merges: open a trivial docs PR, wait for the review run, read the liveness comment. Close the canary unmerged.</li>
     <li><strong>Consumers hold thin caller stubs; lane logic changes happen in prismalens/gh-workflows only.</strong> Reusable workflows live in canon (<code>prismalens/gh-workflows</code>); consumers hold thin caller stubs. Lane logic changes happen in <code>prismalens/gh-workflows</code> only.</li>
     <li><strong><code>CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1</code> stays on every lane</strong> until upstream print mode survives background-subagent gaps (async launches end one-shot sessions before results arrive — the bug that silenced reviews for two days). Unpin = remove the env var, then re-canary; a green run is not verification.</li>
