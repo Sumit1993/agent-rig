@@ -209,8 +209,11 @@ while [ ${#PRS[@]} -gt 0 ]; do
     [ -f "$liveness_state" ] && liveness_prev=$(cat "$liveness_state" 2>/dev/null)
     liveness_raw=$(gh api "repos/$REPO/issues/$pr/comments?per_page=100" 2>/dev/null)
     if is_json_array <<<"$liveness_raw"; then
-      liveness_info=$(jq -r '[.[] | select((.user.login == "github-actions[bot]" or (.user.login | test("github-actions"; "i"))) and (.body | startswith("<!-- claude-review-liveness -->")))]
-                             | if length > 0 then last | "\(.updated_at)\t\(.body | sub("^<!-- claude-review-liveness -->\\s*"; "") | split("\n") | map(select(length > 0)) | first)" else empty end' <<<"$liveness_raw" 2>/dev/null)
+      # Match the marker PREFIX, never the whole marker: it carries a round counter
+      # (`<!-- claude-review-liveness rounds=N -->`) that changes on every automatic
+      # round, so an exact-string match silently stops seeing the comment.
+      liveness_info=$(jq -r '[.[] | select((.user.login == "github-actions[bot]" or (.user.login | test("github-actions"; "i"))) and (.body | startswith("<!-- claude-review-liveness")))]
+                             | if length > 0 then last | "\(.updated_at)\t\(.body | sub("^<!-- claude-review-liveness[^>]*-->\\s*"; "") | split("\n") | map(select(length > 0)) | first)" else empty end' <<<"$liveness_raw" 2>/dev/null)
       if [ -n "$liveness_info" ]; then
         liveness_ts=${liveness_info%%$'\t'*}
         liveness_text=${liveness_info#*$'\t'}
