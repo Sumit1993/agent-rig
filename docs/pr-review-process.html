@@ -108,6 +108,10 @@
     <tr><th>Comment</th><th>Lane</th><th>Behaviour</th></tr>
     <tr><td><code>@claude review</code></td><td>review</td>
         <td><strong>Incremental.</strong> The lane's own mode detection decides: a verify round when unresolved <code>claude[bot]</code> threads exist, otherwise a normal review.</td></tr>
+    <tr><td><code>@claude review --model opus</code></td><td>review</td>
+        <td><strong>Incremental with model override.</strong> Runs an incremental review using <code>claude-opus-5</code>.</td></tr>
+    <tr><td><code>@claude review --model sonnet</code></td><td>review</td>
+        <td><strong>Incremental with model override.</strong> Runs an incremental review using <code>claude-sonnet-5</code>.</td></tr>
     <tr><td><code>@claude full review</code></td><td>review</td>
         <td><strong>From scratch, dedup disabled.</strong> Existing comments and threads are explicitly not dedup targets — without that the plugin's dedup makes a re-review publish nothing (prismalens#410). Posts a <code>## Code review — full review</code> summary.</td></tr>
     <tr><td><code>@claude fix</code></td><td>fixer</td>
@@ -121,6 +125,8 @@
   <h3>Review lane inputs</h3>
   <table>
     <tr><th>Input</th><th>Default</th><th>Meaning</th></tr>
+    <tr><td><code>default_model</code></td><td><code>claude-sonnet-5</code></td>
+        <td>Default Claude model for the review lane, passed through to <code>anthropics/claude-code-action@v1</code> as <code>--model</code> inside <code>claude_args</code> (the action has no <code>model</code> input; CLI flag pass-through is the only available mechanism). Sonnet is the deliberate default: the review lane is the highest-volume Claude spend across the three consumer repos. Can be overridden per-run via summon comment (<code>@claude review --model opus</code> &rarr; <code>claude-opus-5</code>; <code>@claude review --model sonnet</code> &rarr; <code>claude-sonnet-5</code>; anything else, including automatic <code>pull_request</code> rounds, uses <code>default_model</code>). <strong>Allowlist, not extraction:</strong> the comment body is read strictly by workflow <code>contains()</code> expressions and never leaves them — it must never reach a prompt, a shell string, or <code>claude_args</code>. The override is implemented as fixed <code>contains()</code> checks mapping to pinned model-ID literals so no attacker-supplied text is ever interpolated into a command (the reason the syntax looks rigid). <strong>Known gap:</strong> <code>@claude full review --model opus</code> does <em>not</em> switch models — it falls through to <code>default_model</code> because the literal <code>@claude review --model opus</code> is not a substring of it. <strong>Runtime verification (unverified):</strong> which model IDs actually work is set by the repo's <code>CLAUDE_CODE_OAUTH_TOKEN</code> subscription tier, not by this input. The <code>--model</code> pass-through has not been exercised at runtime yet (the callee repo has no CI of its own) — the first canary summon is the proof.</td></tr>
     <tr><td><code>skip_authors</code></td><td><code>dependabot[bot]</code></td>
         <td>Comma-separated PR author logins whose <strong>automatic</strong> <code>pull_request</code> rounds are skipped entirely — no review, no verify, no liveness comment. Matching is exact-login (the list is delimiter-wrapped), so <code>bot</code> never collides with <code>dependabot[bot]</code>; use no spaces after the commas. A <code>@claude review</code> summon bypasses the list: manual intent wins.</td></tr>
     <tr><td><code>auto_pause_rounds</code></td><td><code>3</code></td>
