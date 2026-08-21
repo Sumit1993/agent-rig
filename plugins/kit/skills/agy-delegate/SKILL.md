@@ -13,7 +13,7 @@ Routing (which model gets which task, quota) lives in `~/.claude/CLAUDE.md`. Wai
 
 **Gemini quota exhausted ≠ agy exhausted.** Before parking work on a reset timer, probe agy-Claude availability — `-p "say ok"` on the Opus/Sonnet 4.6 display strings — and use it if live, one job at a time, never parallel. Park on the timer only when all agy lanes are dry.
 
-**Reference repo content = live refs, never a working tree.** When a prompt tells agy to copy or consult files from another repo, it must fetch live content — `gh api repos/<r>/contents/<path>`, or `git fetch` + `git show origin/main:<path>` — never read a local checkout's working tree, and the prompt must say so explicitly. A checkout's files lag its refs (fetch updates refs, not files); on 2026-08-12 a stale prismalens working tree seeded pre-fix workflow copies into a canon repo and two consumer repos, and only a canary PR caught it.
+**Reference repo content = live refs, never a working tree.** When a prompt tells agy to copy or consult files from another repo, it must fetch live content — `gh api repos/<r>/contents/<path>`, or `git fetch` + `git show origin/main:<path>` — never read a local checkout's working tree, and the prompt must say so explicitly. A checkout's files lag its refs (fetch updates refs, not files); a stale working tree has seeded pre-fix workflow copies into a canon repo and two consumer repos this way, caught only by a canary PR.
 
 Global standards for every agy run live in `~/.gemini/GEMINI.md` (evidence-not-narration, new-test-must-execute, both-directions verification, never-weaken-tests, byte-exact commit messages). agy loads it automatically. Prompts can stay lean on those points — but still verify agy's claims yourself; standards reduce hollow reports, they don't eliminate them.
 
@@ -27,7 +27,7 @@ agy --model "Gemini 3.7 Flash (High)" -p "$(cat <prompt-file>)" \
 - `--dangerously-skip-permissions` is required whenever agy needs tools (edits, commands).
 
 ## Model choice inside agy
-- **"Gemini 3.7 Flash (High)" for all delegable work**: research, doc/market review, second opinions, plan critique, bounded multi-step tool tasks. Envelope: strict template, clear spec. Unreliable at open-ended unsupervised coding — don't hand it that. Newly released 2026-08-13; "Gemini 3.6 Flash (High)" remains available as fallback if 3.7 misbehaves.
+- **"Gemini 3.7 Flash (High)" for all delegable work**: research, doc/market review, second opinions, plan critique, bounded multi-step tool tasks. Envelope: strict template, clear spec. Unreliable at open-ended unsupervised coding — don't hand it that. "Gemini 3.6 Flash (High)" remains available as fallback if 3.7 misbehaves.
 - Avoid "Gemini 3.5 Flash" (verbose, token-hungry, weak at code) and "GPT-OSS 120B" (not competitive).
 - agy has its own skills mechanism; Matt Pocock's set (grilling, tdd, code-review, domain-modeling…) is installed at `~/ai-context/vendor/mattpocock-skills` — invoke them for agy-side planning/review.
 

@@ -88,7 +88,7 @@ A gate is a subsystem, and when it is wrong it is wrong for the whole repo. Six 
 
 ## 7. One merge in flight; cascade by hand
 
-> **Queue-era scope note (2026-08-12, prismalens#403):** on merge-queue repos
+> **Queue-era scope note (prismalens#403):** on merge-queue repos
 > (`kit-meta.sh get <repo> merge_queue` → true; today prismalens and sreforge) the
 > cascade mechanics below are OBSOLETE — the queue tests a speculative merge, so
 > merges neither strand siblings nor need serialising, and `gh pr merge` enqueues.
