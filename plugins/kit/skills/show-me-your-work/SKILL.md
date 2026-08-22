@@ -1,6 +1,6 @@
 ---
 name: show-me-your-work
-description: "Keep a reviewable decision trail for long-running or unattended work: a TSV log with one row per decision (what, why, evidence, result). Local by default; commit it when a reviewer needs the trail to trust the result. Use for /show-me-your-work, autonomous or multi-phase runs, or work a human reviews after stepping away."
+description: "Keep a decision log: a TSV with one row per decision (what, why, evidence, result), so a reviewer can reconstruct a run without rerunning it or reading the transcript. Local by default; commit it when a reviewer needs the trail to trust the result. Use for /show-me-your-work, or when asked for a decision log, an audit trail, or a record of what was decided and why. For how to hold the run itself, that is unattended-run."
 metadata:
   version: "1.0.0"
   upstream: "cursor/plugins pstack/skills/show-me-your-work"
@@ -18,7 +18,7 @@ written down at the moment the decision is made, instead of reconstructed from a
 
 A single TSV file, one row per decision. TSV because GitHub renders it as a sortable table, `column -s$'\t' -t` and spreadsheets read it, and a row appends with one command. Cells stay single-line. Evidence is a pointer, not prose.
 
-Copy `references/decision-log-template.tsv` (the header row) to start a clean log. Columns:
+Copy `${CLAUDE_PLUGIN_ROOT}/skills/show-me-your-work/references/decision-log-template.tsv` (the header row) to start a clean log. Columns:
 
 - **ts.** ISO8601 timestamp. The timeline axis.
 - **phase.** The phase or workstream.
@@ -41,7 +41,7 @@ ts	phase	decision	why	evidence	result
 
 Write each entry the way you'd tell a teammate what you did. Plain words, concrete actions, no AI speak or abstract jargon. The Language & Communication Style rules in `AGENTS.md` apply to log text too. A reviewer should understand each row without decoding it.
 
-Use the helper so rows stay well-formed: `scripts/log.sh <logfile> <phase> <decision> <why> <evidence> <result>`. It stamps `ts`, writes the header on first use, strips stray tabs/newlines, and prefixes any cell starting with `=`, `+`, `-`, or `@` with a single quote so a reviewer opening the log in a spreadsheet doesn't trigger formula execution. A bare `printf` appending a row works too, but mind those same bytes if cells come from generated or user-supplied text.
+Use the helper so rows stay well-formed: `${CLAUDE_PLUGIN_ROOT}/skills/show-me-your-work/scripts/log.sh <logfile> <phase> <decision> <why> <evidence> <result>`. It stamps `ts`, writes the header on first use, strips stray tabs/newlines, and prefixes any cell starting with `=`, `+`, `-`, or `@` with a single quote so a reviewer opening the log in a spreadsheet doesn't trigger formula execution. A bare `printf` appending a row works too, but mind those same bytes if cells come from generated or user-supplied text.
 
 Log decision points and checkpoints, not every action: a fork chosen, a unit completed with its verification result, a pivot or revert with its trigger, a blocker surfaced, a gate fixed. For loop runs, one row per iteration. Skip the trivial and self-evident.
 
@@ -108,7 +108,12 @@ Upstream is `cursor/plugins` `pstack/skills/show-me-your-work`, written for Curs
   `~/.claude/projects/<escaped-cwd>/*.jsonl`.
 - "Spawn a subagent on a different model family" names the actual route: **agy-delegate**, or a
   different Claude tier, per the routing table in `AGENTS.md`.
-- The `unslop` and `encode-lessons-in-structure` references become the `AGENTS.md` writing rules
-  and one plain sentence, since those pstack skills are not vendored.
+- The `encode-lessons-in-structure` reference becomes one plain sentence, since that pstack skill is
+  not vendored. `unslop` is vendored here, so its reference stands.
 - Added the worktree rule, the public-repo scrub, and the composition note tying it to
   **unattended-run** and **anti-stall**.
+- Script and template paths resolve through `${CLAUDE_PLUGIN_ROOT}`. A skill runs with the project as
+  cwd, not the skill directory, so upstream's bare `scripts/log.sh` would look inside whatever repo is
+  open.
+- The description no longer claims "unattended runs" as a trigger. That is **unattended-run**'s, and two
+  skills firing on one phrase is a coin toss over which one is read.
