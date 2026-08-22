@@ -8,7 +8,7 @@
     {
       "name": "kit",
       "source": "./plugins/kit",
-      "description": "Sumit's personal working-style kit: pr-watch (post-PR CodeRabbit/CI monitoring + merge cascade), agy-delegate (Antigravity CLI delegation mechanics), patched CodeRabbit autofix/code-review skills, and the pr-created hook."
+      "description": "Sumit's personal working-style kit: pr-watch (post-PR CodeRabbit/CI monitoring + merge cascade), agy-delegate (Antigravity CLI delegation mechanics), no-comments/blast-radius/show-me-your-work (vendored from pstack, patched), patched CodeRabbit autofix/code-review skills, and the pr-created hook."
     }
   ]
 }
