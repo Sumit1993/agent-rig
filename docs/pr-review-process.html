@@ -38,7 +38,7 @@
   Owner: the operator. Update trigger: any change to a <code>claude-*.yml</code> workflow, the canon repo, a ruleset, or the resolution protocol
   <em>must</em> update this page in the same working session. Established 2026-08-12 (prismalens#403).</p>
 
-  <h2><span class="n">1</span>Topology — who reviews, who fixes, who merges</h2>
+  <h2><span class="n">1</span>Topology: who reviews, who fixes, who merges</h2>
   <figure>
     <figcaption>Canon repo feeds three consumers; every reviewer is advisory; humans and queues merge</figcaption>
     <svg viewBox="0 0 900 300" role="img" aria-label="Topology: gh-workflows canon serves reusable workflows to three repos; each repo has review, mention, fixer lanes; merge via queue or classic">
@@ -76,7 +76,7 @@
 
   <h2><span class="n">2</span>Lifecycle of a PR</h2>
   <figure>
-    <figcaption>From open to merged — advisory reviews, one fix loop, native thread gate</figcaption>
+    <figcaption>From open to merged: advisory reviews, one fix loop, native thread gate</figcaption>
     <svg viewBox="0 0 900 210" role="img" aria-label="Flow: PR opened; CI and Claude review run; optional CodeRabbit; threads open; @claude fix once; replies; resolution; queue merge">
       <g font-size="12">
         <rect x="10" y="80" width="100" height="44" rx="7" fill="#2b5f9e"/><text x="60" y="106" text-anchor="middle" fill="#fff">PR opened</text>
@@ -100,10 +100,10 @@
     </svg>
   </figure>
 
-  <h2><span class="n">3</span>Operator cheat-sheet — the questions that actually come up</h2>
+  <h2><span class="n">3</span>Operator cheat-sheet: the questions that actually come up</h2>
 
-  <h3>Summon grammar — the three verbs</h3>
-  <p>Bare PR comments, <strong>org members only</strong> (<code>OWNER</code>, <code>MEMBER</code> or <code>COLLABORATOR</code>). The comment body is read only by workflow <code>contains()</code> expressions — it never reaches a prompt or a shell string.</p>
+  <h3>Summon grammar: the three verbs</h3>
+  <p>Bare PR comments, <strong>org members only</strong> (<code>OWNER</code>, <code>MEMBER</code> or <code>COLLABORATOR</code>). The comment body is read only by workflow <code>contains()</code> expressions. It never reaches a prompt or a shell string.</p>
   <table>
     <tr><th>Comment</th><th>Lane</th><th>Behaviour</th></tr>
     <tr><td><code>@claude review</code></td><td>review</td>
@@ -113,29 +113,29 @@
     <tr><td><code>@claude review --model sonnet</code></td><td>review</td>
         <td><strong>Incremental with model override.</strong> Runs an incremental review using <code>claude-sonnet-5</code>.</td></tr>
     <tr><td><code>@claude full review</code></td><td>review</td>
-        <td><strong>From scratch, dedup disabled.</strong> Existing comments and threads are explicitly not dedup targets — without that the plugin's dedup makes a re-review publish nothing (prismalens#410). Posts a <code>## Code review — full review</code> summary.</td></tr>
+        <td><strong>From scratch, dedup disabled.</strong> Existing comments and threads are explicitly not dedup targets. Without that the plugin's dedup makes a re-review publish nothing (prismalens#410). Posts a <code>## Code review — full review</code> summary.</td></tr>
     <tr><td><code>@claude fix</code></td><td>fixer</td>
         <td>Applies fixes on the PR branch (<code>claude-fix.yml</code>).</td></tr>
     <tr><td>bare <code>@claude …</code></td><td>mention</td>
         <td>Anything not matching the verbs above.</td></tr>
   </table>
-  <p>Summons run on <strong>draft</strong> PRs (explicit intent overrides the draft skip), bypass <code>skip_authors</code>, and always run past the auto-pause counter. Fork-head PRs stay refused even when summoned (v1). Each summon is a full agent run — <strong>one per round</strong>, same economy as the fixer.</p>
-  <div class="rule"><strong>The mention stub must exclude all three verbs.</strong> The <code>claude.yml</code> caller stub carries a caller-level <code>if:</code> excluding comment bodies containing <code>@claude fix</code>, <code>@claude review</code>, or <code>@claude full review</code>. Those verbs belong to the fixer and review lanes; without the exclusion each such comment fires <em>two</em> lanes on the same PR — which is also what ends the fixer's existing double-fire. All three checks are needed: <code>@claude full review</code> does not contain <code>@claude review</code> as a substring.</div>
+  <p>Summons run on <strong>draft</strong> PRs (explicit intent overrides the draft skip), bypass <code>skip_authors</code>, and always run past the auto-pause counter. Fork-head PRs stay refused even when summoned (v1). Each summon is a full agent run, <strong>one per round</strong>, same economy as the fixer.</p>
+  <div class="rule"><strong>The mention stub must exclude all three verbs.</strong> The <code>claude.yml</code> caller stub carries a caller-level <code>if:</code> excluding comment bodies containing <code>@claude fix</code>, <code>@claude review</code>, or <code>@claude full review</code>. Those verbs belong to the fixer and review lanes; without the exclusion each such comment fires <em>two</em> lanes on the same PR, which is also what ends the fixer's existing double-fire. All three checks are needed: <code>@claude full review</code> does not contain <code>@claude review</code> as a substring.</div>
 
   <h3>Review lane inputs</h3>
   <table>
     <tr><th>Input</th><th>Default</th><th>Meaning</th></tr>
     <tr><td><code>default_model</code></td><td><code>claude-sonnet-5</code></td>
-        <td>Default Claude model for the review lane, passed through to <code>anthropics/claude-code-action@v1</code> as <code>--model</code> inside <code>claude_args</code> (the action has no <code>model</code> input; CLI flag pass-through is the only available mechanism). Sonnet is the deliberate default: the review lane is the highest-volume Claude spend across the three consumer repos. Can be overridden per-run via summon comment (<code>@claude review --model opus</code> &rarr; <code>claude-opus-5</code>; <code>@claude review --model sonnet</code> &rarr; <code>claude-sonnet-5</code>; anything else, including automatic <code>pull_request</code> rounds, uses <code>default_model</code>). <strong>Allowlist, not extraction:</strong> the comment body is read strictly by workflow <code>contains()</code> expressions and never leaves them — it must never reach a prompt, a shell string, or <code>claude_args</code>. The override is implemented as fixed <code>contains()</code> checks mapping to pinned model-ID literals so no attacker-supplied text is ever interpolated into a command (the reason the syntax looks rigid). <strong>Known gap:</strong> <code>@claude full review --model opus</code> does <em>not</em> switch models — it falls through to <code>default_model</code> because the literal <code>@claude review --model opus</code> is not a substring of it. <strong>Runtime status:</strong> which model IDs actually work is set by the repo's <code>CLAUDE_CODE_OAUTH_TOKEN</code> subscription tier, not by this input. <code>default_model</code> pass-through is proven at runtime (2026-08-21, mage-memory#176). The per-run <code>--model</code> override is still unexercised. The callee repo gained CI on 2026-08-21 (<code>tests.yml</code>) — before that nothing verified it at all.</td></tr>
+        <td>Default Claude model for the review lane, passed through to <code>anthropics/claude-code-action@v1</code> as <code>--model</code> inside <code>claude_args</code> (the action has no <code>model</code> input; CLI flag pass-through is the only available mechanism). Sonnet is the deliberate default: the review lane is the highest-volume Claude spend across the three consumer repos. Can be overridden per-run via summon comment (<code>@claude review --model opus</code> &rarr; <code>claude-opus-5</code>; <code>@claude review --model sonnet</code> &rarr; <code>claude-sonnet-5</code>; anything else, including automatic <code>pull_request</code> rounds, uses <code>default_model</code>). <strong>Allowlist, not extraction:</strong> the comment body is read strictly by workflow <code>contains()</code> expressions and never leaves them. It must never reach a prompt, a shell string, or <code>claude_args</code>. The override is implemented as fixed <code>contains()</code> checks mapping to pinned model-ID literals so no attacker-supplied text is ever interpolated into a command (the reason the syntax looks rigid). <strong>Known gap:</strong> <code>@claude full review --model opus</code> does <em>not</em> switch models. It falls through to <code>default_model</code> because the literal <code>@claude review --model opus</code> is not a substring of it. <strong>Runtime status:</strong> which model IDs actually work is set by the repo's <code>CLAUDE_CODE_OAUTH_TOKEN</code> subscription tier, not by this input. <code>default_model</code> pass-through is proven at runtime (2026-08-21, mage-memory#176). The per-run <code>--model</code> override is still unexercised. The callee repo gained CI on 2026-08-21 (<code>tests.yml</code>). Before that nothing verified it at all.</td></tr>
     <tr><td><code>skip_authors</code></td><td><code>dependabot[bot]</code></td>
-        <td>Comma-separated PR author logins whose <strong>automatic</strong> <code>pull_request</code> rounds are skipped entirely — no review, no verify, no liveness comment. Matching is exact-login (the list is delimiter-wrapped), so <code>bot</code> never collides with <code>dependabot[bot]</code>; use no spaces after the commas. A <code>@claude review</code> summon bypasses the list: manual intent wins.</td></tr>
+        <td>Comma-separated PR author logins whose <strong>automatic</strong> <code>pull_request</code> rounds are skipped entirely: no review, no verify, no liveness comment. Matching is exact-login (the list is delimiter-wrapped), so <code>bot</code> never collides with <code>dependabot[bot]</code>; use no spaces after the commas. A <code>@claude review</code> summon bypasses the list: manual intent wins.</td></tr>
     <tr><td><code>auto_pause_rounds</code></td><td><code>5</code></td>
-        <td>Automatic rounds allowed on one PR before the lane pauses itself. The count lives in the liveness marker and only automatic rounds that actually ran increment it. On pause the lane posts <em>auto-paused after N automatic rounds</em> instead of reviewing. <strong>Monotonic</strong> — v1 never resets it, so a summon resumes for exactly that one run. <strong>Raised 3 &rarr; 5 on 2026-08-21</strong>: three ran out on long-lived PRs, which then went silently unreviewed on every later push (mage-memory#176 landed two fix commits that way). A resettable counter is the real fix and is not built yet.</td></tr>
+        <td>Automatic rounds allowed on one PR before the lane pauses itself. The count lives in the liveness marker and only automatic rounds that actually ran increment it. On pause the lane posts <em>auto-paused after N automatic rounds</em> instead of reviewing. <strong>Monotonic.</strong> v1 never resets it, so a summon resumes for exactly that one run. <strong>Raised 3 &rarr; 5 on 2026-08-21</strong>: three ran out on long-lived PRs, which then went silently unreviewed on every later push (mage-memory#176 landed two fix commits that way). A resettable counter is the real fix and is not built yet.</td></tr>
   </table>
 
   <h3>Reviewers left 3 comments. One <code>@claude fix</code> or three?</h3>
-  <p><strong>One.</strong> One summon comment per round — this is the @claude fix trigger, not a reply protocol; fix replies always go in-thread: <code>@claude fix</code>. The fixer's prompt tells it to read
-  <em>all</em> unresolved review threads on the PR and address each — replying in every thread it touched with the fix commit SHA.
+  <p><strong>One.</strong> One summon comment per round. This is the @claude fix trigger, not a reply protocol; fix replies always go in-thread: <code>@claude fix</code>. The fixer's prompt tells it to read
+  <em>all</em> unresolved review threads on the PR and address each, replying in every thread it touched with the fix commit SHA.
   Commenting per-thread would start one full agent run per comment (they serialize per-PR, but each spends subscription for nothing).
   Add scoping words only to <em>exclude</em>: e.g. <code>@claude fix — only the two SCHEMA.md threads, leave the API design one for me</code>.</p>
 
@@ -143,35 +143,35 @@
   <table>
     <tr><th>Thread author</th><th>After a fix lands</th><th>After a decline/defer</th></tr>
     <tr><td>CodeRabbit</td>
-        <td><span class="who-c">CodeRabbit</span> — batch ALL fixes, push, reply in each thread with the SHA (<em>never</em> the word "resolve" in a reply — it parses as a command and no-ops), then spend one <code>@coderabbitai review</code>: it re-verifies and self-resolves what's genuinely addressed. Threads it leaves open get individually resolved with stated rationale (operator, or session under operator credential). <strong>Bare <code>@coderabbitai resolve</code> is discouraged</strong> — it blanket-resolves with zero validation; reserve it for rounds that are entirely declines/deferrals with dispositions already stated.</td>
+        <td><span class="who-c">CodeRabbit</span>: batch ALL fixes, push, reply in each thread with the SHA (<em>never</em> the word "resolve" in a reply, since it parses as a command and no-ops), then spend one <code>@coderabbitai review</code>: it re-verifies and self-resolves what's genuinely addressed. Threads it leaves open get individually resolved with stated rationale (operator, or session under operator credential). <strong>Bare <code>@coderabbitai resolve</code> is discouraged</strong>, because it blanket-resolves with zero validation; reserve it for rounds that are entirely declines/deferrals with dispositions already stated.</td>
         <td><span class="who-o">Operator</span> resolves, after stating the disposition in-thread and waiting ~60s for its counter-reply. Point at a tracking issue by number.</td></tr>
     <tr><td>claude[bot] (review lane)</td>
-        <td><span class="who-o">Operator</span> verifies the fix and resolves (GraphQL/UI). Giving the review lane verify-and-resolve capability is an open #403 item — until then this is manual. Verification-round verdicts are consumed by <code>plugins/kit/scripts/resolve-verified.sh &lt;pr&gt;</code> — one confirm resolves all reviewer-verified threads; "not addressed" threads stay for judgment.</td>
+        <td><span class="who-o">Operator</span> verifies the fix and resolves (GraphQL/UI). Giving the review lane verify-and-resolve capability is an open #403 item. Until then this is manual. Verification-round verdicts are consumed by <code>plugins/kit/scripts/resolve-verified.sh &lt;pr&gt;</code>. One confirm resolves all reviewer-verified threads; "not addressed" threads stay for judgment.</td>
         <td><span class="who-o">Operator</span> resolves with reasoning in-thread.</td></tr>
     <tr><td>Human</td><td colspan="2">Whoever opened it resolves it.</td></tr>
   </table>
-  <div class="rule"><strong>Never</strong> let the fixer resolve anything — it is denied the tools, and the deny list is load-bearing:
+  <div class="rule"><strong>Never</strong> let the fixer resolve anything. It is denied the tools, and the deny list is load-bearing:
   threads are the only thing standing between a pushed "fix" and a merge. The fixer fixes and replies; verification belongs to a different party. Disputes: operator tie-breaks.</div>
 
   <h3>Reading the liveness comment</h3>
   <p>Every PR gets one auto-updated comment from <code>github-actions[bot]</code>, marked
   <code>&lt;!-- claude-review-liveness rounds=N sha=&lt;head&gt; --&gt;</code>.
-  <strong>Match the marker prefix, never the whole string</strong> — the fields change, and since 2026-08-21 the set of fields does too, so an exact-string matcher silently stops seeing the comment.
-  <code>sha=</code> names the head that last received a <em>posted</em> review; it is absent until one has. It advances only when the run actually published — a green run that posted nothing leaves it alone, so nothing later mistakes those commits for reviewed. Groundwork for incremental review; nothing reads it yet. Four verdicts:</p>
+  <strong>Match the marker prefix, never the whole string.</strong> The fields change, and since 2026-08-21 the set of fields does too, so an exact-string matcher silently stops seeing the comment.
+  <code>sha=</code> names the head that last received a <em>posted</em> review; it is absent until one has. It advances only when the run actually published. A green run that posted nothing leaves it alone, so nothing later mistakes those commits for reviewed. Groundwork for incremental review; nothing reads it yet. Four verdicts:</p>
   <ul>
-    <li><em>"reviewed <code>abc12345</code> and posted N inline / M summary comment(s)"</em> — the reviewer ran and published.</li>
-    <li><em>"posted <b>nothing</b>"</em> — this head has <strong>no machine review on record</strong>; silence is never approval. First-line re-request is <code>@claude full review</code> (dedup off), not another push.</li>
-    <li><em>"auto-paused after N automatic rounds at <code>abc12345</code> — re-request with <code>@claude review</code>"</em> — the lane hit <code>auto_pause_rounds</code> and stopped reviewing this PR automatically. <strong>A paused PR is not reviewed on push; waiting for one waits forever.</strong> Summon, or report the pause. Not review evidence — never enqueue on it.</li>
-    <li><em>"did not run … no CLAUDE_CODE_OAUTH_TOKEN reached this lane"</em> — the secret is not mapped in the caller stub (<code>inherit</code> does not cross owners). No review on record.</li>
+    <li><em>"reviewed <code>abc12345</code> and posted N inline / M summary comment(s)"</em>: the reviewer ran and published.</li>
+    <li><em>"posted <b>nothing</b>"</em>: this head has <strong>no machine review on record</strong>; silence is never approval. First-line re-request is <code>@claude full review</code> (dedup off), not another push.</li>
+    <li><em>"auto-paused after N automatic rounds at <code>abc12345</code> — re-request with <code>@claude review</code>"</em>: the lane hit <code>auto_pause_rounds</code> and stopped reviewing this PR automatically. <strong>A paused PR is not reviewed on push; waiting for one waits forever.</strong> Summon, or report the pause. Not review evidence, so never enqueue on it.</li>
+    <li><em>"did not run … no CLAUDE_CODE_OAUTH_TOKEN reached this lane"</em>: the secret is not mapped in the caller stub (<code>inherit</code> does not cross owners). No review on record.</li>
   </ul>
   <p>A PR that edits <code>claude-code-review.yml</code> itself is never reviewed by the lane (self-skip is a security control) and <strong>no summon fixes that one</strong>: label it <code>coderabbit_review</code> for a CodeRabbit read instead.</p>
 
   <h3>Fork PRs</h3>
-  <p>Fork heads never reach the reviewer: GitHub withholds the repository's secrets from fork code, and the lane deliberately does not use <code>pull_request_target</code>. A summon does not override this (v1). Instead a <code>fork-notice</code> job upserts a comment marked <code>&lt;!-- claude-review-fork-notice --&gt;</code> saying so and pointing at the <code>coderabbit_review</code> label — so a fork PR is <em>refused out loud</em> rather than silently quiet. Fork <code>pull_request</code> runs also hold a read-only <code>GITHUB_TOKEN</code> unless the repo enables <em>Send write tokens to workflows from fork pull requests</em> (off by default); when the comment is denied the job falls back to a workflow warning annotation carrying the same text.</p>
+  <p>Fork heads never reach the reviewer: GitHub withholds the repository's secrets from fork code, and the lane deliberately does not use <code>pull_request_target</code>. A summon does not override this (v1). Instead a <code>fork-notice</code> job upserts a comment marked <code>&lt;!-- claude-review-fork-notice --&gt;</code> saying so and pointing at the <code>coderabbit_review</code> label, so a fork PR is <em>refused out loud</em> rather than silently quiet. Fork <code>pull_request</code> runs also hold a read-only <code>GITHUB_TOKEN</code> unless the repo enables <em>Send write tokens to workflows from fork pull requests</em> (off by default); when the comment is denied the job falls back to a workflow warning annotation carrying the same text.</p>
 
   <h3>When to spend a CodeRabbit review</h3>
-  <p>Apply the <code>coderabbit_review</code> label (or comment a <em>bare</em> <code>@coderabbitai review</code>). A PR without the label shows "Review skipped: excluded by label configuration" — that is the valve working, not an error. It's an org-wide,
-  ~40-min-cooldown counter — spend it on security-sensitive paths, workflow changes, or a second opinion; never routinely. Batch your
+  <p>Apply the <code>coderabbit_review</code> label (or comment a <em>bare</em> <code>@coderabbitai review</code>). A PR without the label shows "Review skipped: excluded by label configuration", which is the valve working, not an error. It's an org-wide,
+  ~40-min-cooldown counter. Spend it on security-sensitive paths, workflow changes, or a second opinion; never routinely. Batch your
   fixes before re-requesting.</p>
 
   <h3>Merging</h3>
@@ -184,20 +184,20 @@
   <h2><span class="n">4</span>Standing doctrine</h2>
   <ul>
     <li><strong>A green job is never evidence a review happened.</strong> The action exits <code>success</code> when the reviewer posts nothing. Only posted output counts: inline threads, a <code>## Code review</code> summary, the liveness count.</li>
-    <li><strong>Automatic review is finite; a summon is the only resume.</strong> Automatic rounds stop after <code>auto_pause_rounds</code> and the counter is monotonic in v1 — pushing more commits produces nothing. Anything that waits on a machine review must read the liveness verdict, not the absence of one.</li>
+    <li><strong>Automatic review is finite; a summon is the only resume.</strong> Automatic rounds stop after <code>auto_pause_rounds</code> and the counter is monotonic in v1, so pushing more commits produces nothing. Anything that waits on a machine review must read the liveness verdict, not the absence of one.</li>
     <li><strong>Canary before trust.</strong> After any lane lands on a new repo or a workflow change merges: open a trivial docs PR, wait for the review run, read the liveness comment. Close the canary unmerged.</li>
     <li><strong>Consumers hold thin caller stubs; lane logic changes happen in prismalens/gh-workflows only.</strong> Reusable workflows live in canon (<code>prismalens/gh-workflows</code>); consumers hold thin caller stubs. Lane logic changes happen in <code>prismalens/gh-workflows</code> only.</li>
-    <li><strong><code>CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1</code> stays on every lane</strong> until upstream print mode survives background-subagent gaps (async launches end one-shot sessions before results arrive — the bug that silenced reviews for two days). Unpin = remove the env var, then re-canary; a green run is not verification.</li>
+    <li><strong><code>CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1</code> stays on every lane</strong> until upstream print mode survives background-subagent gaps (async launches end one-shot sessions before results arrive, the bug that silenced reviews for two days). Unpin = remove the env var, then re-canary; a green run is not verification.</li>
     <li><strong>Reviewer lanes are read-only; the fixer holds the only model-adjacent write</strong>, fork-guarded (resolve-pr job) and tool-denied from reviewing/resolving/merging. Don't add writes to any other lane.</li>
   </ul>
 
   <h2><span class="n">5</span>claude-kit changes this rollout requires</h2>
   <table>
     <tr><th>Where</th><th>Change</th><th>Why</th></tr>
-    <tr><td><code>skills/pr-watch</code></td><td><strong>Shrink to a session-scoped watcher; delete the lifecycle manager.</strong> The rollout removed its reasons to exist: the queue killed merge shepherding (no BEHIND cascade, no <code>merge-cascade.sh</code>, no update-branch babysitting), the liveness comment answers "did the reviewer post" on the PR itself, <code>@claude fix</code> replaced routing findings into local seats, and CodeRabbit is a rare deliberate act. What remains: "watch the PR <em>this session</em> just raised until its round completes" — watcher script (now also emitting claude[bot] threads + the liveness verdict), the in-thread reply protocol (incl. no-'resolve'-in-CodeRabbit-replies; top-level <code>@coderabbitai resolve</code>), rate-limit handling. Post-session, GitHub notifications are the watch mechanism; the two human moments (verify-then-resolve, enqueue) don't need a local poller.</td><td>The queue + liveness + fixer lane replaced the lifecycle; verdict 2026-08-12</td></tr>
+    <tr><td><code>skills/pr-watch</code></td><td><strong>Shrink to a session-scoped watcher; delete the lifecycle manager.</strong> The rollout removed its reasons to exist: the queue killed merge shepherding (no BEHIND cascade, no <code>merge-cascade.sh</code>, no update-branch babysitting), the liveness comment answers "did the reviewer post" on the PR itself, <code>@claude fix</code> replaced routing findings into local seats, and CodeRabbit is a rare deliberate act. What remains: "watch the PR <em>this session</em> just raised until its round completes": the watcher script (now also emitting claude[bot] threads + the liveness verdict), the in-thread reply protocol (incl. no-'resolve'-in-CodeRabbit-replies; top-level <code>@coderabbitai resolve</code>), rate-limit handling. Post-session, GitHub notifications are the watch mechanism; the two human moments (verify-then-resolve, enqueue) don't need a local poller.</td><td>The queue + liveness + fixer lane replaced the lifecycle; verdict 2026-08-12</td></tr>
     <tr><td><code>data/repo-meta.json</code></td><td>Per-repo fields: <code>merge_queue</code>, <code>claude_lane</code>, <code>fixer_lane</code>, <code>canon: prismalens/gh-workflows</code>.</td><td>Watchers/skills must not guess</td></tr>
     <tr><td><code>skills/agy-delegate</code> / global standards</td><td>Add: "reference repo content = fetch live refs (gh api / git show origin/main:path), never a checkout's working tree."</td><td>The stale-seed incident</td></tr>
-    <tr><td><code>skills/unattended-run</code> §7</td><td>Align the auto-merge rule with queue semantics (reviewer can still be outrun — the thread gate only blocks if a thread exists; keep "wait for the liveness comment before enqueueing" as the unattended rule).</td><td>Queue changes timing, not the race</td></tr>
+    <tr><td><code>skills/unattended-run</code> §7</td><td>Align the auto-merge rule with queue semantics (reviewer can still be outrun, since the thread gate only blocks if a thread exists; keep "wait for the liveness comment before enqueueing" as the unattended rule).</td><td>Queue changes timing, not the race</td></tr>
     <tr><td>mage hub note</td><td>Mark <code>github-automerge-behind-branches</code> gotcha stale for queue-enabled repos.</td><td>Superseded mechanics</td></tr>
   </table>
 

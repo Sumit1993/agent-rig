@@ -14,12 +14,17 @@ exists so a fresh machine behaves identically in two minutes.
 | `skills/pr-watch` | The merge contract (two required checks + unresolved-thread resolution; reviewers advisory, CodeRabbit by manual `review-ready` admission) + review tiers (`claude[bot]` → CodeRabbit → Opus → extreme) + post-PR lifecycle: seed and arm a deterministic CodeRabbit/CI Monitor (zero tokens while quiet), in-thread reply protocol, `merge-cascade.sh` for GitHub auto-merge's BEHIND stranding |
 | `skills/agy-delegate` | Antigravity CLI delegation mechanics (models, wrapper pattern, failure-mode table) + `run-agy-watchdog.sh` for the hang-after-report reaper + lane-count-from-scarce-resource pointer |
 | `skills/docs-governance` | Four-phase docs-drift playbook (audit → fix → retrofit → prevention nets) + the illustration standard (when a passage needs a worked example/transcript/diagram/screenshot, not just prose) |
-| `skills/html-explainer` | Mechanics for a standalone HTML explainer page (inline CSS/SVG, `~/ai-context/`, `explorer.exe` offer) — the WHEN to build one lives in `AGENTS.md` so it stays always-loaded |
-| `skills/autofix` | CodeRabbit's official autofix skill, **patched** (2026-07-12): per-issue replies go IN-THREAD (`/replies` + verify-and-resolve) — upstream's "summary-comment only" rule blocks merges under `required_review_thread_resolution` rulesets |
-| `skills/code-review` | CodeRabbit CLI review skill (vendored; no upstream update channel) — manual local look, does not feed the merge gate |
+| `skills/html-explainer` | Mechanics for a standalone HTML explainer page (inline CSS/SVG, `~/ai-context/`, `explorer.exe` offer). The WHEN to build one lives in `AGENTS.md` so it stays always-loaded |
+| `skills/no-comments` | Enforces the `AGENTS.md` comment budget on a diff: spawns `agents/comment-sicko`, judges its report, then offers to *encode* a claimed constraint as a type/test/lint instead of leaving prose. Vendored from pstack, **patched** (2026-08-22): Cursor `Task` → `Agent`, `/how`+`/why` → the git-history hunt, `/architect` → `fable-planner`, principle-skill refs inlined |
+| `skills/blast-radius` | What a diff breaks *outside* the diff, with the one safety fact proven by running real code (5-step confidence ladder, "unproven" is a valid answer). Vendored from pstack, **patched** (2026-08-22): `how`/`why`/`unslop`/`arena` refs replaced with concrete actions, multi-model pass routed to `Workflow`/agy |
+| `skills/show-me-your-work` | Decision trail for unattended runs: append-only TSV, one row per decision (what, why, evidence, result), `scripts/log.sh` writes well-formed rows and defuses spreadsheet formula injection. Self-audit against the transcript + cross-family review before handing back. Vendored from pstack, **patched** (2026-08-22): Cursor transcript path → `~/.claude/projects/`, cross-model review routed to agy-delegate |
+| `agents/comment-sicko` | The subagent `no-comments` spawns. Deletes comments, never application code; five keep-exceptions, everything else dies. Vendored from pstack, **patched**: comment-budget clause + worktree rule added |
+| `skills/unslop` | Cuts AI tells from any writing (31 rules: em dashes, AI vocabulary, filler, passive voice, abstract metaphor nouns). Vendored from pstack **verbatim**, body byte-identical to upstream; only a `metadata` block was added. Its description says "Must always apply", so it auto-loads broadly. `scripts/unslop-check.sh` flags the mechanically-provable rules across the repo (fenced blocks and inline `code` are exempt as identifiers); `scripts/unslop-drift.sh` proves a rewrite changed prose only, by diffing headings, backticked identifiers, links, fences and bullet counts |
+| `skills/autofix` | CodeRabbit's official autofix skill, **patched** (2026-07-12): per-issue replies go IN-THREAD (`/replies` + verify-and-resolve). Upstream's "summary-comment only" rule blocks merges under `required_review_thread_resolution` rulesets |
+| `skills/code-review` | CodeRabbit CLI review skill (vendored; no upstream update channel). A manual local look that does not feed the merge gate |
 | `hooks/pr-created.sh` | PostToolUse(Bash): a successful `gh pr create` injects "arm pr-watch now" |
 
-`dotfiles/AGENTS.md` stays deliberately thin — it is loaded on **every turn in every project**,
+`dotfiles/AGENTS.md` stays deliberately thin. It loads on **every turn in every project**,
 so it carries only routing decisions (which model, which seat) and preferences. Anything
 procedural lives in a skill that loads on demand. When a section grows past a few lines, that's
 the signal to move it into a skill and leave a pointer.
@@ -28,7 +33,7 @@ It is named `AGENTS.md` for the cross-tool convention, but Claude Code does not 
 on its own. `install.sh` writes `~/.claude/CLAUDE.md` as a one-line `@` import pointing at this
 checkout, so the body stays version-controlled here and there is no second copy to drift.
 Append machine-local rules below the import line; they stay out of the repo. A plugin cannot
-carry this itself — a `CLAUDE.md` at a plugin root is not loaded as context.
+carry this itself. Claude Code does not load a `CLAUDE.md` at a plugin root as context.
 
 **Dotfiles** (what plugins can't carry): `AGENTS.md` (routing/model tables, prefs),
 `statusline-command.sh`, `settings.fragment.json` (registers this repo as a marketplace
@@ -44,11 +49,11 @@ git clone https://github.com/Sumit1993/claude-kit && ./claude-kit/dotfiles/insta
 ## Editing
 
 This repo is the source of truth. Edit here, commit, push; machines with
-`autoUpdate: true` pick it up. Never edit the loose `~/.claude/skills/` copies —
+`autoUpdate: true` pick it up. Never edit the loose `~/.claude/skills/` copies.
 `dedupe.sh` removes them after first plugin load.
 
-Deliberately NOT vendored here — but `settings.fragment.json` subscribes to them as
-marketplaces so a fresh machine still gets them, always-current and read-only:
+Deliberately NOT vendored here. `settings.fragment.json` subscribes to them as
+marketplaces instead, so a fresh machine still gets them, always-current and read-only:
 
 | Source | Why a subscription, not a copy |
 |---|---|
@@ -57,4 +62,10 @@ marketplaces so a fresh machine still gets them, always-current and read-only:
 mage and context-mode own their own lifecycles (local dev clones); tokens/auth never live here.
 
 **Rule of thumb:** if upstream ships a plugin, subscribe to it. Only vendor a skill when
-you patch it (`autofix`, `code-review`) — and say so in the table above.
+you patch it (`autofix`, `code-review`, and the three pstack skills), and say so in the table above.
+
+`cursor/plugins`'s **pstack** is the exception that proves the rule. It ships as a plugin, but
+subscribing pulls all 44 skills, ~20 of which are one-idea `principle-*` files restating rules
+already in `AGENTS.md`. Duplicated rules in two places drift apart. So three skills and one agent
+are vendored and patched for Claude Code instead, plus `unslop` verbatim. The whole of this repo's prose has been run through `unslop`; `bash plugins/kit/scripts/unslop-check.sh` reports what is left, and everything it still flags is deliberate. Frontmatter `description:` fields are exempt because they are auto-load triggers, not prose, and rewriting one silently changes when a skill fires. Upstream and patch date are in each file's
+frontmatter `metadata`; re-diff against upstream when you want their fixes.
