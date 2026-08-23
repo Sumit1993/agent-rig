@@ -44,7 +44,7 @@ Claude models run via the Agent/Workflow `model` parameter (`fable`, `opus`, `so
 | `/code-review ultra` | Engine core, security boundaries, contract changes | Rare |
 
 - Reach for the Claude lane first. Spending a CodeRabbit slot is a deliberate decision, never a reflex, and never automatic on the consumer repos.
-- Procedure lives in `pr-watch`. This table only says which lane, not how to run it.
+- Procedure lives in the skills: `claude-review-lane` for how the Claude lane behaves, `pr-watch` for watching a PR this session raised and for CodeRabbit. This table only says which lane, not how to run it.
 
 # Worktrees
 
