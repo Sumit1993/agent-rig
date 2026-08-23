@@ -57,7 +57,7 @@ Each vendored `SKILL.md` records its origin in `metadata`: `upstream`, `upstream
 updates is manual today:
 
 ```bash
-coderabbit skills          # CodeRabbit's autofix + code-review; reports its current version
+coderabbit skills          # CodeRabbit's autofix; reports its current version
 npx skills                 # the pstack-sourced skills
 ```
 
@@ -82,7 +82,7 @@ marketplaces instead, so a fresh machine still gets them, always-current and rea
 mage and context-mode own their own lifecycles (local dev clones); tokens/auth never live here.
 
 **Rule of thumb:** if upstream ships a plugin, subscribe to it. Only vendor a skill when
-you patch it (`autofix`, `code-review`, and the three pstack skills), and say so in the table above.
+you patch it (`autofix` and the three pstack skills), and say so in the table above.
 
 `cursor/plugins`'s **pstack** is the exception that proves the rule. It ships as a plugin, but
 subscribing pulls all 44 skills, ~20 of which are one-idea `principle-*` files restating rules
