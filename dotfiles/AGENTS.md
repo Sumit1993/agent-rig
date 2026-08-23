@@ -34,6 +34,25 @@ Claude models run via the Agent/Workflow `model` parameter (`fable`, `opus`, `so
 - Do NOT add "double-check"/"verify your work" instructions when prompting Opus 5 or Fable 5. They self-verify, and explicit instructions cause over-verification. Same reason: don't ask them to echo their reasoning (triggers refusals on Fable). Sonnet handlers and agy-Gemini still need explicit verification steps.
 - **Never use Haiku.** Not useful for any real production task.
 
+# Routing: which reviewer gets which PR
+
+| Reviewer | When | Cost |
+| :--- | :--- | :--- |
+| **Claude review lane** (`claude[bot]`) | **The default.** Every same-repo PR in the consumer repos, automatically | Subscription, plentiful |
+| **CodeRabbit** | Escalation only, by `coderabbit_review` label. Also the automatic reviewer on `gh-workflows`, which the Claude lane cannot review | Shared org-wide counter, roughly one review per 40 minutes. Scarce |
+| **One Opus 5 pass** | Non-trivial PRs, for spec and ADR conformance the bots cannot judge | A session |
+| `/code-review ultra` | Engine core, security boundaries, contract changes | Rare |
+
+- Reach for the Claude lane first. Spending a CodeRabbit slot is a deliberate decision, never a reflex, and never automatic on the consumer repos.
+- `kit:code-review` is the CodeRabbit **CLI**, a manual local look that gates nothing. Invoke it when asked, never on your own initiative, and never as "the default review skill" despite what upstream's description says.
+- Procedure lives in `pr-watch`. This table only says which lane, not how to run it.
+
+# Worktrees
+
+Delegated and unattended work happens in a worktree, never a repo's main checkout. Use Claude Code's own support: `EnterWorktree` for this session, `isolation: "worktree"` on the Agent tool for a subagent. Both create under `.claude/worktrees/` and clean up on exit.
+
+`plugins/kit/scripts/wt.sh` and the `~/worktrees/` layout predate those tools. Anything created that way is invisible to `ExitWorktree` and has to be removed by hand, so prefer the built-ins for new work.
+
 # Orchestrator/Organizer/Manager
 This role holds the whole goal: sequences work, tracks done-vs-pending, catches drift, verifies delegated claims against evidence. **It does not type.**
 

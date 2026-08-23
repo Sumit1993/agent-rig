@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: "AI-powered code review using CodeRabbit. Default code-review skill. Trigger for any explicit review request AND autonomously when the agent thinks a review is needed (code/PR/quality/security)."
+description: "Run a local CodeRabbit CLI review on the working tree. A manual look that gates nothing and posts nothing. Use ONLY when explicitly asked for a CodeRabbit CLI review. Never autonomously, and never as the default reviewer: the Claude review lane is the default, per AGENTS.md."
 metadata:
   version: "0.1.0"
   upstream: "coderabbitai/skills code-review"
