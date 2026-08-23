@@ -59,7 +59,7 @@ Per-developer, per-hour, rolling (docs.coderabbit.ai/management/plans#rate-limit
 - **A cooldown retry too soon is spent for nothing.** Measured: a retry 37 minutes after a successful review was rejected outright, with no wait time returned; a retry at 83 minutes was accepted. Budget **≥45 minutes**, and confirm acceptance rather than assuming it.
 - **Three outcomes when polling, not two.** After posting the trigger, wait ~60s and read the *last* `coderabbitai[bot]` comment: `rate limited` → rejected, nothing coming; `initiate chat on the files` → misread as chat, nothing coming; anything else → accepted, review in flight. Polling only for the review object can't tell "working" from "never started".
 - **CodeRabbit's limits:** no test runs, Sonnet-tier depth, nitpick noise. It is **not** diff-only: its `🧩 Analysis chain` blocks show it running `rg`, `fd`, `sed`, `git show` and inline python against a checkout, and reasoning well outside the diff. On sreforge#118 it read `arm-incident.sh` end to end and traced the call graph into `arm-fire.sh` and the Taskfile to refute one README table row. Measured over 42 findings on 13 of our PRs. Tame with `profile: chill` in `.coderabbit.yaml`, and distil key repo invariants into its path instructions. That file is the only channel by which design decisions reach its reviews.
-- Related skills: `code-review` (CodeRabbit CLI; a manual, non-gating local look that shadows the built-in Standards/Spec review skill), `autofix` (apply PR-thread feedback with per-change approval).
+- Related skill: `autofix` (apply PR-thread feedback with per-change approval).
 
 ## Phase 1: arm the watcher (immediately after `gh pr create`)
 

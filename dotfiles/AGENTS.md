@@ -44,7 +44,6 @@ Claude models run via the Agent/Workflow `model` parameter (`fable`, `opus`, `so
 | `/code-review ultra` | Engine core, security boundaries, contract changes | Rare |
 
 - Reach for the Claude lane first. Spending a CodeRabbit slot is a deliberate decision, never a reflex, and never automatic on the consumer repos.
-- `kit:code-review` is the CodeRabbit **CLI**, a manual local look that gates nothing. Invoke it when asked, never on your own initiative, and never as "the default review skill" despite what upstream's description says.
 - Procedure lives in `pr-watch`. This table only says which lane, not how to run it.
 
 # Worktrees
