@@ -169,8 +169,8 @@ operator seat, which matters more than it sounds: an unresolved thread blocks th
   operator who resolves a fixer commit unread has routed around it just as surely as one who
   granted the tool.
 - After a verification round, `${CLAUDE_PLUGIN_ROOT}/scripts/resolve-verified.sh <pr>` batch-resolves
-  the threads the reviewer marked `verified fixed` and prints the rest for judgment. It never
-  touches a `not addressed` thread or one with no verdict.
+  threads with verified addressed markers and prints the rest for judgment. It never touches a
+  thread without a verified marker.
 - **A declined or deferred finding is resolved by you and by nobody else.** Post the disposition
   in the reply first, then resolve; `pr-watch` Phase 2 defines what counts as a disposition.
 
@@ -182,3 +182,31 @@ auto-paused comment, a posted-nothing comment, a fork notice, and no comment at 
 same answer: this head is unreviewed. Summon and wait for the posted review, or make a deliberate
 risk decision to merge without one. `pr-watch` owns the merge and queue mechanics that consume
 this answer.
+
+## 9. Finding labels and parse contract
+
+Every review finding opens with a header line containing three fields:
+
+```
+_<Category>_ | _<Severity>_ | _<Effort>_
+```
+
+Example: `_🎯 Functional Correctness_ | _🟠 Major_ | _⚡ Quick win_`
+
+### Controlled vocabulary
+
+Ten standard labels across three dimensions:
+
+| Dimension | Labels |
+|---|---|
+| Category | `Functional Correctness`, `Security & Privacy`, `Maintainability & Guidelines`, `Data Integrity & Integration`, `Stability & Availability` |
+| Severity | `Critical`, `Major`, `Minor` |
+| Effort | `Quick win`, `Heavy lift` |
+
+### Parse contract
+
+- **Field grammar:** `_[<emoji> ]<label>_`. Fields are separated by ` | `.
+- **Emoji are presentation only.** Strip leading non-ASCII bytes, trim whitespace, then exact-match the remaining ASCII label against the closed vocabulary. Never compare emoji bytes. Two of the ten emoji carry a U+FE0F variant selector and one is text-default, so byte comparison breaks.
+- **Unrecognized labels:** Route the finding to the fallback class `Major / Heavy lift` and log a parse notice. A finding is never dropped.
+- **Missing header (legacy comments):** Default to `Category: Functional Correctness`, `Severity: Major`, `Effort: Heavy lift`.
+
