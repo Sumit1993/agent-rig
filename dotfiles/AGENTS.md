@@ -26,7 +26,7 @@ Higher = better. **Affordability** = how freely I can spend it (quota + price; 9
 Claude models run via the Agent/Workflow `model` parameter (`fable`, `opus`, `sonnet`). Gemini is reachable **only** through Antigravity CLI, which also carries its own fallback models. Load the `agy-delegate` skill first; it owns model choice inside an agy run.
 
 ## How to apply
-- Scores are defaults, not limits. Standing permission to override.
+- Scores are defaults, not limits. Standing permission to override which model takes a task. That permission does not reach the Delegation rule.
 - For anything that ships: **Intelligence > Taste > Cost.** Cost is a tiebreaker only. Use cheap models to gather context and prototype, then move final execution up. Escalating cost beats shipping mediocre work.
 - Sub-par output → redo it on a smarter model, don't ask. Code/review escalates to Opus 5; Fable 5 only when the failure was planning.
 - Do NOT add "double-check"/"verify your work" instructions when prompting Opus 5 or Fable 5. They self-verify, and explicit instructions cause over-verification. Same reason: don't ask them to echo their reasoning (triggers refusals on Fable). Sonnet handlers and agy-Gemini still need explicit verification steps.
@@ -38,6 +38,14 @@ Claude models run via the Agent/Workflow `model` parameter (`fable`, `opus`, `so
 - **CodeRabbit is the only escalation.** Automatic on `gh-workflows`, the one repo the Claude lane cannot review. On the consumer repos it is admitted by hand with the `coderabbit_review` label. One shared org-wide counter, roughly one review per 40 minutes, so a slot is spent deliberately.
 - **Spend one when the PR touches paths carrying invariants in that repo's `.coderabbit.yaml` path instructions.** Those instructions are the only channel that carries a repo invariant into a review, and the Claude lane cannot see them. Also spend one when a Claude finding wants a check from a reviewer sharing no model or failure mode.
 - Procedure lives in `claude-review-lane` and `pr-watch`.
+
+# Delegation
+
+**Delegable work goes to agy, never a Claude subagent.** Bounded and mechanical, expressible as a written procedure with verify commands: implementing to a spec, rebases, evidence collection, log and CI triage, smoke runs, repetitive per-item procedure, research, bulk reading. Load `agy-delegate` before dispatching.
+
+This is a cost rule, not a quality one. agy draws a separate abundant quota, so a Claude subagent doing work agy could have done spends the scarce pool for nothing. Reaching for the Agent tool on delegable work needs a stated reason, and "simpler to set up" is not one.
+
+Judgment work stays on Claude: design, adjudication, spec conformance, anything whose answer is a ruling rather than a procedure.
 
 # Worktrees
 
