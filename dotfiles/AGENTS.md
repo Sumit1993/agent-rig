@@ -22,10 +22,8 @@ Higher = better. **Affordability** = how freely I can spend it (quota + price; 9
 | **Opus 5 (1M)** | 4 | 9 | 8 | Session/orchestrator seat, default review + escalated coding |
 | **Gemini 3.7 Flash** | 6 | 7 | 5 | Default executor for bounded specs (via agy) |
 | **Sonnet 5** | 7 | 6 | 6 | Thin wrappers, light passes, mechanical work |
-| **Opus 4.6** | 2 | 7 | 7 | agy-only; scarce weekly pool |
-| **Sonnet 4.6** | 2 | 5 | 5 | agy-only; same scarce pool |
 
-Claude models run via the Agent/Workflow `model` parameter (`fable`, `opus`, `sonnet`). Gemini and the 4.6s are reachable **only** through Antigravity CLI. Load the `agy-delegate` skill first.
+Claude models run via the Agent/Workflow `model` parameter (`fable`, `opus`, `sonnet`). Gemini is reachable **only** through Antigravity CLI, which also carries its own fallback models. Load the `agy-delegate` skill first; it owns model choice inside an agy run.
 
 ## How to apply
 - Scores are defaults, not limits. Standing permission to override.
