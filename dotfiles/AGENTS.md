@@ -36,25 +36,16 @@ Claude models run via the Agent/Workflow `model` parameter (`fable`, `opus`, `so
 
 # Routing: which reviewer gets which PR
 
-| Reviewer | When | Cost |
-| :--- | :--- | :--- |
-| **Claude review lane** (`claude[bot]`) | **The default.** Every same-repo PR in the consumer repos, automatically | Subscription, plentiful |
-| **CodeRabbit** | Escalation only, by `coderabbit_review` label. Also the automatic reviewer on `gh-workflows`, which the Claude lane cannot review | Shared org-wide counter, roughly one review per 40 minutes. Scarce |
-| **One Opus 5 pass** | Non-trivial PRs, for spec and ADR conformance the bots cannot judge | A session |
-| `/code-review ultra` | Engine core, security boundaries, contract changes | Rare |
-
-- Reach for the Claude lane first. Spending a CodeRabbit slot is a deliberate decision, never a reflex, and never automatic on the consumer repos.
-- Procedure lives in the skills: `claude-review-lane` for how the Claude lane behaves, `pr-watch` for watching a PR this session raised and for CodeRabbit. This table only says which lane, not how to run it.
+- **The Claude lane (`claude[bot]`) is the default.** Every same-repo PR in the consumer repos, automatically. Subscription-billed, plentiful.
+- **CodeRabbit is the only escalation.** Automatic on `gh-workflows`, the one repo the Claude lane cannot review. On the consumer repos it is admitted by hand with the `coderabbit_review` label. One shared org-wide counter, roughly one review per 40 minutes, so a slot is spent deliberately.
+- **Spend one when the PR touches paths carrying invariants in that repo's `.coderabbit.yaml` path instructions.** Those instructions are the only channel that carries a repo invariant into a review, and the Claude lane cannot see them. Also spend one when a Claude finding wants a check from a reviewer sharing no model or failure mode.
+- Procedure lives in `claude-review-lane` and `pr-watch`.
 
 # Worktrees
 
-Delegated and unattended work happens in a worktree, never a repo's main checkout.
+Delegated and unattended work happens in a worktree, never a repo's main checkout. `EnterWorktree` for this session, `isolation: "worktree"` on the Agent tool for a subagent. Both create under `.claude/worktrees/` and remove the tree on exit.
 
-Claude Code's own support is the standard, not one option among several. `EnterWorktree` for this session, `isolation: "worktree"` on the Agent tool for a subagent. Both create under `.claude/worktrees/` and remove the tree on exit.
-
-An external process cannot use either one. An agy lane is a CLI launched through Bash, so it gets a plain `git worktree add` at a path its dispatch prompt names, and whoever created it removes it. `ExitWorktree` only knows about trees it made.
-
-`plugins/kit/scripts/wt.sh` and the `~/worktrees/` layout are retired. They still hold trees created before this rule, so the script stays until those are gone. Nothing new goes there.
+An agy lane is an external CLI and can use neither, so it gets a plain `git worktree add` at a path its dispatch prompt names, and whoever created it removes it.
 
 # Orchestrator/Organizer/Manager
 This role holds the whole goal: sequences work, tracks done-vs-pending, catches drift, verifies delegated claims against evidence. **It does not type.**
