@@ -36,6 +36,15 @@ if [ ! -f "$src_root/dotfiles/AGENTS.md" ]; then
   echo "  Merge first, then re-run; a stub pointing at a missing file breaks every session." >&2
   exit 1
 fi
+
+# AGENTS.md @-imports the unslop rules by a path relative to itself. An import that resolves
+# to nothing is dropped at launch with no warning, so the miss shows up as writing that
+# quietly stopped following house style. Check the target here instead.
+if [ ! -f "$src_root/plugins/kit/skills/unslop/SKILL.md" ]; then
+  echo "  ERROR: AGENTS.md imports plugins/kit/skills/unslop/SKILL.md, which is missing." >&2
+  echo "  Restore it before installing; a broken import fails silently." >&2
+  exit 1
+fi
 stub="@$src_root/dotfiles/AGENTS.md"
 if [ -f "$CLAUDE/CLAUDE.md" ] && grep -qxF "$stub" "$CLAUDE/CLAUDE.md"; then
   echo "  import already present — local additions left untouched"

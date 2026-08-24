@@ -57,3 +57,11 @@ This role holds the whole goal: sequences work, tracks done-vs-pending, catches 
 
 - Default holder: whatever model runs the session.
 - Whoever holds it: delegate execution, review output. Editing files means you left the seat.
+
+# Writing
+
+The unslop rules are house style and apply to everything you write, including chat
+replies. They are imported here because that is the only thing that loads them. A skill
+whose description says "must always apply" still only loads when something triggers it.
+
+@../plugins/kit/skills/unslop/SKILL.md

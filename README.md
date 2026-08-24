@@ -20,7 +20,7 @@ exists so a fresh machine behaves identically in two minutes.
 | `skills/blast-radius` | What a diff breaks *outside* the diff, with the one safety fact proven by running real code (5-step confidence ladder, "unproven" is a valid answer). Vendored from pstack, **patched** (2026-08-22): `how`/`why`/`unslop`/`arena` refs replaced with concrete actions, multi-model pass routed to `Workflow`/agy |
 | `skills/show-me-your-work` | Decision trail for unattended runs: append-only TSV, one row per decision (what, why, evidence, result), `scripts/log.sh` writes well-formed rows and defuses spreadsheet formula injection. Self-audit against the transcript + cross-family review before handing back. Vendored from pstack, **patched** (2026-08-22): Cursor transcript path → `~/.claude/projects/`, cross-model review routed to agy-delegate |
 | `agents/comment-sicko` | The subagent `no-comments` spawns. Deletes comments, never application code; five keep-exceptions, everything else dies. Vendored from pstack, **patched**: comment-budget clause + worktree rule added |
-| `skills/unslop` | Cuts AI tells from any writing (31 rules: em dashes, AI vocabulary, filler, passive voice, abstract metaphor nouns). Vendored from pstack **verbatim**, body byte-identical to upstream; only a `metadata` block was added. Its description says "Must always apply", so it auto-loads broadly. `scripts/unslop-check.sh` flags the mechanically-provable rules across the repo (fenced blocks and inline `code` are exempt as identifiers); `scripts/unslop-drift.sh` proves a rewrite changed prose only, by diffing headings, backticked identifiers, links, fences and bullet counts |
+| `skills/unslop` | Cuts AI tells from any writing (31 rules: em dashes, AI vocabulary, filler, passive voice, abstract metaphor nouns). Vendored from pstack **verbatim**, body byte-identical to upstream; only a `metadata` block was added. `dotfiles/AGENTS.md` `@`-imports this file, so the rules are in context on every turn. The description's "Must always apply" never achieved that on its own. A skill loads when something triggers it, and nothing reliably triggered this one. `scripts/unslop-check.sh` flags the mechanically-provable rules across the repo (fenced blocks and inline `code` are exempt as identifiers); `scripts/unslop-drift.sh` proves a rewrite changed prose only, by diffing headings, backticked identifiers, links, fences and bullet counts |
 | `skills/autofix` | CodeRabbit's official autofix skill, vendored as a real copy and **patched** (2026-07-12): per-issue replies go IN-THREAD (`/replies` + verify-and-resolve). Upstream's "summary-comment only" rule leaves threads unresolved, which blocks merge under `required_review_thread_resolution` rulesets. Story: prismalens PR #160 |
 | `hooks/pr-created.sh` | PostToolUse(Bash): a successful `gh pr create` injects "arm pr-watch now" |
 
@@ -28,6 +28,13 @@ exists so a fresh machine behaves identically in two minutes.
 so it carries only routing decisions (which model, which seat) and preferences. Anything
 procedural lives in a skill that loads on demand. When a section grows past a few lines, that's
 the signal to move it into a skill and leave a pointer.
+
+It carries one `@` import, `plugins/kit/skills/unslop/SKILL.md`. Rules about how to write have
+to be loaded before the writing happens, which is the one thing on-demand loading cannot do.
+Imports resolve relative to the file holding them and nest, so the stub reaches AGENTS.md and
+AGENTS.md reaches the skill, and each rule set still has exactly one home. A nested import that
+points at nothing fails silently, with no warning at launch, so `install.sh` checks the target
+exists.
 
 It is named `AGENTS.md` for the cross-tool convention, but Claude Code does not read that name
 on its own. `install.sh` writes `~/.claude/CLAUDE.md` as a one-line `@` import pointing at this
