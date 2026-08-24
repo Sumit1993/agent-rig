@@ -42,7 +42,7 @@ On completion record the marker that opens the release gate:
 
 ## Phase 2: fix (one docs-refresh PR)
 
-One branch (`wt.sh create docs-refresh`), one delegated coding run, one PR. Non-negotiable spec rules:
+One branch, one delegated coding run, one PR. `AGENTS.md` fixes how the worktree is made. Non-negotiable spec rules:
 
 - **Prune, don't append**: rewrite each stale sentence to be currently-true; never "but now also…". Delete false claims.
 - **Verify every claim against code before writing it** (verb lists ↔ dispatcher source, record fields ↔ serializer, defaults ↔ task runner). The coding agent skips-with-reason rather than invents.

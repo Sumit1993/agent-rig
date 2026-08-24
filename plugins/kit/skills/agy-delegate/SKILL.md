@@ -7,7 +7,7 @@ metadata:
 
 # Delegating to Antigravity CLI (agy)
 
-Routing (which model gets which task, quota) lives in `~/.claude/CLAUDE.md`. Waiting on the run correctly lives in the **`anti-stall`** skill. Load it too, since this skill assumes its sentinel/until-loop pattern and does not repeat it.
+Top-level routing (which model gets which task) lives in `AGENTS.md`. Model choice *inside* an agy run is this skill's, including the Opus 4.6 and Sonnet 4.6 fallback lane and its weekly pool. Waiting on the run correctly lives in the **`anti-stall`** skill. Load it too, since this skill assumes its sentinel/until-loop pattern and does not repeat it.
 
 **Lane count is not a fixed number.** Derive how many agy runs to fan out at once from whatever is actually scarce that round: a shared review counter, a serialising merge invariant, agy-Claude's weekly pool. Never a constant. Full doctrine, including how to name the resource's scope before parallelising, is in the **`unattended-run`** skill §2, which applies to any dispatch decision, not only unattended sessions.
 
