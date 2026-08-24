@@ -1,6 +1,6 @@
 ---
 name: claude-review-lane
-description: "How our Claude review lane (`claude[bot]`) behaves on any PR of any age: reading the liveness comment's four verdicts, the ways the lane stays quiet (skipped author, auto-pause, fork head, self-skip), the summon grammar (`@claude review`, `@claude full review`, the per-run `--model` override), `@claude fix`, verification rounds, and who may resolve a `claude[bot]` thread. Load when a `claude[bot]` thread or a liveness comment is in front of you, when the lane has gone quiet or a review is missing, when deciding whether to summon or re-summon, and when judging whether a head has actually been reviewed before it merges. Arming a watcher on a PR this session raised is `pr-watch` instead."
+description: "How our Claude review lane (`claude[bot]`) behaves on any PR of any age: reading the liveness comment's four verdicts, the ways the lane stays quiet (skipped author, auto-pause, fork head, self-skip), the summon grammar (`@claude review`, `@claude full review`, the per-run `--model` override), verification rounds, and who may resolve a `claude[bot]` thread. Load when a `claude[bot]` thread or a liveness comment is in front of you, when the lane has gone quiet or a review is missing, when deciding whether to summon or re-summon, and when judging whether a head has actually been reviewed before it merges. Arming a watcher on a PR this session raised is `pr-watch` instead."
 metadata:
   version: "1.0.0"
 ---
@@ -109,7 +109,6 @@ body, which the review reads anyway.
 | `@claude review` | Incremental. The lane decides its own mode: a verify round when unresolved `claude[bot]` threads exist, otherwise a normal review. The only resume for an auto-paused PR |
 | `@claude full review` | From scratch, with dedup disabled for that run. The fix for a round that finished green having published nothing, which is what dedup silently causes (prismalens/prismalens#410) |
 | `@claude review --model opus` | Incremental on `claude-opus-5` for that run only. `--model sonnet` picks `claude-sonnet-5` back |
-| `@claude fix` | The fixer lane, section 6 |
 
 `default_model` is `claude-sonnet-5` on purpose: review is the highest-volume Claude spend across
 the consumer repos, so escalation is per-run and deliberate. Which model IDs resolve at all is set
@@ -142,39 +141,25 @@ stock re-review. Three differences that change how you read it:
   It is posted even when everything is fixed and nothing is new, so its absence means the verify
   round did not complete.
 
-**Verdicts are judgment only.** The verify agent is tool-denied from resolving anything.
+## 6. Who resolves a `claude[bot]` thread
 
-## 6. `@claude fix`
+The reviewer resolves threads it can verify as fixed. A human rules on anything disputed,
+declined, or deferred:
 
-On demand, org members only, and so far prismalens only. `@claude fix` applies fixes for **all**
-unresolved threads on the PR branch and replies in each with the SHA. Scope it with words only to
-*exclude*; it reads every unresolved thread regardless.
+1. **Reviewer posts finding:** opened as an inline review thread.
+2. **Human replies in-thread:** asserting the finding is fixed in a commit or disputing the
+   finding. A human reply is the trigger; the reviewer does not resolve threads on a push alone.
+3. **Reviewer re-evaluates:** checks the finding against current PR head.
+4. **Verified fixed:** the reviewer resolves the thread directly, citing the commit SHA and what
+   it checked.
+5. **Not verified:** the reviewer leaves the thread open and explains why.
 
-- **One summon comment per round.** This is the `@claude fix` trigger, not a reply protocol. Fix
-  replies always go in-thread.
-- **It cannot review, submit a review, resolve a thread, or merge.** Those tools are withheld from
-  its allowlist deliberately.
+**Disputed, declined, or deferred findings are resolved by a human and by nobody else.** If you
+decline or defer a finding, post the disposition in-thread first, then resolve the thread manually
+via GraphQL `resolveReviewThread` or the UI. The reviewer only resolves what it proves fixed in
+code; judgment calls and scope decisions stay with the human operator.
 
-## 7. Who resolves a `claude[bot]` thread
-
-`claude[bot]` has no self-resolve mechanism. Every thread it opens is closed by a human or by an
-operator seat, which matters more than it sounds: an unresolved thread blocks the merge under
-`required_review_thread_resolution`, so a thread nobody closes blocks the PR forever.
-
-- **Verify the fix, then resolve** via GraphQL `resolveReviewThread` or the UI, stating in the
-  reply that you did. Whoever wrote the fix is not who certifies it, so do not close a thread on
-  the strength of your own commit.
-- **The fixer lane is tool-denied from resolving. That denial is load-bearing: do not route around
-  it.** It is the mechanism that keeps the fixing party and the certifying party separate. An
-  operator who resolves a fixer commit unread has routed around it just as surely as one who
-  granted the tool.
-- After a verification round, `${CLAUDE_PLUGIN_ROOT}/scripts/resolve-verified.sh <pr>` batch-resolves
-  threads with verified addressed markers and prints the rest for judgment. It never touches a
-  thread without a verified marker.
-- **A declined or deferred finding is resolved by you and by nobody else.** Post the disposition
-  in the reply first, then resolve; `pr-watch` Phase 2 defines what counts as a disposition.
-
-## 8. Before a merge
+## 7. Before a merge
 
 The question a merge asks of this lane is narrow: **has posted review output landed on the head
 that is about to merge?** Only the `reviewed <sha> and posted ...` verdict answers yes. An
@@ -183,7 +168,7 @@ same answer: this head is unreviewed. Summon and wait for the posted review, or 
 risk decision to merge without one. `pr-watch` owns the merge and queue mechanics that consume
 this answer.
 
-## 9. Finding labels and parse contract
+## 8. Finding labels and parse contract
 
 Every review finding opens with a header line containing three fields:
 

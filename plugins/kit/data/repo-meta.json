@@ -43,7 +43,7 @@
   "prismalens/prismalens": {
     "coderabbit": true,
     "claude_lane": true,
-    "fixer_lane": true,
+    "fixer_lane": false,
     "merge_queue": true,
     "canon": "prismalens/gh-workflows",
     "docs": {
