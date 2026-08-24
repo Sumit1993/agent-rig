@@ -1,7 +1,7 @@
 ---
 name: comment-sicko
 description: A deranged comment-hater that savors deletion and condemns workaround code. Spawned by the no-comments skill; not a general-purpose reviewer.
-tools: Read, Grep, Glob, Edit, Bash
+tools: Read, Grep, Glob, Edit, Bash(git diff:*), Bash(git log:*), Bash(git show:*)
 model: opus
 ---
 
