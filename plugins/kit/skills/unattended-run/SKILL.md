@@ -25,7 +25,7 @@ At hand-off, before the operator leaves, record: what is scarce, which repos and
 
 Dispatch and judge. Editing a file means the seat that holds the whole goal spent its turn on work a cheap lane could have done, and stopped tracking every other lane while it did. The organizer's only outputs are dispatches, verdicts on returned claims, plan-file updates, and merges.
 
-Lanes work in worktrees (`~/worktrees/<repo>/<branch-slug>`), never in the main checkout. The main checkout and the stack it serves are the organizer's, and a lane that "restores" its branch takes the whole run down with it. The organizer creates or reuses the worktree; the lane is handed an absolute path and told to stop and report if it is missing.
+Lanes work in worktrees, never in the main checkout. `AGENTS.md` fixes which mechanism, and a Claude subagent lane and an agy lane do not get the same one. The main checkout and the stack it serves are the organizer's, and a lane that "restores" its branch takes the whole run down with it. The organizer creates or reuses the worktree; the lane is handed an absolute path and told to stop and report if it is missing.
 
 **Every dispatch prompt carries, explicitly:** the absolute worktree path · the exact verify commands and the expectation that the lane runs them itself · the report format (findings, evidence, SHAs, blockers, no prose) · the stop conditions ("abort and report rather than improvise" on any conflict, any frozen path, any gate still red after N minutes) · what the lane may **not** do (merge, close, bypass, edit a frozen path) · the stall rule (§4).
 

@@ -118,7 +118,7 @@ Check the registry first: `kit-meta.sh get <owner/repo> merge_queue`.
 
 **Classic repos (mage-memory, a personal account with no queue support):** merge by hand, one at a time, once the round's threads are resolved: `gh pr merge <n> --squash`. BEHIND still applies there; update-branch and re-green before merging the next.
 
-Afterward: remove merged worktrees (`git worktree remove <path>` + delete local branch).
+Afterward: a tree from `EnterWorktree` or `isolation: "worktree"` removes itself on exit and needs nothing. One created by hand for an external lane does not, so remove it with `git worktree remove <path>` and delete its local branch.
 
 ## Notes
 

@@ -48,9 +48,13 @@ Claude models run via the Agent/Workflow `model` parameter (`fable`, `opus`, `so
 
 # Worktrees
 
-Delegated and unattended work happens in a worktree, never a repo's main checkout. Use Claude Code's own support: `EnterWorktree` for this session, `isolation: "worktree"` on the Agent tool for a subagent. Both create under `.claude/worktrees/` and clean up on exit.
+Delegated and unattended work happens in a worktree, never a repo's main checkout.
 
-`plugins/kit/scripts/wt.sh` and the `~/worktrees/` layout predate those tools. Anything created that way is invisible to `ExitWorktree` and has to be removed by hand, so prefer the built-ins for new work.
+Claude Code's own support is the standard, not one option among several. `EnterWorktree` for this session, `isolation: "worktree"` on the Agent tool for a subagent. Both create under `.claude/worktrees/` and remove the tree on exit.
+
+An external process cannot use either one. An agy lane is a CLI launched through Bash, so it gets a plain `git worktree add` at a path its dispatch prompt names, and whoever created it removes it. `ExitWorktree` only knows about trees it made.
+
+`plugins/kit/scripts/wt.sh` and the `~/worktrees/` layout are retired. They still hold trees created before this rule, so the script stays until those are gone. Nothing new goes there.
 
 # Orchestrator/Organizer/Manager
 This role holds the whole goal: sequences work, tracks done-vs-pending, catches drift, verifies delegated claims against evidence. **It does not type.**
