@@ -88,5 +88,5 @@ else
 fi
 
 echo "→ done. Restart Claude Code; the claude-kit marketplace + kit plugin load from settings."
-echo "   Skills arrive as kit:pr-watch, kit:agy-delegate, kit:autofix, kit:code-review."
+echo "   Skills arrive under the kit: prefix, one per directory in plugins/kit/skills/."
 echo "   If migrating FROM a machine with loose copies in ~/.claude/skills/, run dedupe.sh next."
