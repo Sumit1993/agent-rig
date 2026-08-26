@@ -147,8 +147,10 @@ The reviewer resolves threads it can verify as fixed. A human rules on anything 
 declined, or deferred:
 
 1. **Reviewer posts finding:** opened as an inline review thread.
-2. **Human replies in-thread:** asserting the finding is fixed in a commit or disputing the
-   finding. A human reply is the trigger; the reviewer does not resolve threads on a push alone.
+2. **Non-bot replies in-thread:** asserting the finding is fixed in a commit or disputing the
+   finding. A reply from a non-bot account is the trigger; the reviewer does not resolve threads
+   on a push alone. The lane excludes GitHub App identities so its own reply cannot retrigger it,
+   so an agent replying through a member's credential is admitted.
 3. **Reviewer re-evaluates:** checks the finding against current PR head.
 4. **Verified fixed:** the reviewer resolves the thread directly, citing the commit SHA and what
    it checked.
