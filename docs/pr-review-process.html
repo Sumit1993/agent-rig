@@ -77,7 +77,7 @@
   <h2><span class="n">2</span>Lifecycle of a PR</h2>
   <figure>
     <figcaption>From open to merged: advisory reviews, one fix loop, native thread gate</figcaption>
-    <svg viewBox="0 0 900 210" role="img" aria-label="Flow: PR opened; CI and Claude review run; optional CodeRabbit; threads open; @claude fix once; replies; resolution; queue merge">
+    <svg viewBox="0 0 900 210" role="img" aria-label="Flow: PR opened; CI and Claude review run; optional CodeRabbit; threads open; local fix; in-thread replies; reviewer self-resolves; queue merge">
       <g font-size="12">
         <rect x="10" y="80" width="100" height="44" rx="7" fill="#2b5f9e"/><text x="60" y="106" text-anchor="middle" fill="#fff">PR opened</text>
         <rect x="150" y="20" width="150" height="40" rx="7" fill="#fff" stroke="#e2ddd2"/><text x="225" y="44" text-anchor="middle">CI + title check</text>
@@ -85,7 +85,7 @@
         <rect x="150" y="146" width="150" height="44" rx="7" fill="#fff" stroke="#e2ddd2" stroke-dasharray="4 3"/><text x="225" y="164" text-anchor="middle">CodeRabbit</text><text x="225" y="180" text-anchor="middle" fill="#6b7280" font-size="10">only via coderabbit_review label</text>
         <rect x="345" y="80" width="130" height="44" rx="7" fill="#fdf3e4" stroke="#ecd9b0"/><text x="410" y="98" text-anchor="middle">liveness comment</text><text x="410" y="114" text-anchor="middle" fill="#6b7280" font-size="10">posted N / posted nothing</text>
         <rect x="520" y="80" width="120" height="44" rx="7" fill="#fff" stroke="#e2ddd2"/><text x="580" y="98" text-anchor="middle">threads open</text><text x="580" y="114" text-anchor="middle" fill="#6b7280" font-size="10">each blocks merge</text>
-        <rect x="680" y="20" width="190" height="52" rx="7" fill="#fff" stroke="#e2ddd2"/><text x="775" y="40" text-anchor="middle">fix loop</text><text x="775" y="58" text-anchor="middle" fill="#6b7280" font-size="10">@claude fix (once) or local seat</text>
+        <rect x="680" y="20" width="190" height="52" rx="7" fill="#fff" stroke="#e2ddd2"/><text x="775" y="40" text-anchor="middle">fix loop</text><text x="775" y="58" text-anchor="middle" fill="#6b7280" font-size="10">local seat, then reply in-thread</text>
         <rect x="680" y="146" width="190" height="52" rx="7" fill="#2e7d4f"/><text x="775" y="166" text-anchor="middle" fill="#fff">resolve threads → merge</text><text x="775" y="184" text-anchor="middle" fill="#d9ead9" font-size="10">queue (org) / classic (personal)</text>
         <line x1="110" y1="95" x2="150" y2="45" stroke="#9aa" stroke-width="2" marker-end="url(#a2)"/>
         <line x1="110" y1="102" x2="150" y2="102" stroke="#9aa" stroke-width="2" marker-end="url(#a2)"/>
@@ -114,13 +114,13 @@
         <td><strong>Incremental with model override.</strong> Runs an incremental review using <code>claude-sonnet-5</code>.</td></tr>
     <tr><td><code>@claude full review</code></td><td>review</td>
         <td><strong>From scratch, dedup disabled.</strong> Existing comments and threads are explicitly not dedup targets. Without that the plugin's dedup makes a re-review publish nothing (prismalens#410). Posts a <code>## Code review — full review</code> summary.</td></tr>
-    <tr><td><code>@claude fix</code></td><td>fixer</td>
-        <td>Applies fixes on the PR branch (<code>claude-fix.yml</code>).</td></tr>
+    <tr><td><code>@claude fix</code></td><td>none</td>
+        <td><strong>Dead verb.</strong> The fixer lane is deleted. The mention stub still excludes this phrase, so the comment fires nothing at all.</td></tr>
     <tr><td>bare <code>@claude …</code></td><td>mention</td>
         <td>Anything not matching the verbs above.</td></tr>
   </table>
-  <p>Summons run on <strong>draft</strong> PRs (explicit intent overrides the draft skip), bypass <code>skip_authors</code>, and always run past the auto-pause counter. Fork-head PRs stay refused even when summoned (v1). Each summon is a full agent run, <strong>one per round</strong>, same economy as the fixer.</p>
-  <div class="rule"><strong>The mention stub must exclude all three verbs.</strong> The <code>claude.yml</code> caller stub carries a caller-level <code>if:</code> excluding comment bodies containing <code>@claude fix</code>, <code>@claude review</code>, or <code>@claude full review</code>. Those verbs belong to the fixer and review lanes; without the exclusion each such comment fires <em>two</em> lanes on the same PR, which is also what ends the fixer's existing double-fire. All three checks are needed: <code>@claude full review</code> does not contain <code>@claude review</code> as a substring.</div>
+  <p>Summons run on <strong>draft</strong> PRs (explicit intent overrides the draft skip), bypass <code>skip_authors</code>, and always run past the auto-pause counter. Fork-head PRs stay refused even when summoned (v1). Each summon is a full agent run, <strong>one per round</strong>.</p>
+  <div class="rule"><strong>The mention stub must exclude all three verbs.</strong> The <code>claude.yml</code> caller stub carries a caller-level <code>if:</code> excluding comment bodies containing <code>@claude fix</code>, <code>@claude review</code>, or <code>@claude full review</code>. The review verbs belong to the review lane; without the exclusion each such comment fires <em>two</em> lanes on the same PR. All three checks are needed: <code>@claude full review</code> does not contain <code>@claude review</code> as a substring. <strong>Stale since the fixer was deleted:</strong> the stub still excludes <code>@claude fix</code>, which now routes to nothing, so that comment is silently swallowed. Dropping it from the exclusion would let the mention lane answer instead.</div>
 
   <h3>Review lane inputs</h3>
   <table>
@@ -133,11 +133,9 @@
         <td>Automatic rounds allowed on one PR before the lane pauses itself. The count lives in the liveness marker and only automatic rounds that actually ran increment it. On pause the lane posts <em>auto-paused after N automatic rounds</em> instead of reviewing. <strong>Monotonic.</strong> v1 never resets it, so a summon resumes for exactly that one run. <strong>Raised 3 &rarr; 5 on 2026-08-21</strong>: three ran out on long-lived PRs, which then went silently unreviewed on every later push (mage-memory#176 landed two fix commits that way). A resettable counter is the real fix and is not built yet.</td></tr>
   </table>
 
-  <h3>Reviewers left 3 comments. One <code>@claude fix</code> or three?</h3>
-  <p><strong>One.</strong> One summon comment per round. This is the @claude fix trigger, not a reply protocol; fix replies always go in-thread: <code>@claude fix</code>. The fixer's prompt tells it to read
-  <em>all</em> unresolved review threads on the PR and address each, replying in every thread it touched with the fix commit SHA.
-  Commenting per-thread would start one full agent run per comment (they serialize per-PR, but each spends subscription for nothing).
-  Add scoping words only to <em>exclude</em>: e.g. <code>@claude fix — only the two SCHEMA.md threads, leave the API design one for me</code>.</p>
+  <h3>Reviewers left 3 comments. Where do fixes come from now?</h3>
+  <p><strong>From the session holding the diff.</strong> The fixer lane is deleted, so no remote actor writes code. Fix locally, push, then reply in each thread with the commit SHA and what changed. The reviewer re-evaluates on that reply and resolves the threads it can verify against the current head.</p>
+  <p>The lane was never used: across 141 workflow runs on the consumer repos every one concluded <code>skipped</code>, because it gated on <code>@claude fix</code> and nobody ever typed it.</p>
 
   <h3>Who resolves which thread?</h3>
   <table>
