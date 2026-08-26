@@ -15,6 +15,7 @@
     "type": "command",
     "command": "bash ~/.claude/statusline-command.sh"
   },
+  "worktree": { "baseRef": "head" },
   "effortLevel": "high",
   "tui": "fullscreen",
   "extraKnownMarketplaces": {
