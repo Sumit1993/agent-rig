@@ -49,9 +49,15 @@ Judgment work stays on Claude: design, adjudication, spec conformance, anything 
 
 # Worktrees
 
-Delegated and unattended work happens in a worktree, never a repo's main checkout. `EnterWorktree` for this session, `isolation: "worktree"` on the Agent tool for a subagent. Both create under `.claude/worktrees/` and remove the tree on exit.
+Delegated and unattended work happens in a worktree, never a repo's main checkout. `EnterWorktree` for this session, `isolation: "worktree"` on the Agent tool for a subagent. Both create under `.claude/worktrees/`.
 
-An agy lane is an external CLI and can use neither, so it gets a plain `git worktree add` at a path its dispatch prompt names, and whoever created it removes it.
+An agy lane is an external CLI and can use neither, so it gets a plain `git worktree add` at `.claude/worktrees/agy-<task>`, named absolutely in its dispatch prompt. Same parent as the other two, so `git worktree list` is the whole inventory.
+
+**Nothing removes itself once there is work in it.** Empty trees go quietly: a clean unnamed session on exit, a subagent that finished with no changes. A tree holding commits or untracked files does not. `EnterWorktree` prompts, a subagent's tree waits on the `cleanupPeriodDays` sweep, and that sweep skips anything still holding work. A `-p` run has no exit prompt at all and leaves its tree locked. So whoever made a worktree removes it once the work has landed: `git worktree remove <path>` and delete the branch, `git worktree unlock` first if git refuses.
+
+`worktree.baseRef` is `head`, so a new tree carries local unpushed commits and the branch it was cut from. A lane that wants a clean base branches from `origin/<default>` itself, and its dispatch prompt says so.
+
+A worktree is a fresh checkout with no gitignored files in it, so no `.env` and no local config. A repo whose lanes build or test needs a `.worktreeinclude` in its root naming those files (gitignore syntax; only what matches and is already gitignored gets copied).
 
 # Orchestrator/Organizer/Manager
 This role holds the whole goal: sequences work, tracks done-vs-pending, catches drift, verifies delegated claims against evidence. **It does not type.**

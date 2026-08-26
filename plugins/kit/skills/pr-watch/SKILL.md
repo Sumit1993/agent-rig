@@ -2,7 +2,7 @@
 name: pr-watch
 description: "Watch a PR raised in THIS session until its review round completes: seed the seen-state, arm the deterministic reviewer/CI Monitor, route each event as a pointer to the seat holding the diff, then merge (queue-enabled repos enqueue; no cascade). Also carries the merge contract. Trigger AFTER any `gh pr create`, when a PostToolUse hook reports a PR was raised, or when the user asks to watch or merge a PR. Claude lane behavior is `claude-review-lane`; CodeRabbit mechanics live in `coderabbit-lane`."
 metadata:
-  version: "3.0.0"
+  version: "3.0.1"
 ---
 
 # PR watch: the session-scoped review round
@@ -91,7 +91,7 @@ Check the registry first: `kit-meta.sh get <owner/repo> merge_queue`.
 
 **Classic repos (mage-memory, a personal account with no queue support):** merge by hand, one at a time, once the round's threads are resolved: `gh pr merge <n> --squash`. BEHIND still applies there; update-branch and re-green before merging the next.
 
-Afterward: a tree from `EnterWorktree` or `isolation: "worktree"` removes itself on exit and needs nothing. One created by hand for an external lane does not, so remove it with `git worktree remove <path>` and delete its local branch.
+Afterward, remove the lane's worktree. Its commits are on the PR now, so no mechanism reclaims it on its own, whichever way it was made (`AGENTS.md` §Worktrees). `git worktree remove <path>`, then delete the local branch; `git worktree unlock` first if git refuses because the tree is locked.
 
 ## Notes
 
