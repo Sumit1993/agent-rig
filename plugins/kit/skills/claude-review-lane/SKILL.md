@@ -69,8 +69,16 @@ nothing to read, and a watcher waiting for one waits forever. Section 3 lists ev
 
 ## 3. Admission, and every way the lane stays quiet
 
-Automatic rounds fire on `pull_request` for same-repo heads. A summon also requires an
-org-member author (`OWNER`, `MEMBER`, or `COLLABORATOR`), an explicit verb, and an open PR.
+Automatic rounds fire on `pull_request` for same-repo heads. A summon or an in-thread reply
+also requires **write access to the repository**, checked live against the collaborators API
+by the `admit` action, plus an explicit verb (summons only) and an open PR.
+
+**Admission is not `author_association`, and this matters.** That field is repo-scoped and
+payload-dependent: for the same comment, the webhook reported `CONTRIBUTOR` while the REST
+API reported `MEMBER`, so maintainer replies on `prismalens/prismalens` were refused for
+months while the same account was admitted on `prismalens/sreforge`. Never diagnose an
+admission refusal by reading `author_association` from the API; it is a different value from
+the one the gate sees. Story: prismalens/gh-workflows#20.
 
 Five ways a PR gets no review. The first four produce no liveness comment either:
 
@@ -97,6 +105,20 @@ Five ways a PR gets no review. The first four produce no liveness comment either
    and posts the auto-paused verdict instead of reviewing. This one does leave a liveness comment.
    **A paused PR is not reviewed on push, so a wait keyed on the next push has no end.** The
    counter is monotonic in v1 and never resets, so a summon resumes the lane for exactly one run.
+
+### Telling a refusal from a cancellation
+
+A run that concluded `cancelled` with **zero jobs** never executed anything and says nothing
+about admission: it was evicted from its concurrency group before any `if:` was evaluated. A
+run that concluded `skipped` did reach the gate and was refused. Only the second is evidence
+about admission, and confusing the two cost a full session once.
+
+Until 2026-08-28 the lane evicted its own verify rounds: it ends every round by posting a
+top-level verdict comment, which fires `issue_comment` into the PR's concurrency group and
+took the single pending seat from any queued in-thread reply. Any reply posted while a round
+was running was dropped, deterministically. Bot-authored comments now route to a per-run
+throwaway group, so a reply during a round survives. If you see a `cancelled` review-comment
+run with zero jobs on a repo, that repo's stub predates this fix.
 
 ## 4. Summon grammar
 
