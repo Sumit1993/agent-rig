@@ -1,6 +1,6 @@
 ---
 name: unattended-run
-description: "Rules for holding a long unattended run: arm the wake-up first, keep the organizer out of the files, size lane count to whatever is scarce, catch stalls, treat a green check as nothing, verify every delegate claim, park what needs a human. Load BEFORE any session where the operator is away and the work will outlast their attention: an overnight run, a multi-hour delegation, a cron-driven organizer's first wake-up. Also load whenever a lane reports \"standing by\"."
+description: "Rules for holding a long unattended run: arm the wake-up first, keep the organizer out of the files, catch stalls, treat a green check as nothing, verify every delegate claim, park what needs a human. Load BEFORE any session where the operator is away and the work will outlast their attention: an overnight run, a multi-hour delegation, a cron-driven organizer's first wake-up. Also load whenever a lane reports \"standing by\"."
 metadata:
   version: "2.0.0"
 ---
@@ -25,8 +25,7 @@ With no scheduled wake-up the run is one turn long.
    `ToolSearch("select:CronCreate,CronList,CronDelete")`. Nothing prompts you to, which is
    why this gets skipped.
 2. **30 minutes, off the :00 and :30 marks where every scheduled job lands:**
-   `7,37 * * * *`. Longer when the thing you wait on moves slower, never shorter than the
-   scarce resource's cooldown.
+   `7,37 * * * *`. Longer when the thing you are waiting on moves slower.
 3. The prompt fires into **this** session, so the context is still here. Ask for current
    state: "tick: read the plan file, check lane and PR state, then dispatch or report."
 4. `CronList` after, to confirm. A cron that failed to arm looks like a quiet run.
@@ -55,12 +54,6 @@ touching anything and group it into waves by what blocks what. Probe the environ
 than assuming it: which stacks are up, which worktrees exist, which repo owns which name.
 Write down the standing rules, including the ones the operator only said out loud, plus what
 is frozen and what must never be merged.
-
-**Name the scarce resource and its scope.** Lane count follows from it. Two kinds recur: a
-shared external counter, such as an org-wide review quota with a cooldown, and something
-that only works one at a time, such as merges to a branch. Scope is what gets assumed wrong.
-One counter turned out to be per-developer, not per-repo, so three repos drew on one pool
-and spending on one starved another. Serialise inside that scope; everything else runs wide.
 
 **Respect the window.** Never start a lane that cannot finish *and* be verified in the time
 left. Near the end, take work only to a state that is safe to leave: pushed, commented, or
@@ -217,10 +210,9 @@ A lane that refuses an unsourced order to spend a one-shot resource is behaving 
 
 1. Read the plan file first. It holds the state, not your memory.
 2. Confirm the cron is still armed (`CronList`). If the session restarted, it is gone (§0).
-3. Confirm every lane is **alive** by listing agents. Never assume. Any lane saying "standing by" gets the 3 fix before anything else.
+3. Confirm every lane is **alive** by listing agents. Never assume. Any lane saying "standing by" gets the §3 fix before anything else.
 4. Check real state rather than reports: default branch SHA, each PR's head SHA, each gate's description string.
-5. Re-check that the scarce resource is available (§0) before spending it.
-6. Dispatch only work whose prerequisites are final. Starting a lane that depends on an in-flight template means writing it twice.
-7. Append findings and decisions to the plan file. One or two lines to the terminal.
+5. Dispatch only work whose prerequisites are final. Starting a lane that depends on an in-flight template means writing it twice.
+6. Append findings and decisions to the plan file. One or two lines to the terminal.
 
 Hand back on a hard blocker or when all the work is genuinely done, not on a timer. Land whatever end-of-session deliverable the operator asked for, tear down the cron and any other watches (§3), and leave the plan file's decision list as the first thing they read. Each entry is a question, its options, and what it blocks.
