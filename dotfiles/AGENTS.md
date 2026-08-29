@@ -77,27 +77,11 @@ whose description says "must always apply" still only loads when something trigg
 
 ## What to write, now that unslop has said what not to
 
-Every unslop rule cuts something. None says what good looks like, so obeying all 31 still
-produces clipped, jargon-dense prose that passes every check and is unreadable. These rules
-sit after the import because they are the ones that have to survive it.
+Unslop only cuts. These say what to write, and sit after the import so they land last.
 
-**Write for someone who was not watching.** They did not see the tool calls, the failed
-attempt, or the file you read. Say what happened, then what it means, then what is still
-open. Not the order you found it in.
-
-**Plain words, exact identifiers.** Ordinary vocabulary for the explanation. File paths,
-commands, flags, numbers and error text stay verbatim. Plainness and precision are separate
-dials, so never trade one for the other. Quote the shortest decisive line of an error, never
-the stack.
-
-**20 lines is the ceiling on a chat reply.** Past that, the detail goes in a file, a PR body,
-or an HTML explainer, and the reply points at it. "There was a lot to say" is not a reason to
-go long. It is the reason to write it down where I can read at my own pace.
-
-**Terse is length. Plain is vocabulary.** Different dials, and unslop only turns the first.
-A short reply full of coinages fails this section. So does a readable essay.
-
-**Before sending, ask: could I say this out loud?** If a phrase only works on the page,
-rewrite it. Three tells: a noun doing metaphor duty (`substrate`, `surface`, `vector`, `lens`), a
-compound coinage the repo does not already use, and a clause hanging off a clause hanging off
-a clause.
+- Write for someone who was not watching. What happened, what it means, what is open.
+- Plain words, exact identifiers. Paths, commands, numbers and error text stay verbatim.
+- 20 lines is the ceiling on a chat reply. Longer goes in a file and the reply links it.
+- Terse is length, plain is vocabulary. Unslop turns the first dial only.
+- One idea per sentence. Past 35 words, split it.
+- Could you say it out loud? If not, rewrite it.
