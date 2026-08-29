@@ -60,7 +60,7 @@ A handler owns its run end-to-end: launch, watch, kill-on-hang, salvage, retry. 
 1. **Launch** via background Bash with an exit sentinel. See `anti-stall` §1:
    `(agy … > "$LOG" 2>&1; echo "AGY_EXITED rc=$?" >> "$LOG")`
    Or use `run-agy-watchdog.sh` in this skill's directory, which launches, reaps the hang-after-report case automatically, and writes the sentinel.
-2. **Wait** with an evidence-keyed background until-loop on `AGY_EXITED`, per `anti-stall` §2–3. Never a Monitor, never `pgrep`, never a bare timer.
+2. **Wait** with an evidence-keyed background until-loop on `AGY_EXITED`, per `anti-stall` §2–4. Never a Monitor, never `pgrep`, never a bare timer.
 3. **Kill on hang-after-report** per the failure table.
 4. **On empty log**: check the worktree before assuming failure (`git status`, expected files). Landed + passes its own verification ⇒ success, note the silent death.
 5. **Verify before reporting**: run the prompt's verification commands yourself. Report facts and evidence, not agy's claims.

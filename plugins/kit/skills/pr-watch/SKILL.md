@@ -191,6 +191,9 @@ git refuses because the tree is locked.
   orphaning the fix commit for that review's own findings. Order the round as review
   posted, then fix, then resolve, then merge. Never the reverse. On queue repos, "review
   posted" is read off the liveness comment (`unattended-run` §8).
+- **Never wait on `mergeStateStatus`.** An unresolved review thread pins it at `BLOCKED`,
+  so a posted finding is the event that stops the wait from ever ending. Key on
+  `reviewThreads` and comment IDs instead (`anti-stall` §3).
 - Watching is cheap: a shell poll every 75 seconds, zero tokens while quiet. Prefer
   over-watching to relaying.
 - **Rate limits are invisible on both obvious channels.** CodeRabbit posts the notice as an
