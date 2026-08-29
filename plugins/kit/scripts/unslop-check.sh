@@ -1,7 +1,8 @@
 #!/bin/bash
 # unslop-check.sh — flag the mechanically-detectable AI tells from the unslop skill.
-# Judgment rules (puffery, soul, active voice, dense sentences) are not checked here;
-# they need a read. This catches the ones a regex can prove.
+# Judgment rules (puffery, soul, active voice) are not checked here; they need a read.
+# This catches the ones a regex can prove, plus rule 28 (sentence length), which is a
+# word count rather than a pattern and so runs as its own pass.
 #   unslop-check.sh [--strict] [paths...]   default paths: repo prose (*.md, docs/*.html)
 # --strict exits 1 on any hit, for CI. Default exits 0 and just reports.
 set -u
@@ -52,6 +53,20 @@ for f in "${files[@]}"; do
     filehits=$((filehits + n))
     out="${out}$(printf '  rule %-2s %-18s %3d\n' "$rule" "$label" "$n")"$'\n'
   done <<< "$rules"
+  # rule 28: one idea per sentence. Past 35 words, split it. Not a regex, so it runs
+  # as its own pass. Table rows and headings are layout, not sentences: skipped.
+  n=$(printf "%s\n" "$body" | awk '
+    /^---$/ { fm = !fm; next }  fm { next }
+    /^[[:space:]]*[|#>]/ { next }
+    { gsub(/\[[^]]*\]\([^)]*\)/, "link")
+      k = split($0, s, /[.!?)] /)
+      for (i = 1; i <= k; i++) if (split(s[i], w, " ") > 35) c++ }
+    END { print c + 0 }')
+  if [ "$n" -gt 0 ]; then
+    filehits=$((filehits + n))
+    out="${out}$(printf '  rule %-2s %-18s %3d\n' 28 "long sentence" "$n")"$'\n'
+  fi
+
   if [ "$filehits" -gt 0 ]; then
     printf '%s  (%d)\n%s' "${f#$root/}" "$filehits" "$out"
     total=$((total + filehits))

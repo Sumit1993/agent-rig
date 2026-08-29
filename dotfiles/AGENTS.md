@@ -1,11 +1,29 @@
 # Environment
 - WSL on Windows. Long-term files: `~/ai-context/` (create if missing). Never `/tmp`, which gets wiped on reboot. Permanent things go in a repo.
 
+# Writing
+
+The unslop rules are house style and apply to everything you write, including chat
+replies. They are imported here because that is the only thing that loads them. A skill
+whose description says "must always apply" still only loads when something triggers it.
+
+@../plugins/kit/skills/unslop/SKILL.md
+
+## What to write, now that unslop has said what not to
+
+Unslop only cuts. These say what to write.
+
+- Write for someone who was not watching. What happened, what it means, what is open.
+- Plain words, exact identifiers. Paths, commands, numbers and error text stay verbatim.
+- 20 lines is the ceiling on a chat reply. Longer goes in a file and the reply links it.
+- Terse is length, plain is vocabulary. Unslop turns the first dial only.
+- One idea per sentence. Past 35 words, split it.
+- Never cite an issue/PR/ticket by bare number or link. Attach its title:
+  `#279 - correlation idempotency fix`. Delegated agents' output too.
+- Could you say it out loud? If not, rewrite it.
+
 # Personal Preferences
 
-## Language & Communication Style
-- How to write anything, including chat replies: the `# Writing` section at the bottom of this file. It is last on purpose.
-- Never reference an issue/PR/ticket by bare number or link alone. Always attach its title or a one-line description: "#279 — correlation idempotency fix", not "#279". Applies to chat replies, reports, and delegated agents' outputs.
 ## Code
 - Concise and simple wins. If there's a simpler way, propose it. Don't handroll. Use good libraries.
 - TypeScript: never `any` unless unavoidable or instructed.
@@ -66,22 +84,3 @@ against evidence instead of taking them on trust. **It does not type.**
 
 - Held by whatever model runs the session.
 - Delegate the work, review what comes back. Editing a file means you left the seat.
-
-# Writing
-
-The unslop rules are house style and apply to everything you write, including chat
-replies. They are imported here because that is the only thing that loads them. A skill
-whose description says "must always apply" still only loads when something triggers it.
-
-@../plugins/kit/skills/unslop/SKILL.md
-
-## What to write, now that unslop has said what not to
-
-Unslop only cuts. These say what to write, and sit after the import so they land last.
-
-- Write for someone who was not watching. What happened, what it means, what is open.
-- Plain words, exact identifiers. Paths, commands, numbers and error text stay verbatim.
-- 20 lines is the ceiling on a chat reply. Longer goes in a file and the reply links it.
-- Terse is length, plain is vocabulary. Unslop turns the first dial only.
-- One idea per sentence. Past 35 words, split it.
-- Could you say it out loud? If not, rewrite it.
