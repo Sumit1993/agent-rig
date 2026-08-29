@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review lane: decisions and plan</title>
+<style>
+  :root{--bg:#f6f4ef;--panel:#fff;--ink:#1e222b;--muted:#6b7280;--line:#e3ddd1;--code:#f0ece4;
+        --human:#b4552d;--agent:#6d4aa8;--robot:#2b5f9e;--third:#177a70;--good:#2e7d4f;--bad:#b3403a;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font:16px/1.6 "Segoe UI",system-ui,sans-serif;padding:2.5rem 1rem 5rem}
+  main{max-width:1020px;margin:0 auto}
+  h1{font-size:2rem;letter-spacing:-.01em}
+  .sub{color:var(--muted);margin:.4rem 0 2rem;max-width:75ch}
+  h2{font-size:1.3rem;margin:2.8rem 0 .9rem;padding-top:1.1rem;border-top:2px solid var(--line)}
+  h2 .n{color:var(--human);margin-right:.5rem}
+  h3{font-size:1.02rem;margin:1.5rem 0 .5rem}
+  p,li{max-width:76ch}p{margin-bottom:.8rem}ul,ol{margin:0 0 1rem 1.35rem}li{margin-bottom:.3rem}
+  code{font-family:Consolas,ui-monospace,monospace;font-size:.85em;background:var(--code);padding:.08em .35em;border-radius:4px}
+  table{border-collapse:collapse;width:100%;margin-bottom:1.1rem;font-size:.88rem}
+  th,td{border:1px solid var(--line);padding:.5rem .6rem;text-align:left;vertical-align:top}
+  th{background:var(--code)}
+  figure{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1rem;margin:1.2rem 0}
+  figcaption{font-weight:600;font-size:.92rem;margin-bottom:.6rem}
+  svg{width:100%;height:auto;display:block}svg text{font-family:"Segoe UI",system-ui,sans-serif}
+  .note{background:#fdf4e6;border:1px solid #ecd9b0;border-left:4px solid var(--human);border-radius:0 7px 7px 0;padding:.75rem 1rem;margin:1rem 0;max-width:78ch}
+  .warn{background:#fdeeed;border:1px solid #f0cdcb;border-left:4px solid var(--bad);border-radius:0 7px 7px 0;padding:.75rem 1rem;margin:1rem 0;max-width:78ch}
+  .rulings{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:.8rem;margin:1.2rem 0}
+  .r{background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--good);border-radius:8px;padding:.8rem .9rem}
+  .r.change{border-top-color:var(--bad)}
+  .r .tag{display:inline-block;font-size:.66rem;text-transform:uppercase;letter-spacing:.07em;padding:.12em .55em;border-radius:20px;color:#fff;background:var(--good);margin-bottom:.4rem}
+  .r.change .tag{background:var(--bad)}
+  .r h4{font-size:.95rem;margin-bottom:.35rem}
+  .r p{font-size:.85rem;margin-bottom:.35rem;max-width:none}
+  .yes{color:var(--good);font-weight:600}.no{color:var(--bad);font-weight:600}
+  .foot{margin-top:3rem;color:var(--muted);font-size:.85rem;border-top:2px solid var(--line);padding-top:1rem;max-width:none}
+</style>
+</head>
+<body>
+<main>
+
+<h1>Review lane: decisions and plan</h1>
+<p class="sub">What Fable ruled on the resolution grant, what the telemetry research found, what the secrets audit found,
+and the order the work has to land in. 2026-08-27. Nothing here has been implemented; every repo is untouched.</p>
+
+<h2><span class="n">1</span>What was decided</h2>
+<div class="rulings">
+  <div class="r">
+    <span class="tag">upheld</span>
+    <h4>1 &#183; The authorization survives</h4>
+    <p>The invariant the earlier ruling protected was "no model holds write over code or merge state", not the name of a
+    permission scope. The shipped review/mutate split honours it better than the design that was actually ruled, which put
+    the resolving credential inside the agent's own job.</p>
+    <p><strong>Changes:</strong> the split becomes the design of record. The old "give the reviewer
+    <code>pull-requests: write</code>" instruction is void.</p>
+  </div>
+  <div class="r">
+    <span class="tag">upheld, scoped</span>
+    <h4>2 &#183; The allowlist wall stands, for review only</h4>
+    <p>Treat the review job as write-capable behind a tool allowlist, because it must be presumed to be. Tolerable where
+    nothing downstream automates on the output. Not tolerable for the verify round, whose output drives a job with push
+    access.</p>
+    <p><strong>Changes:</strong> nothing on the review round. The verify round is fixed structurally by ruling 4.</p>
+  </div>
+  <div class="r change">
+    <span class="tag">reversed</span>
+    <h4>3 &#183; <code>GITHUB_TOKEN</code> carries mutate</h4>
+    <p>Delete the App-token path entirely. <code>prismalens-automation</code> was created 58 minutes after the fixer lane
+    was deleted, for one reason: <code>GITHUB_TOKEN</code> appeared unable to resolve threads. That premise is measured
+    false. The only other candidate reason, separating the writer of a fix from its judge, died with the fixer, and an
+    earlier ruling had already disposed of it: "two apps with identical permissions separate nothing".</p>
+    <p><strong>Changes:</strong> ceilings rise to <code>contents: write</code>, both jobs keep explicit permission blocks,
+    six secrets and one App installation get deleted.</p>
+  </div>
+  <div class="r change">
+    <span class="tag">new work</span>
+    <h4>4 &#183; Split the runtimes</h4>
+    <p>Fable ruled the verify round off the agent harness onto the Messages API. <strong>That route is rejected on
+    billing</strong>, and the ruling's property is reached instead by hardening the round in place and splitting it into
+    its own job. Amendment accepted; ruling 4 closes as satisfied by other means. See P3.</p>
+    <p><strong>Changes:</strong> the verify round becomes a separate job holding a read-only <code>GITHUB_TOKEN</code>, no
+    <code>id-token</code>, and no way to mint anything.</p>
+  </div>
+  <div class="r">
+    <span class="tag">no change</span>
+    <h4>5 &#183; Merge gate untouched</h4>
+    <p>Document the consequence: with resolution automated and 0 required approvals, a wrong close becomes an unattended
+    merge. The guard that exists, resolving comments citing commit and evidence, is the right one.</p>
+    <p><strong>Changes:</strong> a written revisit trigger. On the first observed wrong close, set
+    <code>required_approving_review_count: 1</code> on that repo. Not a lane redesign.</p>
+  </div>
+</div>
+
+<h2><span class="n">2</span>Credentials, in plain English</h2>
+<p>Four different credentials show up in this lane and they get confused constantly, including by me earlier in this
+document. They are not variations on one thing. They come from different places, they can touch different things, and only
+some of them are yours to control.</p>
+
+<h3>The three that touch GitHub</h3>
+<figure>
+<figcaption>Where each one comes from, what it can reach, and when it dies</figcaption>
+<svg viewBox="0 0 940 330" role="img" aria-label="Comparison of GITHUB_TOKEN, the claude bot App token, and a self-owned App token">
+  <rect x="20" y="16" width="285" height="290" rx="9" fill="#fff" stroke="#2b5f9e" stroke-width="2"/>
+  <rect x="20" y="16" width="285" height="46" rx="9" fill="#2b5f9e"/><rect x="20" y="48" width="285" height="14" fill="#2b5f9e"/>
+  <text x="162" y="45" text-anchor="middle" fill="#fff" font-size="12.5" font-weight="600">GITHUB_TOKEN</text>
+  <text x="42" y="86" font-size="10.5" font-weight="600" fill="#4a5160">Where it comes from</text>
+  <text x="42" y="103" font-size="10.5" fill="#4a5160">GitHub makes one automatically for</text>
+  <text x="42" y="118" font-size="10.5" fill="#4a5160">every job. You never store it.</text>
+  <text x="42" y="144" font-size="10.5" font-weight="600" fill="#4a5160">What it can do</text>
+  <text x="42" y="161" font-size="10.5" fill="#4a5160">Exactly what the job's</text>
+  <text x="42" y="176" font-size="10.5" font-family="Consolas,monospace" fill="#1e222b">permissions:</text>
+  <text x="42" y="191" font-size="10.5" fill="#4a5160">block says. Nothing more.</text>
+  <text x="42" y="217" font-size="10.5" font-weight="600" fill="#4a5160">Reach</text>
+  <text x="42" y="234" font-size="10.5" fill="#4a5160">This repository only.</text>
+  <text x="42" y="260" font-size="10.5" font-weight="600" fill="#4a5160">Lifetime</text>
+  <text x="42" y="277" font-size="10.5" fill="#4a5160">Dies when the job ends.</text>
+  <rect x="42" y="286" width="241" height="14" rx="7" fill="#eaf4ee"/>
+  <text x="162" y="297" text-anchor="middle" font-size="9.5" fill="#2e7d4f" font-weight="600">yours to control, per job</text>
+
+  <rect x="327" y="16" width="285" height="290" rx="9" fill="#fff" stroke="#b3403a" stroke-width="2"/>
+  <rect x="327" y="16" width="285" height="46" rx="9" fill="#b3403a"/><rect x="327" y="48" width="285" height="14" fill="#b3403a"/>
+  <text x="469" y="39" text-anchor="middle" fill="#fff" font-size="12.5" font-weight="600">the claude[bot] token</text>
+  <text x="469" y="55" text-anchor="middle" fill="#f6d8d6" font-size="10">the action gets this for itself</text>
+  <text x="349" y="86" font-size="10.5" font-weight="600" fill="#4a5160">Where it comes from</text>
+  <text x="349" y="103" font-size="10.5" fill="#4a5160">Traded for an identity document.</text>
+  <text x="349" y="118" font-size="10.5" fill="#4a5160">See the next diagram.</text>
+  <text x="349" y="144" font-size="10.5" font-weight="600" fill="#4a5160">What it can do</text>
+  <text x="349" y="161" font-size="10.5" fill="#b3403a" font-weight="600">contents: write</text>
+  <text x="349" y="176" font-size="10.5" fill="#b3403a" font-weight="600">pull_requests: write, issues: write</text>
+  <text x="349" y="191" font-size="10.5" fill="#4a5160">Your permissions block does not</text>
+  <text x="349" y="206" font-size="10.5" fill="#4a5160">constrain it. You did not set it.</text>
+  <text x="349" y="230" font-size="10.5" font-weight="600" fill="#4a5160">Reach</text>
+  <text x="349" y="247" font-size="10.5" fill="#4a5160">Every repo the Claude App is</text>
+  <text x="349" y="262" font-size="10.5" fill="#4a5160">installed on. For us, the whole org.</text>
+  <text x="349" y="279" font-size="10.5" fill="#4a5160">Revoked when the job ends.</text>
+  <rect x="349" y="286" width="241" height="14" rx="7" fill="#fdeeed"/>
+  <text x="469" y="297" text-anchor="middle" font-size="9.5" fill="#b3403a" font-weight="600">NOT yours to control</text>
+
+  <rect x="634" y="16" width="285" height="290" rx="9" fill="#fff" stroke="#177a70" stroke-width="2"/>
+  <rect x="634" y="16" width="285" height="46" rx="9" fill="#177a70"/><rect x="634" y="48" width="285" height="14" fill="#177a70"/>
+  <text x="776" y="39" text-anchor="middle" fill="#fff" font-size="12.5" font-weight="600">an App you own</text>
+  <text x="776" y="55" text-anchor="middle" fill="#c9e6e2" font-size="10">prismalens-automation &#183; being deleted</text>
+  <text x="656" y="86" font-size="10.5" font-weight="600" fill="#4a5160">Where it comes from</text>
+  <text x="656" y="103" font-size="10.5" fill="#4a5160">You store an App ID and a private</text>
+  <text x="656" y="118" font-size="10.5" fill="#4a5160">key as secrets. A step trades them</text>
+  <text x="656" y="133" font-size="10.5" fill="#4a5160">for a short-lived token.</text>
+  <text x="656" y="159" font-size="10.5" font-weight="600" fill="#4a5160">What it can do</text>
+  <text x="656" y="176" font-size="10.5" fill="#4a5160">Whatever you ask for at the moment</text>
+  <text x="656" y="191" font-size="10.5" fill="#4a5160">you mint it, up to what the App</text>
+  <text x="656" y="206" font-size="10.5" fill="#4a5160">holds. That is downscoping, below.</text>
+  <text x="656" y="230" font-size="10.5" font-weight="600" fill="#4a5160">Reach</text>
+  <text x="656" y="247" font-size="10.5" fill="#4a5160">Every repo you installed it on.</text>
+  <text x="656" y="271" font-size="10.5" font-weight="600" fill="#4a5160">Lifetime</text>
+  <text x="656" y="285" font-size="10.5" fill="#4a5160">One hour, or until revoked.</text>
+  <rect x="656" y="290" width="241" height="12" rx="6" fill="#e8f4f2"/>
+  <text x="776" y="299" text-anchor="middle" font-size="9.5" fill="#177a70" font-weight="600">yours, but you have to wire it up</text>
+</svg>
+</figure>
+<p>The fourth is <code>CLAUDE_CODE_OAUTH_TOKEN</code>, and it is not a GitHub credential at all. It is your Anthropic
+subscription login, so the action can talk to Claude. It cannot touch your repository. It stays exactly as it is.</p>
+
+<h3>What an id-token is, and why it is not a key</h3>
+<p>This is the one that confused me and cost this document a correction. <code>id-token: write</code> does not give the job
+a token that opens anything. It gives the job the right to <strong>ask GitHub for a signed statement about itself</strong>:
+"this is a run of workflow X, in repository Y, on branch Z, and GitHub vouches for that."</p>
+<p>Think of it as a passport rather than a key. It proves who you are. It opens nothing. Its value is that somebody else
+trusts the country that issued it, and will hand you one of <em>their</em> keys in exchange.</p>
+
+<figure>
+<figcaption>The trade, and the two places it can be cut</figcaption>
+<svg viewBox="0 0 940 250" role="img" aria-label="How an id token is exchanged for a claude bot App token, and the two ways to break the chain">
+  <defs><marker id="cR" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#7a828c"/></marker></defs>
+
+  <rect x="20" y="60" width="170" height="70" rx="8" fill="#2b5f9e"/>
+  <text x="105" y="86" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">the job asks</text>
+  <text x="105" y="106" text-anchor="middle" fill="#cfe0f3" font-size="10.5">only possible because</text>
+  <text x="105" y="121" text-anchor="middle" fill="#cfe0f3" font-size="10.5">id-token: write is set</text>
+
+  <line x1="190" y1="95" x2="248" y2="95" stroke="#7a828c" stroke-width="2" marker-end="url(#cR)"/>
+
+  <rect x="255" y="60" width="180" height="70" rx="8" fill="#fff" stroke="#e3ddd1" stroke-width="2"/>
+  <text x="345" y="86" text-anchor="middle" font-size="12" font-weight="600">GitHub signs it</text>
+  <text x="345" y="106" text-anchor="middle" font-size="10.5" fill="#6b7280">a passport, not a key.</text>
+  <text x="345" y="121" text-anchor="middle" font-size="10.5" fill="#6b7280">It opens nothing by itself.</text>
+
+  <line x1="435" y1="95" x2="493" y2="95" stroke="#7a828c" stroke-width="2" marker-end="url(#cR)"/>
+
+  <rect x="500" y="52" width="200" height="86" rx="8" fill="#fff" stroke="#e3ddd1" stroke-width="2"/>
+  <text x="600" y="76" text-anchor="middle" font-size="12" font-weight="600">the action trades it</text>
+  <text x="600" y="95" text-anchor="middle" font-size="10" font-family="Consolas,monospace" fill="#1e222b">api.anthropic.com/api/github/</text>
+  <text x="600" y="108" text-anchor="middle" font-size="10" font-family="Consolas,monospace" fill="#1e222b">github-app-token-exchange</text>
+  <text x="600" y="128" text-anchor="middle" font-size="10.5" fill="#6b7280">Anthropic trusts GitHub's signature</text>
+
+  <line x1="700" y1="95" x2="758" y2="95" stroke="#7a828c" stroke-width="2" marker-end="url(#cR)"/>
+
+  <rect x="765" y="52" width="155" height="86" rx="8" fill="#b3403a"/>
+  <text x="842" y="76" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">a real key</text>
+  <text x="842" y="96" text-anchor="middle" fill="#f6d8d6" font-size="10.5">claude[bot], able to</text>
+  <text x="842" y="111" text-anchor="middle" fill="#f6d8d6" font-size="10.5">write and push across</text>
+  <text x="842" y="126" text-anchor="middle" fill="#f6d8d6" font-size="10.5">the whole org</text>
+
+  <rect x="20" y="164" width="440" height="72" rx="8" fill="#eaf4ee" stroke="#bcdcc7"/>
+  <text x="40" y="186" font-size="11.5" font-weight="600" fill="#2e7d4f">Cut 1 &#183; take away id-token: write</text>
+  <text x="40" y="205" font-size="10.8" fill="#2e7d4f">No passport can be issued, so no trade can happen. This is why</text>
+  <text x="40" y="221" font-size="10.8" fill="#2e7d4f">removing that one line is not tidying, it is cutting the chain.</text>
+
+  <rect x="480" y="164" width="440" height="72" rx="8" fill="#eaf4ee" stroke="#bcdcc7"/>
+  <text x="500" y="186" font-size="11.5" font-weight="600" fill="#2e7d4f">Cut 2 &#183; hand the action a token yourself</text>
+  <text x="500" y="205" font-size="10.8" fill="#2e7d4f">Give it github_token and it stops before asking. It never</text>
+  <text x="500" y="221" font-size="10.8" fill="#2e7d4f">requests a passport at all. Two cuts, either one is enough.</text>
+</svg>
+</figure>
+
+<h3>Downscoping at mint time</h3>
+<p>A GitHub App is installed once, with a set of permissions. That set is a <em>ceiling</em>, not the grant. Every time a
+job turns the App's private key into a usable token, it says how much of that ceiling it wants, and it can ask for less.</p>
+
+<figure>
+<figcaption>One App, three jobs, three different grants. The ceiling never changes; what each job gets does.</figcaption>
+<svg viewBox="0 0 940 250" role="img" aria-label="An App ceiling and three jobs minting different subsets of it">
+  <rect x="20" y="20" width="250" height="110" rx="9" fill="#177a70"/>
+  <text x="145" y="46" text-anchor="middle" fill="#fff" font-size="12.5" font-weight="600">the App as installed</text>
+  <text x="145" y="66" text-anchor="middle" fill="#c9e6e2" font-size="10.5">contents RW &#183; pull requests RW</text>
+  <text x="145" y="82" text-anchor="middle" fill="#c9e6e2" font-size="10.5">issues RW &#183; actions read</text>
+  <text x="145" y="106" text-anchor="middle" fill="#fff" font-size="11" font-weight="600">this is a ceiling</text>
+  <text x="145" y="122" text-anchor="middle" fill="#c9e6e2" font-size="10.5">nobody gets all of it automatically</text>
+
+  <line x1="270" y1="55" x2="358" y2="55" stroke="#7a828c" stroke-width="2" marker-end="url(#cR)"/>
+  <line x1="270" y1="75" x2="358" y2="130" stroke="#7a828c" stroke-width="2" marker-end="url(#cR)"/>
+  <line x1="270" y1="95" x2="358" y2="200" stroke="#7a828c" stroke-width="2" marker-end="url(#cR)"/>
+  <text x="314" y="46" text-anchor="middle" font-size="9.5" fill="#6b7280">mints</text>
+
+  <rect x="365" y="32" width="290" height="48" rx="7" fill="#fff" stroke="#e3ddd1" stroke-width="2"/>
+  <text x="380" y="52" font-size="11" font-weight="600">a job that resolves threads</text>
+  <text x="380" y="70" font-size="10.3" font-family="Consolas,monospace" fill="#b3403a">contents: write, pull-requests: write</text>
+
+  <rect x="365" y="108" width="290" height="48" rx="7" fill="#fff" stroke="#e3ddd1" stroke-width="2"/>
+  <text x="380" y="128" font-size="11" font-weight="600">a job that only reads</text>
+  <text x="380" y="146" font-size="10.3" font-family="Consolas,monospace" fill="#2e7d4f">contents: read</text>
+
+  <rect x="365" y="178" width="290" height="48" rx="7" fill="#fff" stroke="#e3ddd1" stroke-width="2"/>
+  <text x="380" y="198" font-size="11" font-weight="600">a job that labels issues</text>
+  <text x="380" y="216" font-size="10.3" font-family="Consolas,monospace" fill="#4a5160">issues: write</text>
+
+  <rect x="690" y="32" width="230" height="124" rx="9" fill="#fdeeed" stroke="#f0cdcb"/>
+  <text x="805" y="56" text-anchor="middle" font-size="12" font-weight="600" fill="#b3403a">The contrast that matters</text>
+  <text x="805" y="80" text-anchor="middle" font-size="10.8" fill="#8a2f2a">You can downscope an App you own,</text>
+  <text x="805" y="96" text-anchor="middle" font-size="10.8" fill="#8a2f2a">because you hold its private key.</text>
+  <text x="805" y="120" text-anchor="middle" font-size="10.8" fill="#8a2f2a">You cannot downscope claude[bot].</text>
+  <text x="805" y="136" text-anchor="middle" font-size="10.8" fill="#8a2f2a">The action asks for what it asks for,</text>
+  <text x="805" y="150" text-anchor="middle" font-size="10.8" fill="#8a2f2a">and you are not in that conversation.</text>
+
+  <rect x="690" y="170" width="230" height="56" rx="9" fill="#f0ece4" stroke="#e3ddd1"/>
+  <text x="805" y="192" text-anchor="middle" font-size="10.8" fill="#4a5160">So the only lever you have over</text>
+  <text x="805" y="208" text-anchor="middle" font-size="10.8" fill="#4a5160">claude[bot] is whether it exists</text>
+  <text x="805" y="220" text-anchor="middle" font-size="10.8" fill="#4a5160">at all. Hence the two cuts above.</text>
+</svg>
+</figure>
+
+<h3>So what is actually happening to the secrets</h3>
+<p>Three separate things are going on, and lumping them together is most of the confusion.</p>
+<table>
+  <tr><th>Secret</th><th>What it is</th><th>What happens to it</th></tr>
+  <tr><td><code>CLAUDE_CODE_OAUTH_TOKEN</code></td>
+      <td>Your Anthropic subscription login. Nothing to do with GitHub permissions.</td>
+      <td class="yes">Stays. Unchanged. Every repo keeps mapping it by name.</td></tr>
+  <tr><td><code>AUTOMATION_APP_ID</code><br><code>AUTOMATION_APP_PRIVATE_KEY</code></td>
+      <td>The App you own, used to mint a token that can resolve threads.</td>
+      <td class="no">Deleted, and the App uninstalled. It was built for a premise that turned out false, and
+      <code>GITHUB_TOKEN</code> does the job with no wiring.</td></tr>
+  <tr><td><code>PRISMALENS_KB_TESTING</code><br><code>CLAUDE_REVIEW_GATE</code> (a variable)</td>
+      <td>Leftovers. Nothing reads either one.</td>
+      <td class="no">Deleted. Unrelated to any of the above, just overdue.</td></tr>
+  <tr><td><code>RELEASE_PAT</code>, <code>RELEASE_PLEASE_TOKEN</code></td>
+      <td>Release automation. Nothing to do with the review lane.</td>
+      <td class="yes">Left alone entirely.</td></tr>
+</table>
+<div class="note"><strong>And one rule that explains all the mapping boilerplate.</strong> A reusable workflow can only see
+secrets its caller hands it by name. <code>secrets: inherit</code> looks like a shortcut and does not cross an ownership
+boundary, so a personal-account repo calling an org workflow silently gets nothing. That is why every caller stub lists
+each secret explicitly, and it is exactly how <code>prismalens/prismalens</code> ended up holding two secrets the lane
+could not read.</div>
+
+<h2><span class="n">3</span>The measurement that decided it</h2>
+<figure>
+<figcaption>What each credential in the lane can actually do, once you stop reading permission blocks and check the installation</figcaption>
+<svg viewBox="0 0 940 260" role="img" aria-label="Three credentials in the lane and their real capability ceilings">
+  <rect x="20" y="20" width="285" height="180" rx="9" fill="#fff" stroke="#6d4aa8" stroke-width="2"/>
+  <text x="162" y="46" text-anchor="middle" font-size="12.5" font-weight="600" fill="#6d4aa8">review job &#183; OIDC-minted</text>
+  <text x="162" y="64" text-anchor="middle" font-size="11" fill="#6b7280">claude[bot], from id-token: write</text>
+  <rect x="40" y="78" width="245" height="24" rx="5" fill="#fdeeed"/>
+  <text x="162" y="95" text-anchor="middle" font-size="11" fill="#b3403a" font-weight="600">contents: write &#183; pull_requests: write</text>
+  <text x="162" y="122" text-anchor="middle" font-size="10.5" fill="#4a5160">Installed org-wide. Measured, not assumed:</text>
+  <text x="162" y="138" text-anchor="middle" font-size="10" font-family="Consolas,monospace" fill="#1e222b">gh api /orgs/prismalens/installations</text>
+  <text x="162" y="164" text-anchor="middle" font-size="10.5" fill="#4a5160">Held off resolution by the tool allowlist,</text>
+  <text x="162" y="179" text-anchor="middle" font-size="10.5" fill="#4a5160">not by any token scope.</text>
+
+  <rect x="327" y="20" width="285" height="180" rx="9" fill="#fff" stroke="#2b5f9e" stroke-width="2"/>
+  <text x="469" y="46" text-anchor="middle" font-size="12.5" font-weight="600" fill="#2b5f9e">review job &#183; GITHUB_TOKEN</text>
+  <text x="469" y="64" text-anchor="middle" font-size="11" fill="#6b7280">what the permissions block declares</text>
+  <rect x="347" y="78" width="245" height="24" rx="5" fill="#eaf4ee"/>
+  <text x="469" y="95" text-anchor="middle" font-size="11" fill="#2e7d4f" font-weight="600">contents: read &#183; issues: read</text>
+  <text x="469" y="122" text-anchor="middle" font-size="10.5" fill="#4a5160">Genuinely read-only. Also not the</text>
+  <text x="469" y="138" text-anchor="middle" font-size="10.5" fill="#4a5160">credential the agent posts with.</text>
+  <text x="469" y="166" text-anchor="middle" font-size="10.5" fill="#b3403a" font-weight="600">The documented invariant describes</text>
+  <text x="469" y="181" text-anchor="middle" font-size="10.5" fill="#b3403a" font-weight="600">this box and not the job.</text>
+
+  <rect x="634" y="20" width="285" height="180" rx="9" fill="#fff" stroke="#b3403a" stroke-width="2"/>
+  <text x="776" y="46" text-anchor="middle" font-size="12.5" font-weight="600" fill="#b3403a">mutate job</text>
+  <text x="776" y="64" text-anchor="middle" font-size="11" fill="#6b7280">deterministic, no model</text>
+  <rect x="654" y="78" width="245" height="24" rx="5" fill="#fdeeed"/>
+  <text x="776" y="95" text-anchor="middle" font-size="11" fill="#b3403a" font-weight="600">contents: write &#183; pull-requests: write</text>
+  <text x="776" y="122" text-anchor="middle" font-size="10.5" fill="#4a5160">Needs the write to resolve a thread.</text>
+  <text x="776" y="138" text-anchor="middle" font-size="10.5" fill="#4a5160">Probed working on GITHUB_TOKEN:</text>
+  <text x="776" y="158" text-anchor="middle" font-size="10" font-family="Consolas,monospace" fill="#1e222b">{"isResolved":true}</text>
+  <text x="776" y="181" text-anchor="middle" font-size="10.5" fill="#4a5160">run 33006099680, 2026-08-26</text>
+
+  <rect x="20" y="214" width="899" height="34" rx="7" fill="#f0ece4" stroke="#e3ddd1"/>
+  <text x="36" y="236" font-size="11.5" fill="#4a5160"><tspan font-weight="600">Why this settled the credential question.</tspan> The App was defended on the caller ceiling staying at contents: read. That ceiling never constrained the credential the agent actually writes with, so it was guarding a door already open.</text>
+</svg>
+</figure>
+
+<h2><span class="n">4</span>The runtime split</h2>
+<figure>
+<figcaption>Verify round, before and after. The point is what it stops holding.</figcaption>
+<svg viewBox="0 0 940 300" role="img" aria-label="Verify round before and after the runtime split">
+  <rect x="20" y="16" width="430" height="264" rx="9" fill="#fff" stroke="#e3ddd1" stroke-width="2"/>
+  <text x="235" y="42" text-anchor="middle" font-size="13" font-weight="600">today</text>
+  <text x="235" y="62" text-anchor="middle" font-size="11" fill="#6b7280">claude-code-action@v1, print mode</text>
+  <rect x="42" y="76" width="386" height="72" rx="6" fill="#f0ece4"/>
+  <text x="56" y="96" font-size="10.5" font-family="Consolas,monospace" fill="#1e222b">Task, Read, Write, Grep, Glob, LS,</text>
+  <text x="56" y="112" font-size="10.5" font-family="Consolas,monospace" fill="#1e222b">Bash(gh pr diff|view|list|comment),</text>
+  <text x="56" y="128" font-size="10.5" font-family="Consolas,monospace" fill="#1e222b">Bash(gh issue view|list), Bash(gh search),</text>
+  <text x="56" y="144" font-size="10.5" font-family="Consolas,monospace" fill="#1e222b">2 comment-posting MCP servers</text>
+  <rect x="42" y="158" width="386" height="26" rx="5" fill="#fdeeed"/>
+  <text x="56" y="176" font-size="10.8" fill="#b3403a">holds id-token: write &#8594; a write-capable App credential</text>
+  <rect x="42" y="192" width="386" height="26" rx="5" fill="#fdeeed"/>
+  <text x="56" y="210" font-size="10.8" fill="#b3403a">output contract is prose: "write JSON at this path"</text>
+  <text x="235" y="242" text-anchor="middle" font-size="10.8" fill="#4a5160">Posts inline findings and a summary comment</text>
+  <text x="235" y="258" text-anchor="middle" font-size="10.8" fill="#4a5160">itself, alongside producing the verdicts.</text>
+
+  <rect x="490" y="16" width="430" height="264" rx="9" fill="#fff" stroke="#2e7d4f" stroke-width="2"/>
+  <text x="705" y="42" text-anchor="middle" font-size="13" font-weight="600" fill="#2e7d4f">after</text>
+  <text x="705" y="62" text-anchor="middle" font-size="11" fill="#6b7280">same action, its own job, hardened</text>
+  <rect x="512" y="76" width="386" height="72" rx="6" fill="#f0ece4"/>
+  <text x="526" y="96" font-size="10.5" font-family="Consolas,monospace" fill="#1e222b">Read, Grep, Glob, LS,</text>
+  <text x="526" y="112" font-size="10.5" font-family="Consolas,monospace" fill="#1e222b">Bash(gh pr diff:*)</text>
+  <text x="526" y="136" font-size="10.5" fill="#6b7280">no Task, no Write, no gh pr comment, no MCP servers</text>
+  <rect x="512" y="158" width="386" height="26" rx="5" fill="#eaf4ee"/>
+  <text x="526" y="176" font-size="10.8" fill="#2e7d4f">no id-token on the job &#8594; nothing can mint anything</text>
+  <rect x="512" y="192" width="386" height="26" rx="5" fill="#eaf4ee"/>
+  <text x="526" y="210" font-size="10.8" fill="#2e7d4f">--json-schema &#8594; verdicts arrive schema-validated</text>
+  <text x="705" y="242" text-anchor="middle" font-size="10.8" fill="#2e7d4f" font-weight="600">Writes nothing to GitHub at all.</text>
+  <text x="705" y="258" text-anchor="middle" font-size="10.8" fill="#4a5160">mutate posts every reply, from its own templates.</text>
+</svg>
+</figure>
+
+<h3>The verdict schema that makes it work</h3>
+<p>Three states rather than two. That is what lets the "still applies to <code>&lt;sha&gt;</code>" reply move out of the
+agent and into <code>mutate</code>.</p>
+<table>
+  <tr><th>Verdict</th><th>What <code>mutate</code> does</th></tr>
+  <tr><td><code>fixed</code></td><td>Re-derive, validate sha and ancestry, resolve, post the templated reply.</td></tr>
+  <tr><td><code>still_applies</code></td><td>Post the open-thread reply from a template it owns, citing sha and evidence. Leave open.</td></tr>
+  <tr><td><code>cannot_verify</code></td><td>Same as above, different template. Leave open.</td></tr>
+</table>
+<div class="note"><strong>The schema arrives without leaving the action.</strong> <code>claude-code-action</code> has a
+<code>structured_output</code> step output, populated when <code>--json-schema</code> is passed in <code>claude_args</code>.
+That kills the write-JSON-to-a-path contract, and with it the only reason <code>Write</code> is in the verify allowlist.</div>
+
+<h2><span class="n">5</span>Telemetry: what is actually possible</h2>
+<p>Anthropic exposes no programmatic usage data for subscription plans. The Admin endpoints
+(<code>/v1/organizations/usage_report/*</code>, <code>/v1/organizations/cost_report</code>) cover metered API-key
+organisations only. On claude.ai you get the 5-hour and 7-day utilisation bars and nothing else.</p>
+<p>So every workable option captures token counts <strong>client-side on the runner</strong> and multiplies by public
+pricing. Those are API-equivalent estimates, not what a subscription is billed. They are still the right relative measure
+for "which round type is eating the budget", which is the question worth answering.</p>
+
+<figure>
+<figcaption>Two routes, both already supported by the action. The cheap one needs no infrastructure.</figcaption>
+<svg viewBox="0 0 940 300" role="img" aria-label="Two telemetry routes: parsing the execution file, or streaming OpenTelemetry">
+  <rect x="20" y="16" width="200" height="120" rx="9" fill="#6d4aa8"/>
+  <text x="120" y="44" text-anchor="middle" fill="#fff" font-size="12.5" font-weight="600">a review round runs</text>
+  <text x="120" y="68" text-anchor="middle" fill="#ddd0f0" font-size="10.5">on an ephemeral runner</text>
+  <text x="120" y="90" text-anchor="middle" fill="#ddd0f0" font-size="10.5">nothing reaches your laptop,</text>
+  <text x="120" y="106" text-anchor="middle" fill="#ddd0f0" font-size="10.5">nothing reaches an invoice</text>
+  <text x="120" y="126" text-anchor="middle" fill="#ddd0f0" font-size="10.5">and the runner is then destroyed</text>
+
+  <rect x="290" y="16" width="300" height="120" rx="9" fill="#fff" stroke="#2e7d4f" stroke-width="2"/>
+  <text x="440" y="42" text-anchor="middle" font-size="12.5" font-weight="600" fill="#2e7d4f">Route A &#183; parse the execution file</text>
+  <text x="440" y="64" text-anchor="middle" font-size="10.3" font-family="Consolas,monospace" fill="#1e222b">outputs.execution_file</text>
+  <text x="440" y="84" text-anchor="middle" font-size="10.5" fill="#4a5160">Every turn carries input, output, cacheRead</text>
+  <text x="440" y="99" text-anchor="middle" font-size="10.5" fill="#4a5160">and cacheCreation tokens plus the model.</text>
+  <text x="440" y="114" text-anchor="middle" font-size="10.5" fill="#4a5160">The final result entry carries total_cost_usd.</text>
+  <text x="440" y="130" text-anchor="middle" font-size="10.5" fill="#2e7d4f" font-weight="600">A jq post-step. Zero infrastructure.</text>
+
+  <rect x="290" y="152" width="300" height="120" rx="9" fill="#fff" stroke="#2b5f9e" stroke-width="2"/>
+  <text x="440" y="178" text-anchor="middle" font-size="12.5" font-weight="600" fill="#2b5f9e">Route B &#183; stream OpenTelemetry</text>
+  <text x="440" y="199" text-anchor="middle" font-size="10.3" font-family="Consolas,monospace" fill="#1e222b">CLAUDE_CODE_ENABLE_TELEMETRY=1</text>
+  <text x="440" y="219" text-anchor="middle" font-size="10.5" fill="#4a5160">claude_code.token.usage by type and model,</text>
+  <text x="440" y="234" text-anchor="middle" font-size="10.5" fill="#4a5160">claude_code.cost.usage, spans with session_id.</text>
+  <text x="440" y="252" text-anchor="middle" font-size="10.5" fill="#4a5160">All nine OTEL vars are forwarded by the action,</text>
+  <text x="440" y="267" text-anchor="middle" font-size="10.5" fill="#4a5160">verified at action.yml lines 384-392.</text>
+
+  <line x1="220" y1="60" x2="283" y2="60" stroke="#7a828c" stroke-width="2" marker-end="url(#pR)"/>
+  <line x1="220" y1="96" x2="283" y2="200" stroke="#7a828c" stroke-width="2" marker-end="url(#pR)"/>
+  <defs><marker id="pR" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#7a828c"/></marker></defs>
+
+  <rect x="660" y="16" width="260" height="120" rx="9" fill="#eaf4ee" stroke="#bcdcc7"/>
+  <text x="790" y="42" text-anchor="middle" font-size="12" font-weight="600" fill="#2e7d4f">Apps Script &#8594; Sheet</text>
+  <text x="790" y="64" text-anchor="middle" font-size="10.5" fill="#2e7d4f">POST a tagged row per run.</text>
+  <text x="790" y="82" text-anchor="middle" font-size="10.5" fill="#2e7d4f">No server, no collector, charts free,</text>
+  <text x="790" y="97" text-anchor="middle" font-size="10.5" fill="#2e7d4f">survives artifact expiry.</text>
+  <text x="790" y="120" text-anchor="middle" font-size="10.5" fill="#4a5160" font-weight="600">Recommended first build.</text>
+
+  <rect x="660" y="152" width="260" height="120" rx="9" fill="#f0ece4" stroke="#e3ddd1"/>
+  <text x="790" y="178" text-anchor="middle" font-size="12" font-weight="600">OTLP backend</text>
+  <text x="790" y="200" text-anchor="middle" font-size="10.5" fill="#4a5160">Grafana Cloud free tier, SigNoz.</text>
+  <text x="790" y="218" text-anchor="middle" font-size="10.5" fill="#4a5160">More power, more setup.</text>
+  <text x="790" y="240" text-anchor="middle" font-size="10.5" fill="#b3403a">Caveat: native attribute names, not</text>
+  <text x="790" y="255" text-anchor="middle" font-size="10.5" fill="#b3403a">OTel GenAI conventions. Mapping needed.</text>
+
+  <line x1="590" y1="76" x2="653" y2="76" stroke="#7a828c" stroke-width="2" marker-end="url(#pR)"/>
+  <line x1="590" y1="212" x2="653" y2="212" stroke="#7a828c" stroke-width="2" marker-end="url(#pR)"/>
+</svg>
+</figure>
+
+<p>Tagging is the part that answers your question. Both routes attach
+<code>github.repository</code>, the PR number and the round type: route A as fields on the row you POST, route B through
+<code>OTEL_RESOURCE_ATTRIBUTES</code>. That is what turns raw token counts into "the verify round on sreforge costs this much".</p>
+
+<h3>Where openusage fits, corrected</h3>
+<p>An earlier draft of this page wrote openusage off for CI. That was wrong, and only one third of it holds up. The docs
+draw a sharper line than I did.</p>
+<table>
+  <tr><th>Piece</th><th>Fit</th><th>What the docs actually say</th></tr>
+  <tr><td><code>openusage hub</code></td><td class="no">not for CI</td>
+      <td>"Snapshot is the latest, not a stream. The hub holds only the newest batch per machine. If you want historical
+      aggregates, query each daemon's SQLite separately." Plus entries are pruned after
+      <code>hub.stale_timeout_seconds</code>, default 300s. Ephemeral runners are exactly the case this cannot hold.</td></tr>
+  <tr><td><code>openusage session --json</code><br><code>daily</code> / <code>blocks</code> / <code>weekly</code></td>
+      <td class="yes">built for this</td>
+      <td>"Headless usage and cost reports printed to stdout as an aligned table or, with <code>--json</code>, as
+      machine-readable JSON. They reuse the same local parsing and pricing as the dashboard, <strong>so you can script
+      spend tracking in CI without running the TUI</strong>." The docs name the use case outright.</td></tr>
+  <tr><td>5-hour blocks and the utilisation gauge</td><td class="yes">the signal that actually binds</td>
+      <td><code>blocks</code> groups usage into 5-hour billing windows, showing burn rate in $/hour and a projected
+      end-of-block cost. The provider page also reads <code>GET https://api.anthropic.com/api/oauth/usage</code> with the
+      Claude Code OAuth token for the 5h and 7d utilisation gauges.</td></tr>
+</table>
+
+<div class="note"><strong>The correction that matters most.</strong> On a subscription, dollars are a proxy and the
+5-hour rolling window is the thing that actually stops you working. <code>execution_file</code> gives you
+<code>total_cost_usd</code>, an API-equivalent estimate of money you are not billed. openusage models the block and the
+utilisation gauge, which is the subscription-native signal. Those answer different questions, and the second one is
+closer to the one you asked. Track both.</div>
+
+<h3>Which extractor, and the one measurement that decides</h3>
+<p>Two candidates for the runner, and they read different sources:</p>
+<ul>
+  <li><strong><code>execution_file</code>.</strong> Always written by the action, one file per run, carries per-turn token
+  breakdown and an SDK-computed <code>total_cost_usd</code>. No binary to install. Guaranteed present.</li>
+  <li><strong><code>openusage session --json</code>.</strong> Reads <code>~/.claude/projects/**/*.jsonl</code>, so it needs
+  the CLI to have written transcripts to the standard location. Costs a binary install per job, and gives you a maintained
+  pricing table plus session and block structure for free rather than hand-rolled.</li>
+</ul>
+<div class="warn"><strong>Open question, one CI run settles it.</strong> The action drives Claude through the SDK
+(<code>run-claude-sdk.ts</code>), and it is not established whether a print-mode SDK session leaves transcripts under
+<code>~/.claude/projects/</code> on the runner at all. If it does, openusage is the better extractor and you inherit its
+pricing and block logic. If it does not, <code>execution_file</code> is the only source and openusage stays a laptop tool.
+Add <code>ls -R ~/.claude/projects/ || true</code> as a debug step on one review round and the answer arrives free.</div>
+
+<p>Two options that do not work at all, so nobody re-derives them: LLM proxies (LiteLLM, Portkey, Helicone) cannot see
+subscription OAuth traffic, and the Anthropic Admin usage API covers API-key billing only.</p>
+
+<h2><span class="n">6</span>Secrets inventory</h2>
+<p>Five repos, definitions read from the Actions, Dependabot, variables and environments APIs, references extracted from
+workflow files fetched off live refs. Both stale claims independently re-verified.</p>
+<table>
+  <tr><th>Repo</th><th>Secret or variable</th><th>Set</th><th>Verdict</th></tr>
+  <tr><td rowspan="5"><code>prismalens/prismalens</code></td>
+      <td><code>AUTOMATION_APP_ID</code></td><td>2026-08-26</td><td class="no">defined, not forwarded</td></tr>
+  <tr><td><code>AUTOMATION_APP_PRIVATE_KEY</code></td><td>2026-08-26</td><td class="no">defined, not forwarded</td></tr>
+  <tr><td><code>PRISMALENS_KB_TESTING</code></td><td>2026-08-24</td><td class="no">defined, unreferenced</td></tr>
+  <tr><td><code>CLAUDE_REVIEW_GATE</code> (variable, <code>"shadow"</code>)</td><td>2026-08-08</td><td class="no">defined, unreferenced</td></tr>
+  <tr><td><code>CLAUDE_CODE_OAUTH_TOKEN</code>, <code>RELEASE_PAT</code></td><td>&#8212;</td><td class="yes">in use</td></tr>
+  <tr><td><code>prismalens/sreforge</code></td>
+      <td>the App pair, <code>CLAUDE_CODE_OAUTH_TOKEN</code></td><td>&#8212;</td><td class="yes">in use</td></tr>
+  <tr><td><code>Sumit1993/mage-memory</code></td>
+      <td>the App pair, <code>CLAUDE_CODE_OAUTH_TOKEN</code>, <code>RELEASE_PLEASE_TOKEN</code></td><td>&#8212;</td><td class="yes">in use</td></tr>
+  <tr><td><code>prismalens/gh-workflows</code></td><td>none defined</td><td>&#8212;</td><td>&#8212;</td></tr>
+  <tr><td><code>Sumit1993/claude-kit</code></td><td>none defined</td><td>&#8212;</td><td>&#8212;</td></tr>
+</table>
+<p>No Dependabot secrets anywhere. No <code>secrets: inherit</code> anywhere. Two <code>github-pages</code> environments,
+both holding zero secrets. Nothing is referenced-but-undefined.</p>
+<div class="warn"><strong>One gap in the audit.</strong> Org secrets returned HTTP 403, because the token lacks
+<code>admin:org</code>. So "none defined" on <code>gh-workflows</code> does not rule out org-level secrets visible to it.
+<code>gh auth refresh -h github.com -s admin:org</code> closes that, and the inventory should be re-run before anything is
+deleted on the strength of it.</div>
+
+<h2><span class="n">7</span>The plan</h2>
+<figure>
+<figcaption>What blocks what. Only one chain is order-critical; the rest can run whenever.</figcaption>
+<svg viewBox="0 0 940 320" role="img" aria-label="Dependency graph of the five phases">
+  <defs><marker id="dR" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#7a828c"/></marker></defs>
+
+  <rect x="20" y="20" width="200" height="72" rx="8" fill="#2e7d4f"/>
+  <text x="120" y="46" text-anchor="middle" fill="#fff" font-size="12.5" font-weight="600">P0 &#183; Telemetry</text>
+  <text x="120" y="66" text-anchor="middle" fill="#d5e9dc" font-size="10.5">additive, no security surface</text>
+  <text x="120" y="82" text-anchor="middle" fill="#d5e9dc" font-size="10.5">blocks nothing, blocked by nothing</text>
+
+  <rect x="20" y="112" width="200" height="72" rx="8" fill="#177a70"/>
+  <text x="120" y="138" text-anchor="middle" fill="#fff" font-size="12.5" font-weight="600">P4 &#183; Hygiene</text>
+  <text x="120" y="158" text-anchor="middle" fill="#c9e6e2" font-size="10.5">stale secret, stale variable,</text>
+  <text x="120" y="174" text-anchor="middle" fill="#c9e6e2" font-size="10.5">SHA pins, the model-flag gap</text>
+
+  <rect x="300" y="20" width="230" height="88" rx="8" fill="#b3403a"/>
+  <text x="415" y="46" text-anchor="middle" fill="#fff" font-size="12.5" font-weight="600">P1 &#183; Credential migration</text>
+  <text x="415" y="66" text-anchor="middle" fill="#f6d8d6" font-size="10.5">six ordered steps across four repos.</text>
+  <text x="415" y="82" text-anchor="middle" fill="#f6d8d6" font-size="10.5">Every step must leave the lane working.</text>
+  <text x="415" y="100" text-anchor="middle" fill="#fff" font-size="10.5" font-weight="600">the only order-critical chain</text>
+
+  <rect x="610" y="20" width="230" height="88" rx="8" fill="#2b5f9e"/>
+  <text x="725" y="46" text-anchor="middle" fill="#fff" font-size="12.5" font-weight="600">P2 &#183; Docs and doctrine</text>
+  <text x="725" y="66" text-anchor="middle" fill="#cfe0f3" font-size="10.5">README invariant, issue #12,</text>
+  <text x="725" y="82" text-anchor="middle" fill="#cfe0f3" font-size="10.5">claude-kit skills, both explainers</text>
+  <text x="725" y="100" text-anchor="middle" fill="#cfe0f3" font-size="10.5">lands in the same window as P1</text>
+
+  <rect x="610" y="140" width="230" height="88" rx="8" fill="#6d4aa8"/>
+  <text x="725" y="166" text-anchor="middle" fill="#fff" font-size="12.5" font-weight="600">P3 &#183; Verify round runtime</text>
+  <text x="725" y="186" text-anchor="middle" fill="#ddd0f0" font-size="10.5">harden the round in place: json-schema,</text>
+  <text x="725" y="202" text-anchor="middle" fill="#ddd0f0" font-size="10.5">passed-in token, shrunk allowlist</text>
+  <text x="725" y="220" text-anchor="middle" fill="#ddd0f0" font-size="10.5">wants P0's data first</text>
+
+  <line x1="530" y1="64" x2="603" y2="64" stroke="#7a828c" stroke-width="2" marker-end="url(#dR)"/>
+  <line x1="415" y1="108" x2="415" y2="184" stroke="#7a828c" stroke-width="2"/>
+  <line x1="415" y1="184" x2="603" y2="184" stroke="#7a828c" stroke-width="2" marker-end="url(#dR)"/>
+  <line x1="120" y1="92" x2="120" y2="250" stroke="#7a828c" stroke-width="2" stroke-dasharray="5 4"/>
+  <line x1="120" y1="250" x2="603" y2="250" stroke="#7a828c" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#dR)"/>
+  <text x="330" y="244" font-size="10.5" fill="#6b7280">informs, does not block</text>
+
+  <rect x="20" y="272" width="899" height="38" rx="7" fill="#fdf4e6" stroke="#ecd9b0"/>
+  <text x="36" y="290" font-size="11.5" font-weight="600" fill="#8a4021">The one hard rule in P1.</text>
+  <text x="36" y="305" font-size="11" fill="#8a4021">A caller that passes a secret the callee no longer declares fails the workflow outright. So consumers stop passing before the callee stops declaring, and secrets get deleted last, not first.</text>
+</svg>
+</figure>
+
+<h3>P0 &#183; Telemetry. Start here.</h3>
+<p>Additive, touches nothing security-relevant, and a week of its data tells you whether P3 is worth building. Repo:
+<code>prismalens/gh-workflows</code>.</p>
+<ol>
+  <li>Add a post-step to the <code>review</code> job reading <code>${{ steps.claude-review.outputs.execution_file }}</code> and the verify round's equivalent. Sum tokens by type, take <code>total_cost_usd</code> from the final <code>result</code> entry.</li>
+  <li>Tag each row: repository, PR number, head sha, round type (<code>review</code> / <code>review-full</code> / <code>verify</code>), model, run id, <code>session_id</code>.</li>
+  <li>Write it to <code>$GITHUB_STEP_SUMMARY</code> so it is visible on the run without leaving GitHub.</li>
+  <li>POST the same row to an Apps Script Web App backed by a Sheet. One new secret, <code>USAGE_SINK_URL</code>, mapped in the three caller stubs. Failure to POST must never fail the job.</li>
+  <li><strong>Step 0, actually.</strong> Add <code>ls -R ~/.claude/projects/ || true</code> to one review round first. If
+  transcripts are there, use <code>openusage session --json</code> as the extractor instead of a hand-rolled parser and
+  inherit its pricing table and 5-hour block logic.</li>
+  <li>Separately, install openusage on the laptop and watch <code>openusage blocks</code>. On a subscription the 5-hour
+  window is what actually binds, and no amount of dollar-estimate tracking in CI tells you how close you are to it.</li>
+  <li>Let it run a week before touching P3.</li>
+</ol>
+<p>Open question to settle while building: whether the post-step runs when the review step failed or was cancelled, since
+those runs still consumed budget and are the ones most worth seeing.</p>
+
+<h3>P1 &#183; Credential migration. Order is not negotiable.</h3>
+<table>
+  <tr><th>#</th><th>Where</th><th>Change</th><th>Proof it worked</th></tr>
+  <tr><td>1</td><td>3 consumer stubs</td><td>Raise the caller ceiling to <code>contents: write</code>. Keep passing the App secrets for now.</td><td>A review round still runs and posts.</td></tr>
+  <tr><td>2</td><td><code>gh-workflows</code></td><td><code>mutate</code> uses <code>GITHUB_TOKEN</code> at <code>contents: write</code>. Delete the credential-detect and token-mint steps. Keep the two secret <em>inputs</em> declared but unused.</td><td>Tests pass.</td></tr>
+  <tr><td>3</td><td><code>prismalens/prismalens</code></td><td>Canary. A scratch PR, seed a finding, reply with a SHA, watch a thread resolve.</td><td><strong>This repo is the clean test</strong>, because it never had the App secrets forwarded. If it resolves here, the App is provably unnecessary.</td></tr>
+  <tr><td>4</td><td>2 consumer stubs</td><td>Drop the <code>AUTOMATION_APP_*</code> mappings from <code>sreforge</code> and <code>mage-memory</code>.</td><td>A round still resolves on each.</td></tr>
+  <tr><td>5</td><td><code>gh-workflows</code></td><td>Drop the two secret input declarations and the README section describing them.</td><td>Tests pass; no caller references them.</td></tr>
+  <tr><td>6</td><td>3 repos + the org</td><td>Delete six secrets. Uninstall the <code>prismalens-automation</code> App.</td><td>Re-run the secrets inventory; the App pair is gone everywhere.</td></tr>
+</table>
+<div class="warn"><strong>Do not start P1 by deleting secrets.</strong> Steps 1 and 2 are reversible, step 6 is not, and
+step 3 is the one that decides whether the rest should happen at all. If the canary fails, stop and re-open the credential
+question rather than pressing on.</div>
+
+<h3>P2 &#183; Docs and doctrine. Same window as P1.</h3>
+<table>
+  <tr><th>Repo</th><th>What changes</th></tr>
+  <tr><td><code>gh-workflows</code></td><td><strong>README:</strong> rewrite the invariant capability-shaped. It currently says the review job's token never holds write; the truth is that the job is write-capable through an OIDC-minted App credential and is held off resolution by the tool allowlist. Name the allowlist as the wall. Delete the "Thread resolution needs a GitHub App" section and the measured-denials table. Fix line 187, which claims <code>mutate</code> mints <code>pull-requests: write</code> and nothing else.</td></tr>
+  <tr><td><code>gh-workflows</code></td><td><strong>Issue #12:</strong> record auto-resolution as shipped behind the review/mutate split and the rejection as lifted. Link #18, #19 and the ruling.</td></tr>
+  <tr><td><code>claude-kit</code></td><td><strong><code>claude-review-lane</code> skill §6:</strong> it states flatly that the reviewer resolves what it verifies. Add the three-state verdict once P3 lands, and drop any App-credential dependency once P1 lands.</td></tr>
+  <tr><td><code>claude-kit</code></td><td><strong><code>coderabbit-lane</code> skill:</strong> reconcile with <code>prismalens</code>'s <code>.coderabbit.yaml</code>. The counter is per developer, not org-wide, and the admission rule is a sensitive-surface judgement call, not a <code>.coderabbit.yaml</code> path-instruction test. Record that <code>review-admit.yml</code> and <code>high-risk-paths.txt</code> were retired in #415 so nobody proposes finishing them.</td></tr>
+  <tr><td><code>claude-kit</code></td><td><strong><code>pr-watch</code> skill:</strong> check whether its merge contract still assumes a human resolves threads.</td></tr>
+  <tr><td><code>claude-kit</code></td><td><strong><code>docs/pr-review-process.html</code>:</strong> section 5 loses the credential comparison once decided; section 6.3 loses the missing-credential scenario entirely; section 11 loses the items that shipped. <strong>This page</strong> gets archived or folded in once the plan is executed.</td></tr>
+</table>
+
+<h3>P3 &#183; Split the verify round into its own hardened job. After P0 has data.</h3>
+<p><strong>The runtime stays Claude Code.</strong> Per-token API spend for a recurring round is not wanted, so the
+Messages API route is off. Fable's amendment accepts that and closes ruling 4 as satisfied by other means, on one
+structural condition it added.</p>
+
+<div class="warn"><strong>The condition: verify must become its own job.</strong> The two changes that matter are
+<em>job-scoped</em>, and the verify step currently shares the <code>review</code> job's permissions block, which has to
+keep <code>id-token: write</code> for the review round. Done at step level, the App-token mint path still sits in the same
+job as the verify agent, held back by nothing but the allowlist. That is exactly the shape ruling 4 refused. Split out, the
+verify job holds a read-only <code>GITHUB_TOKEN</code>, no <code>id-token</code>, and no OIDC request environment, so
+nothing in it can mint anything regardless of later allowlist edits.</div>
+
+<div class="note"><strong>Correction to what this page said before.</strong> I had <code>id-token: write</code> down as
+serving only Workload Identity Federation, reading <code>action.yml:74</code>. It has a second use I missed, and Fable
+found it in <code>src/github/token.ts</code>: it is the <em>sole input</em> to the <code>claude[bot]</code> App-token mint,
+via <code>core.getIDToken()</code> exchanged at
+<code>api.anthropic.com/api/github/github-app-token-exchange</code>, which requests <code>contents: write</code>,
+<code>pull_requests: write</code> and <code>issues: write</code> by default. The correction strengthens the change rather
+than undermining it: dropping the permission removes the mint path fail-closed, instead of merely tidying an unused
+declaration.</div>
+
+<h4>The changes</h4>
+<table>
+  <tr><th>#</th><th>Change</th><th>What it buys</th><th>Grounding</th></tr>
+  <tr><td>0</td><td><strong>Move the verify round into its own job</strong>, with its own permissions block.</td>
+      <td>Makes changes 2 and 3 possible at all. Everything else depends on this.</td>
+      <td>Fable's amendment; the shared block cannot drop <code>id-token</code> while review needs it.</td></tr>
+  <tr><td>1</td><td><code>--json-schema</code> in <code>claude_args</code>; verdicts read from the
+      <code>structured_output</code> step output.</td>
+      <td>Removes the only reason <code>Write</code> is in the allowlist.</td>
+      <td><code>action.yml</code> declares the output as populated when <code>--json-schema</code> is provided.</td></tr>
+  <tr><td>2</td><td>Pass <code>github_token: ${{ github.token }}</code>.</td>
+      <td>No App token minted. First of two redundant walls.</td>
+      <td>Source-verified: the input reaches <code>OVERRIDE_GITHUB_TOKEN</code> (<code>action.yml:298</code>) and
+      <code>setupGitHubToken</code> returns it before any OIDC request is made.</td></tr>
+  <tr><td>3</td><td>No <code>id-token: write</code> on the verify job.</td>
+      <td>Removes the mint path itself, fail-closed. Second wall.</td>
+      <td>See the correction above. Two redundant walls is the right number here.</td></tr>
+  <tr><td>4</td><td>Allowlist shrinks to <code>Read, Grep, Glob, LS, Bash(gh pr diff:*)</code>.</td>
+      <td>Drops <code>Task</code>, <code>Write</code>, <code>gh pr comment</code>, <code>gh issue *</code>,
+      <code>gh search</code>, both comment MCP servers.</td>
+      <td>One line.</td></tr>
+  <tr><td>5</td><td>Verify job declares <code>pull-requests: read</code> and <code>issues: read</code>.</td>
+      <td>Its <code>gh</code> calls now run on the job token instead of the App token, so they need the scope explicitly.</td>
+      <td>Fable, from source. Easy to miss and it would break the round.</td></tr>
+  <tr><td>6</td><td>A gate step that fails the job when <code>structured_output</code> is empty or malformed.</td>
+      <td>Schema enforcement moves from the server to the CLI, so the loud failure has to be added back by hand.</td>
+      <td>Fable's answer to what is lost against the Messages API version.</td></tr>
+  <tr><td>7</td><td>A permanent tripwire: the verify job fails if <code>ACTIONS_ID_TOKEN_REQUEST_URL</code> is non-empty.</td>
+      <td>If <code>id-token: write</code> ever leaks back in, including through the mutable <code>@v1</code> tag, it dies
+      loudly instead of silently re-arming the mint.</td>
+      <td>Fable. This is a tripwire, not a canary: it ships and stays.</td></tr>
+</table>
+
+<h4>What moves, and what does not</h4>
+<ul>
+  <li><strong>The summary comment and the open-thread replies</strong> move to <code>mutate</code>, which already posts and
+  owns templates. The three-state verdict schema is unchanged.</li>
+  <li><strong>The "Verify summary comment was posted" guard is deleted, not moved.</strong> It exists because an agent can
+  silently skip a step. A templated post from deterministic <code>mutate</code> cannot skip itself, so the guard has
+  nothing left to catch.</li>
+  <li><strong>The delta review is dropped, not rehomed.</strong> Three reasons, and the third is the one nobody had
+  spotted: it cannot post under the hardened job; routing model-authored finding prose through <code>mutate</code> would
+  make the write job render free text and break its bounded-fields design; and it is <em>a bypass of the auto-pause
+  gate</em>, because verify triggers on comment events that never read the rounds counter. Residual coverage for paused,
+  cancelled and draft heads is already the liveness comment plus <code>@claude review</code>.</li>
+</ul>
+
+<h4>The #12 collision, ruled</h4>
+<p>Confirmed with one edit. Keep increment 2's range-limiting substance; delete the clause saying <code>verify</code> is
+deleted and its verdict duty absorbed into the vendored prompt. <strong>Mode set becomes
+<code>skip / review / incremental / verify</code>.</strong> Absorption would put the verdict channel back inside the
+<code>claude[bot]</code>-credentialed job, and with the delta review gone the two rounds no longer overlap, so it has no
+remaining purpose.</p>
+<div class="warn"><strong>New rule to encode now, before increment 2 is built.</strong> <code>announce</code> must never
+advance the <code>sha=</code> baseline on a verify round. Without it, increment 2's commit range would start past commits
+no review round ever read, and swallow them permanently. This is the same class of bug the baseline was created to
+prevent.</div>
+
+<h4>Canaries</h4>
+<p>One seeded run on a scratch PR settles the lot: log lines proving no OIDC exchange happened and the revoke step was
+skipped; <code>structured_output</code> populated and passing the gate, which also settles whether
+<code>--json-schema</code> takes a file or an inline form; <code>gh pr diff</code> and the actor permission check working
+under the job token; and the <code>mutate</code> and <code>announce</code> plumbing. If <code>--json-schema</code> fails in
+both forms, the verify round stays loudly broken rather than falling back to <code>Write</code>.</p>
+
+<div class="note"><strong>What is accepted as lost.</strong> Server-side constrained decoding becomes client-side CLI
+validation, hence change 6. "Structurally impossible to widen" becomes "widening reaches only more reading", which is
+acceptable because the credential genuinely cannot write, provided the README names the two load-bearing lines, no
+<code>id-token</code> on the verify job and <code>github_token</code> passed, so reintroducing either reads as an
+invariant change rather than a tidy-up. The harness reliability tax stays. That is the price of the billing decision, paid
+knowingly.</div>
+
+<h3>P4 &#183; Hygiene. Any time.</h3>
+<ul>
+  <li>Delete <code>PRISMALENS_KB_TESTING</code> and the <code>CLAUDE_REVIEW_GATE</code> variable from <code>prismalens/prismalens</code>. Confirm first that the KB one is not waiting on unshipped work.</li>
+  <li>Re-run the secrets inventory with <code>admin:org</code> scope so the org-level blind spot closes.</li>
+  <li>SHA-pin <code>actions/checkout@v4</code> and <code>anthropics/claude-code-action@v1</code>.</li>
+  <li>Fix <code>@claude full review --model opus</code>: two more <code>contains()</code> arms, staying an allowlist.</li>
+  <li>Increment 3, resettable auto-pause: <code>announce</code> writes <code>rounds=0</code> on a successful summon-triggered review.</li>
+  <li>Adopt a review lane on <code>claude-kit</code>, or write down why it is exempt.</li>
+</ul>
+
+<h2><span class="n">8</span>Where the work gets tracked</h2>
+<p>Three issues, and the reasoning for not putting it all in one.</p>
+<table>
+  <tr><th>Issue</th><th>Carries</th><th>Why separate</th></tr>
+  <tr><td><strong>New, <code>gh-workflows</code></strong><br>"Resolution grant: move mutate to GITHUB_TOKEN, take the agent credential out of the verify round"</td>
+      <td>P1, P2's gh-workflows half, P3. Links the ruling, canary #18 and fix #19.</td>
+      <td>It has a ruling behind it, an ordered migration, and acceptance criteria. #12 is a standing roadmap that outlives any one change set; putting a six-step credential migration inside it buries the sequence.</td></tr>
+  <tr><td><strong>Update, <code>gh-workflows#12</code></strong><br>"Review lane: roadmap, incremental review, and live debt"</td>
+      <td>Lift the auto-resolution rejection. Link the new issue. <strong>Amend increment 2: drop the "verify is deleted" clause; mode set becomes <code>skip / review / incremental / verify</code>; encode that <code>announce</code> never advances <code>sha=</code> on a verify round.</strong> Keep carrying increment 2's range-limiting, increment 3, the mutable tags and the model-flag gap.</td>
+      <td>It currently records auto-resolution as rejected on the security invariant while the shipped lane does it. That contradiction has to close whoever wins.</td></tr>
+  <tr><td><strong>New, <code>claude-kit</code></strong><br>"Review lane doctrine: sync skills and docs to the resolution ruling"</td>
+      <td>P2's claude-kit half, and P0 if the usage dashboard's Apps Script lives here.</td>
+      <td>Different repo, different merge cadence, and the handoff's own rule is that docs and behaviour ship together. A checklist here is what makes that enforceable.</td></tr>
+</table>
+<div class="note"><strong>What each new issue needs in its body,</strong> so a fresh session can act without re-reading this
+page: the ruling's five recommendations verbatim, the ordered table from P1 with its proof column, the canary definition
+for step 3, and a link to <code>~/ai-context/reviews/fable-ruling-resolution-grant.md</code>. Everything else is
+reconstructible.</div>
+
+<h2><span class="n">9</span>If you only do three things</h2>
+<ol>
+  <li><strong>P0.</strong> A week of data costs one post-step and answers the question you actually asked.</li>
+  <li><strong>P1 steps 1 to 3.</strong> Reversible, and step 3's canary is what proves the App can go. Stop there if it fails.</li>
+  <li><strong>Update #12.</strong> Two paragraphs. It is currently the most misleading document in the system, because it tells a reader the lane does not do the thing the lane does.</li>
+</ol>
+
+<p class="foot">Sources: <code>~/ai-context/reviews/fable-ruling-resolution-grant.md</code> (the ruling),
+<code>~/ai-context/reviews/fable-brief-resolution-grant.md</code> (the brief it answered),
+<code>~/ai-context/research/usage-telemetry-options.md</code> (telemetry research),
+<code>~/ai-context/agy-logs/secrets-inventory.log</code> (secrets audit).
+Companion: <code>docs/pr-review-process.html</code>, which describes the lane as it runs today.
+Measurements quoted here were taken 2026-08-26 and 2026-08-27 and are named at the point of use.</p>
+
+</main>
+</body>
+</html>

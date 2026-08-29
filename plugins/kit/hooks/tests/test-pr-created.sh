@@ -19,17 +19,22 @@ pass() { echo "PASS: $1"; }
 CREATE_CMD="gh pr cre""ate --fill"
 URL="https://github.com/acme/widget/pull/12"
 
+# each run gets a scratch state dir unless the caller pins one, so the
+# once-per-PR dedupe does not leak between cases
 run() { # stdin payload -> hook stdout
-  jq -nc --arg c "${1:-$CREATE_CMD}" --arg r "${2:-$URL}" \
+  jq -nc --arg c "${1-$CREATE_CMD}" --arg r "${2-$URL}" \
     '{tool_input:{command:$c},tool_response:$r}' \
-    | bash "$HOOK"
+    | PR_WATCH_STATE_DIR="${3:-$(mktemp -d)}" bash "$HOOK"
 }
 ctx() { jq -r '.hookSpecificOutput.additionalContext' 2>/dev/null; }
 valid_json() { printf '%s' "$1" | jq -e . >/dev/null 2>&1; }
 
-# --- Silence on everything that is not a PR creation ------------------------
+# --- Silence unless a PR URL is actually in the output ----------------------
 out=$(run "git status" "")
-[ -z "$out" ] && pass "unrelated command -> no output" || fail "unrelated command emitted: $out"
+[ -z "$out" ] && pass "no PR URL anywhere -> no output" || fail "URL-less call emitted: $out"
+
+out=$(run "gh pr merge 12 --squash" "$URL")
+[ -z "$out" ] && pass "merge command -> no output" || fail "merge emitted: $out"
 
 out=$(run "$CREATE_CMD" "error: could not create pull request")
 [ -z "$out" ] && pass "no PR URL in response -> no output" || fail "URL-less response emitted: $out"
@@ -50,6 +55,31 @@ case "$c" in
   *"arm the pr-watch monitor"*) pass "watch reminder present" ;;
   *) fail "reminder lost: $c" ;;
 esac
+
+# --- A PR that did not come from `gh pr create` still arms ------------------
+out=$(run "agy run --task raise-pr" "created $URL")
+valid_json "$out" && pass "PR URL from a delegated lane emits valid JSON" || fail "delegated lane missed: $out"
+c=$(printf '%s' "$out" | ctx)
+case "$c" in
+  *"PR #12"*"$URL"*"arm the pr-watch monitor"*) pass "delegated lane gets the same reminder as a direct create" ;;
+  *) fail "delegated lane reminder differs: $c" ;;
+esac
+
+# --- Several PRs in one output all get reminded -----------------------------
+URL2="https://github.com/acme/widget/pull/13"
+c=$(run "bash raise-all.sh" "made $URL and $URL2" | ctx)
+case "$c" in
+  *"PR #12"*) case "$c" in *"PR #13"*) pass "every new PR URL in one output is reminded" ;;
+              *) fail "second PR dropped: $c" ;; esac ;;
+  *) fail "first PR dropped: $c" ;;
+esac
+
+# --- One reminder per PR, ever ---------------------------------------------
+shared=$(mktemp -d)
+first=$(run "$CREATE_CMD" "$URL" "$shared")
+second=$(run "gh pr view 12" "$URL" "$shared")
+[ -n "$first" ] && [ -z "$second" ] && pass "deduped: same PR reminds once" \
+  || fail "dedupe broken (first=${first:0:40} second=${second:0:40})"
 
 echo
 [ "$FAILURES" -eq 0 ] && { echo "all pr-created hook tests passed"; exit 0; }

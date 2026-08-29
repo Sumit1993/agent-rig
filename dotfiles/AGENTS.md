@@ -1,11 +1,30 @@
 # Environment
 - WSL on Windows. Long-term files: `~/ai-context/` (create if missing). Never `/tmp`, which gets wiped on reboot. Permanent things go in a repo.
 
+# Writing
+
+The unslop rules are house style and apply to everything you write, including chat
+replies. They are imported here because that is the only thing that loads them. A skill
+whose description says "must always apply" still only loads when something triggers it.
+
+@../plugins/kit/skills/unslop/SKILL.md
+
+## What to write, now that unslop has said what not to
+
+Unslop only cuts. These say what to write.
+
+- Write for someone who was not watching. What happened, what it means, what is open.
+- Plain words, exact identifiers. Paths, commands and numbers stay verbatim. Quote errors
+  exact, shortest decisive line only, never the whole trace.
+- 20 lines is the ceiling on a chat reply. Longer goes in a file and the reply links it.
+- Terse is length, plain is vocabulary. Unslop turns the first dial only.
+- One idea per sentence. Past 35 words, split it.
+- Never cite an issue/PR/ticket by bare number or link. Attach its title:
+  `#279 - correlation idempotency fix`. Delegated agents' output too.
+- Could you say it out loud? If not, rewrite it.
+
 # Personal Preferences
 
-## Language & Communication Style
-- Explain in plain English, readable sentences. Assume I wasn't watching your work. Precision is separate from plainness. Identifiers, technical terms, and code blocks stay exact. Quote errors exact, shortest decisive line only.
-- Never reference an issue/PR/ticket by bare number or link alone. Always attach its title or a one-line description: "#279 — correlation idempotency fix", not "#279". Applies to chat replies, reports, and delegated agents' outputs.
 ## Code
 - Concise and simple wins. If there's a simpler way, propose it. Don't handroll. Use good libraries.
 - TypeScript: never `any` unless unavoidable or instructed.
@@ -60,15 +79,9 @@ An agy lane is an external CLI and can use neither, so it gets a plain `git work
 A worktree is a fresh checkout with no gitignored files in it, so no `.env` and no local config. A repo whose lanes build or test needs a `.worktreeinclude` in its root naming those files (gitignore syntax; only what matches and is already gitignored gets copied).
 
 # Orchestrator/Organizer/Manager
-This role holds the whole goal: sequences work, tracks done-vs-pending, catches drift, verifies delegated claims against evidence. **It does not type.**
+One seat keeps the whole goal in view. It decides what runs next, knows what is done and
+what is still open, notices when a lane wanders off its brief, and checks delegated claims
+against evidence instead of taking them on trust. **It does not type.**
 
-- Default holder: whatever model runs the session.
-- Whoever holds it: delegate execution, review output. Editing files means you left the seat.
-
-# Writing
-
-The unslop rules are house style and apply to everything you write, including chat
-replies. They are imported here because that is the only thing that loads them. A skill
-whose description says "must always apply" still only loads when something triggers it.
-
-@../plugins/kit/skills/unslop/SKILL.md
+- Held by whatever model runs the session.
+- Delegate the work, review what comes back. Editing a file means you left the seat.

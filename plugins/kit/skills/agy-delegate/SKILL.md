@@ -9,7 +9,7 @@ metadata:
 
 Top-level routing (which model gets which task) lives in `AGENTS.md`. Model choice *inside* an agy run is this skill's, including the Opus 4.6 and Sonnet 4.6 fallback lane and its weekly pool. Waiting on the run correctly lives in the **`anti-stall`** skill. Load it too, since this skill assumes its sentinel/until-loop pattern and does not repeat it.
 
-**Lane count is not a fixed number.** Derive how many agy runs to fan out at once from whatever is actually scarce that round: a shared review counter, a serialising merge invariant, agy-Claude's weekly pool. Never a constant. Full doctrine, including how to name the resource's scope before parallelising, is in the **`unattended-run`** skill §2, which applies to any dispatch decision, not only unattended sessions.
+**Lane count is not a fixed number.** Derive how many agy runs to fan out at once from whatever is actually scarce that round: a shared review counter, a serialising merge invariant, agy-Claude's weekly pool. Never a constant. Name the resource and its scope before parallelising: a limit assumed per-repo can turn out to be org-wide or per-developer. Serialise inside that scope; everything else runs wide.
 
 **Gemini quota exhausted ≠ agy exhausted.** Before parking work on a reset timer, probe agy-Claude availability with `-p "say ok"` on the Opus/Sonnet 4.6 display strings, and use it if live, one job at a time, never parallel. Park on the timer only when all agy lanes are dry.
 
@@ -60,7 +60,7 @@ A handler owns its run end-to-end: launch, watch, kill-on-hang, salvage, retry. 
 1. **Launch** via background Bash with an exit sentinel. See `anti-stall` §1:
    `(agy … > "$LOG" 2>&1; echo "AGY_EXITED rc=$?" >> "$LOG")`
    Or use `run-agy-watchdog.sh` in this skill's directory, which launches, reaps the hang-after-report case automatically, and writes the sentinel.
-2. **Wait** with an evidence-keyed background until-loop on `AGY_EXITED`, per `anti-stall` §2–3. Never a Monitor, never `pgrep`, never a bare timer.
+2. **Wait** with an evidence-keyed background until-loop on `AGY_EXITED`, per `anti-stall` §2–4. Never a Monitor, never `pgrep`, never a bare timer.
 3. **Kill on hang-after-report** per the failure table.
 4. **On empty log**: check the worktree before assuming failure (`git status`, expected files). Landed + passes its own verification ⇒ success, note the silent death.
 5. **Verify before reporting**: run the prompt's verification commands yourself. Report facts and evidence, not agy's claims.

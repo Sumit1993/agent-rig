@@ -2,104 +2,223 @@
 name: pr-watch
 description: "Watch a PR raised in THIS session until its review round completes: seed the seen-state, arm the deterministic reviewer/CI Monitor, route each event as a pointer to the seat holding the diff, then merge (queue-enabled repos enqueue; no cascade). Also carries the merge contract. Trigger AFTER any `gh pr create`, when a PostToolUse hook reports a PR was raised, or when the user asks to watch or merge a PR. Claude lane behavior is `claude-review-lane`; CodeRabbit mechanics live in `coderabbit-lane`."
 metadata:
-  version: "3.0.1"
+  version: "3.1.0"
 ---
 
 # PR watch: the session-scoped review round
 
-**Scope (narrowed, prismalens#403):** this skill covers one thing. A PR *this session* raised, watched until its round completes, so the session can react to findings without the user relaying events. It is not a post-PR lifecycle manager anymore: the merge queue removed cascade shepherding, and the liveness comment answers "did the reviewer post" on the PR itself. A PR left over from a past session needs no local watcher. GitHub notifications cover the two human moments (verify-then-resolve, enqueue).
+**Scope (narrowed, prismalens#403, the merge-queue rollout).** One PR, raised in *this*
+session, watched until its round ends, so the session reacts to findings without you
+relaying them. Not a lifecycle manager: the queue removed cascade shepherding, and the
+liveness comment says on the PR itself whether a reviewer posted. A PR left over from an
+earlier session needs no local watcher, because GitHub notifications cover the two human
+moments, verify-then-resolve and enqueue.
 
-**Companion skills: `claude-review-lane` and `coderabbit-lane`.** Everything about reviewer-specific behavior lives in those skills and is not repeated here: `claude-review-lane` covers `claude[bot]` (liveness verdicts, quiet modes, summon grammar, verification rounds, and how the reviewer resolves its own verified threads), while `coderabbit-lane` covers `coderabbitai[bot]` (admission, org-wide cooldown quota, trigger syntax, in-thread replies, thread resolution). They load on any PR of any age; this skill loads on a PR this session raised to watch the round and handle merge mechanics. Process truth lives in `claude-kit/docs/pr-review-process.html`; **whoever changes the process updates that page in the same session.**
+**Reviewer behavior lives elsewhere and is not repeated here.** `claude-review-lane` owns
+`claude[bot]`: liveness verdicts, quiet modes, summon grammar, verification rounds, and
+how the reviewer resolves its own threads. `coderabbit-lane` owns `coderabbitai[bot]`:
+admission, the org-wide cooldown quota, trigger syntax, in-thread replies, resolution.
+Those two load on a PR of any age. This one loads on a PR this session raised.
 
-After a PR is raised, reviews arrive asynchronously (Claude review lane ~2-5 min; CodeRabbit ~3-5 min after admission; CI in ~5-10). Never poll with model turns and never rely on the user to relay events. Arm deterministic watchers and process only deltas.
+Process truth is `claude-kit/docs/pr-review-process.html`. **Whoever changes the process
+updates that page in the same session.**
 
-Scripts live in this skill's own directory (`<skill-dir>` below), at `${CLAUDE_PLUGIN_ROOT}/skills/pr-watch/` when loaded as `kit:pr-watch`. Shared kit scripts (`cr-reply.sh`, `kit-meta.sh`) live in `${CLAUDE_PLUGIN_ROOT}/scripts/`. Resolve to absolute paths before handing them to a Monitor or background Bash; those shells may not inherit the variable. Watch scripts auto-detect the repo from the cwd's origin remote (`--repo owner/name` to override).
+Reviews arrive on their own schedule: the Claude lane in 2 to 5 minutes, CodeRabbit in 3
+to 5 after admission, CI in 5 to 10. Never poll with model turns. Never wait for the user
+to relay an event. Arm a deterministic watcher and process deltas.
 
-Per-repo facts (CodeRabbit enablement, review tier) come from the kit registry, `kit-meta.sh current`, backed by `data/repo-meta.json` folded with runtime observations. Never from memory:
+Scripts sit in this skill's directory, `${CLAUDE_PLUGIN_ROOT}/skills/pr-watch/` when
+loaded as `kit:pr-watch`. Shared ones (`cr-reply.sh`, `kit-meta.sh`) are in
+`${CLAUDE_PLUGIN_ROOT}/scripts/`. Resolve both to absolute paths before handing them to a
+Monitor or a background Bash, because those shells may not inherit the variable. Watch
+scripts read the repo off the cwd's origin remote; `--repo owner/name` overrides.
+
+Per-repo facts come from the registry, never from memory. `kit-meta.sh current` reads
+`data/repo-meta.json` folded with runtime observations:
 
 Current repo metadata: !`"${CLAUDE_PLUGIN_ROOT}/scripts/kit-meta.sh" current`
 
 ## Phase 0: the merge contract (nothing runs pre-push)
 
-On mage-memory, prismalens and sreforge the contract is the whole of this:
+On mage-memory, prismalens and sreforge the contract is three facts.
 
-- **Required status checks are `CI gate` and `Validate PR title (conventional commits)`. Nothing else.** No review check, no evidence artifact, no marker job, no SHA-pinning, no carry-forward, no committed high-risk path list. Anything describing those describes machinery that no longer exists, including `cr-preview.sh` and `cr-evidence.sh`, which don't exist either.
-- **`required_review_thread_resolution: true`.** One unresolved review thread blocks the merge. This is the only mechanism that enforces a finding, which is what makes Phase 2's in-thread protocol load-bearing rather than etiquette: a finding matters exactly as much as the thread it lives in.
-- **Reviewers are advisory.** They post; no check waits on them, so no check ever proves a review happened. What does count as evidence that the Claude lane read a head is in `claude-review-lane`.
+**Two required checks, `CI gate` and `Validate PR title (conventional commits)`. Nothing
+else.** No review check, no evidence artifact, no marker job, no SHA-pinning, no
+carry-forward, no committed high-risk path list. Anything describing those describes
+machinery that is gone, including `cr-preview.sh` and `cr-evidence.sh`, which do not exist.
 
-There is no local pre-push step: push freely. Escalate the independent lane by risk; never pay model tokens for review a cheaper layer already covers.
+**`required_review_thread_resolution: true`.** One unresolved thread blocks the merge.
+This is the only thing that enforces a finding, which is what makes Phase 2's in-thread
+protocol load-bearing rather than manners. A finding counts for exactly as much as the
+thread it lives in.
+
+**Reviewers are advisory.** They post, and no check waits on them, so no check ever proves
+a review happened. What does count as evidence is in `claude-review-lane`.
+
+Push freely; there is no local pre-push step. Escalate by risk, and never pay model tokens
+for review a cheaper layer already covers.
 
 | Tier | When | What |
 |---|---|---|
-| Claude review (`claude[bot]`) | Every same-repo PR, automatic, **but not every round, and not every author** | The default reviewer. Posts findings as **inline comments**. Advisory, so it blocks nothing directly, but every thread it opens does. Admission, the four ways it goes quiet, the summon verbs, and thread resolution are all in `claude-review-lane` |
-| CodeRabbit **PR** review (`coderabbitai[bot]`) | **Manual admission only** (`coderabbit_review` label or `@coderabbitai review`), automatic on `gh-workflows` | The independent lane, and a scarce org-wide counter (~1 review per 40 min). Details, quota, triggers, and reply rules live in `coderabbit-lane` |
-| One Opus 5 pass | Non-trivial PRs | The layer neither bot can do: spec/ADR conformance, since design truth often lives in an external hub they can't see |
-| Multi-agent extreme (`/code-review ultra`) | Rare | Engine-core, security/sandbox boundary, contract/schema changes only |
+| Claude review (`claude[bot]`) | Every same-repo PR, automatic, **but not every round and not every author** | The default. Posts findings as inline comments. Advisory, so it blocks nothing itself, but every thread it opens does. See `claude-review-lane` |
+| CodeRabbit (`coderabbitai[bot]`) | **Manual admission only** (`coderabbit_review` label or `@coderabbitai review`), automatic on `gh-workflows` | The independent lane, and a scarce org-wide counter of about one review per 40 minutes. See `coderabbit-lane` |
+| One Opus 5 pass | Non-trivial PRs | The layer neither bot can do: spec and ADR conformance, since design truth often lives in a hub they cannot see |
+| `/code-review ultra` | Rare | Engine core, security boundary, contract or schema changes |
 
-Never bypass the ruleset. **Batch every fix before requesting any review.** A CodeRabbit slot spent on a commit you are about to amend is spent for nothing.
+Never bypass the ruleset. **Batch every fix before requesting any review.** A CodeRabbit
+slot spent on a commit you are about to amend is spent for nothing.
 
-### Reviewer lanes: Claude and CodeRabbit
+## Phase 1: arm the watcher, right after `gh pr create`
 
-Reviewer-specific mechanics live in their dedicated skills:
-- **`claude-review-lane`:** liveness verdicts, quiet modes, summon grammar, verification rounds, and thread resolution.
-- **`coderabbit-lane`:** shared org-wide cooldown quota, manual admission, bare `@coderabbitai review` trigger, in-thread reply protocol with `cr-reply.sh`, and resolution rules.
+Seed the seen-state first, so existing comments are never replayed:
 
-## Phase 1: arm the watcher (immediately after `gh pr create`)
+```bash
+mkdir -p ~/ai-context/state/cr-watch
+REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner); KEY=${REPO//\//-}
+gh api "repos/$REPO/pulls/<pr>/comments?per_page=100" > /tmp/c.json
+jq -r '.[] | select(.user.login|test("coderabbit")) | .id' /tmp/c.json \
+  > ~/ai-context/state/cr-watch/$KEY-pr<pr>.seen
+jq -r '.[] | select(.user.login|test("claude";"i")) | .id' /tmp/c.json \
+  > ~/ai-context/state/cr-watch/$KEY-pr<pr>-claude.seen
+```
 
-1. Seed the seen-state so existing comments are never replayed:
-   ```bash
-   mkdir -p ~/ai-context/state/cr-watch
-   REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner); KEY=${REPO//\//-}
-   gh api "repos/$REPO/pulls/<pr>/comments?per_page=100" --jq '.[] | select(.user.login|test("coderabbit")) | .id' > ~/ai-context/state/cr-watch/$KEY-pr<pr>.seen
-   ```
-2. Arm via the **Monitor tool** (persistent: true):
-   ```
-   command: <skill-dir>/watch-coderabbit.sh <pr> [<pr>...]
-   description: CodeRabbit comments + CI reds on PR <pr>
-   ```
-   One monitor covers many PRs. If a monitor is already running for this repo, stop it (TaskStop) and re-arm with the combined PR list. The seen-state makes re-arming free.
+Both files, not just the first. The watcher keeps a separate `-claude.seen` and only
+`touch`es it, so a PR that already carries `claude[bot]` threads replays every one of them
+as `NEW` on the first arm unless you seed it here.
 
-Event lines: `NEW coderabbit <thread|reply-in-ID> — id N — path — payload <state-file> — excerpt`, `NEW claude <thread|reply-in-ID> — …`, `CLAUDE LIVENESS — <the liveness verdict text>`, `CI FAIL — <check>`, `CODERABBIT RATE-LIMITED — …`, `CODERABBIT RE-TRIGGERED — …`, `CODERABBIT RESUMED — …`, or `PR#N MERGED/CLOSED`. **The monitor emits pointers, not payloads:** the full comment body is already saved at the `payload` path. Route that path, never fetch and paste bodies into the session that owns the Monitor.
+Then arm the **Monitor tool** with `persistent: true`:
 
-**The first line is always the presence verdict.** Not every repo has CodeRabbit. The registry (`kit-meta.sh get <owner/repo> coderabbit`) is the source of truth. The watcher consults it first, then probes (a committed `.coderabbit.yaml`/`.yml`, else any `coderabbit*` author in the repo's recent issue/review comment history), records a positive probe back into the registry, and emits one of:
+```
+command: <skill-dir>/watch-coderabbit.sh <pr> [<pr>...]
+description: CodeRabbit comments + CI reds on PR <pr>
+```
+
+One monitor covers many PRs. If one is already running for this repo, TaskStop it and
+re-arm with the combined list. Seen-state makes re-arming free.
+
+Event lines:
+
+```
+PR#N NEW coderabbit <thread|reply-in-ID> — id N — path — payload <state-file> — excerpt
+PR#N NEW claude <thread|reply-in-ID> — id N — path — payload <state-file> — excerpt
+PR#N CLAUDE LIVENESS — <verdict text>
+PR#N CI FAIL — <check>
+PR#N CODERABBIT RATE-LIMITED — no review ran; <window>
+PR#N CODERABBIT RE-TRIGGERED — posted @coderabbitai review (attempt K/MAX)
+PR#N CODERABBIT RE-TRIGGER FAILED — post '@coderabbitai review' by hand
+PR#N CODERABBIT ANSWERED AS CHAT — no review ran; re-trigger with a BARE '@coderabbitai review'
+PR#N CODERABBIT RESUMED — rate-limit notice cleared, review ran
+PR#N <MERGED|CLOSED> — dropped from watch
+```
+
+`ANSWERED AS CHAT` and `RE-TRIGGER FAILED` both mean no review ran, same as
+`RATE-LIMITED`. Treat all three as an unreviewed diff.
+
+**The monitor emits pointers, not payloads.** The body is already saved at the `payload` path. Route that path. Never fetch
+a body into the session that owns the Monitor.
+
+### The first line is always the presence verdict
+
+Not every repo has CodeRabbit. `kit-meta.sh get <owner/repo> coderabbit` is the source of
+truth. The watcher checks it, then probes for a committed `.coderabbit.yaml` or `.yml`,
+then for any `coderabbit*` author in recent comment history. A positive probe is written
+back to the registry. It emits one of:
 
 - `CODERABBIT ACTIVE on <repo> — watching reviews, rate limits, CI and merge state`
 - `CODERABBIT ABSENT on <repo> — watching CI + merge state ONLY. …silence here is NOT a clean review…`
 
-On ABSENT it skips both CodeRabbit polls and watches only CI and merge state. **Treat ABSENT exactly like a rate-limit block: the diff is unreviewed, not clean.** A repo with no reviewer produces a *perfectly quiet watch*, which is byte-identical to "reviewed, found nothing". That is the same trap the rate-limit channel sets, and the reason both are announced rather than inferred from silence. Decide by risk: KB-only or trivial can merge on CI alone; anything non-trivial wants a model review pass (the Opus 5 layer). There's no local CLI step left to substitute.
+On ABSENT it skips the CodeRabbit polls entirely. **Treat ABSENT exactly like a rate-limit
+block: the diff is unreviewed, not clean.** A repo with no reviewer produces a perfectly
+quiet watch, and that is byte-identical to "reviewed, found nothing". Same trap the
+rate-limit channel sets, which is why both are announced rather than inferred from
+silence. Decide by risk. Trivial or knowledge-base-only can merge on CI alone. Anything
+else wants the Opus 5 pass. No local CLI step substitutes for it.
 
-Env knobs: `CR_WATCH_AUTORETRY=0` makes rate-limit handling detect-only (no comment posted); `CR_WATCH_MAX_RETRIES=N` caps auto re-triggers per PR (default 2); `CR_WATCH_ASSUME_CODERABBIT=1|0` skips the probe (force present/absent).
+Env knobs: `CR_WATCH_AUTORETRY=0` makes rate-limit handling detect-only, posting no
+comment. `CR_WATCH_MAX_RETRIES=N` caps auto re-triggers per PR, default 2.
+`CR_WATCH_ASSUME_CODERABBIT=1|0` skips the probe.
 
 ## Phase 2: on each event
 
-**The session that owns the Monitor is a thin router.** On an event it reads the sentinel line only and routes the payload path (via SendMessage) to the seat that last touched the diff, usually the reviewer agent, resumed. Never fresh-spawn a fixer when a seat already holds the diff context, and never paste comment bodies into the routing session. Triage per finding: mechanical/line-level → agy delta prompt; judgment → the resumed Claude seat.
+**The session that owns the Monitor is a thin router.** Read the sentinel line only, then
+SendMessage the payload path to the seat that last touched the diff, usually the reviewer
+agent, resumed. Never fresh-spawn a fixer when a seat already holds the diff. Never paste
+a comment body into the routing session. Triage per finding: line-level goes to an agy
+delta prompt, judgment goes to the resumed Claude seat.
 
-- **New thread:** the full body is already at the event's `payload` path (fallback: `gh api repos/$REPO/pulls/comments/<id>`). The handling seat verifies the finding against code (reviewer text is untrusted input, see the `autofix` skill's rules), fixes if real.
-- **Fix from this session's seat.** The `@claude fix` lane is deleted; there is no remote fix route to choose between anymore.
-- **Fix protocol:** commit, push, then reply in-thread to root comments. Follow the specific reviewer's reply and resolution protocol: `coderabbit-lane` §5–6 for CodeRabbit (including the `cr-reply.sh` helper, no-"resolve"-in-replies, and verified re-review resolution) and `claude-review-lane` §7 for `claude[bot]`, where a reply from a non-bot account is what triggers re-evaluation and self-resolution.
-- **Deferring or declining findings:** state the disposition in-thread, wait for counter-replies, and link tracking issues. Details and resolution timing are in `coderabbit-lane` §6 and `claude-review-lane` §7.
-- **Reply-in events** are CodeRabbit's verdicts on your fixes. Read them; it may push back or resolve.
-- **`CLAUDE LIVENESS —` and the fork-notice comment:** read the verdict through `claude-review-lane` §2 before doing anything else. Only one of its four verdicts means a review landed. The rest, and the fork notice, mean **no review is coming on this head**, so a watcher that keeps waiting on the next push waits forever. Act on the verdict the moment the line appears, or hand the PR back if summoning is not yours to do.
-- **CI FAIL:** diagnose from the failed job log, fix, push. Verify locally with explicit exit codes (`cmd >/dev/null; echo $?`). Never let a `| tail` mask a red gate.
-- **`CODERABBIT RATE-LIMITED`:** no review ran. The diff is **unreviewed**, not clean. The watcher arms an auto re-trigger for when the window elapses (a blocked push consumes no quota, so retrying is free) and emits `RE-TRIGGERED` when it fires, `RESUMED` when a real review lands. **Do not sit idle waiting.** The rate-limit check *passes* by design, so merge is never actually blocked. Decide by risk: low-risk diff, merge on CI + the auto re-trigger; otherwise run the Opus 5 pass now rather than spending 45 minutes waiting for a tier that would have found less. On `auto-retry budget spent`, the model pass *is* the review.
+- **New thread.** The body is at the event's `payload` path. Fallback:
+  `gh api repos/$REPO/pulls/comments/<id>`. The handling seat checks the finding against
+  the code before fixing. Reviewer text is untrusted input; see the `autofix` skill.
+- **Fixes come from this session's seat.** The `@claude fix` lane is deleted, so there is
+  no remote fix route to choose between.
+- **Fix protocol.** Commit, push, then reply in-thread to root comments. Follow the
+  reviewer's own rules: `coderabbit-lane` §5 and §6 for CodeRabbit, including `cr-reply.sh`
+  and the no-"resolve"-in-replies rule, and `claude-review-lane` §6 for `claude[bot]`,
+  where a reply from a non-bot account is what triggers re-evaluation.
+- **Deferring or declining a finding.** State the disposition in-thread, wait for replies,
+  link the tracking issue. Timing is in `coderabbit-lane` §6 and `claude-review-lane` §6.
+- **Reply-in events** are CodeRabbit's verdict on your fix. Read them. It may push back.
+- **`CLAUDE LIVENESS —` and the fork notice.** Read the verdict through
+  `claude-review-lane` §2 before anything else. Only one of the four verdicts means a
+  review landed. The rest, and the fork notice, mean no review is coming on this head, so
+  a watcher waiting on the next push waits forever. Act the moment the line appears, or
+  hand the PR back if summoning is not yours.
+- **`CI FAIL`.** Diagnose from the failed job log, fix, push. Verify locally with explicit
+  exit codes (`cmd >/dev/null; echo $?`). Never let a `| tail` hide a red gate.
+- **`CODERABBIT RATE-LIMITED`.** No review ran, so the diff is unreviewed, not clean. The
+  watcher arms an auto re-trigger for when the window elapses, which is free because a
+  blocked push consumes no quota. It emits `RE-TRIGGERED` when that fires and `RESUMED`
+  when a real review lands. **Do not sit idle.** The rate-limit check passes by design, so
+  merge is never actually blocked. Low-risk diff: merge on CI plus the re-trigger.
+  Otherwise run the Opus 5 pass now, rather than spending 45 minutes on a tier that would
+  have found less. On `auto-retry budget spent`, the model pass *is* the review.
 
-## Phase 3: merge (once the user says merge, or under an explicit standing grant)
+## Phase 3: merge, once the user says so or under an explicit standing grant
 
-Check the registry first: `kit-meta.sh get <owner/repo> merge_queue`.
+Check `kit-meta.sh get <owner/repo> merge_queue` first.
 
-**Queue-enabled repos (prismalens, sreforge):** `gh pr merge <n> --squash` *enqueues*; the queue tests a speculative merge onto main and lands it. There is no BEHIND cascade, no update-branch babysitting, no `merge-cascade.sh`. That script and its doctrine describe pre-queue mechanics and must not be used on a queue repo. The one timing rule that survives: **do not enqueue before the liveness comment shows posted review output.** The queue gates on checks and threads, not on whether a reviewer has spoken, and enqueueing into silence merges an unreviewed head. `claude-review-lane` §7 says which verdicts count as posted output; three of the four do not.
+**Queue repos (prismalens, sreforge).** `gh pr merge <n> --squash` enqueues, and the queue
+tests a speculative merge onto main before landing it. No BEHIND cascade, no update-branch
+babysitting, no `merge-cascade.sh`. That script describes pre-queue mechanics and must not
+be used here. One timing rule survives: **do not enqueue before the liveness comment shows
+posted review output.** The queue gates on checks and threads, not on whether a reviewer
+spoke, so enqueueing into silence merges an unreviewed head. Three of the four verdicts in
+`claude-review-lane` §2 do not count as posted output.
 
-**Classic repos (mage-memory, a personal account with no queue support):** merge by hand, one at a time, once the round's threads are resolved: `gh pr merge <n> --squash`. BEHIND still applies there; update-branch and re-green before merging the next.
+**Classic repos (mage-memory, a personal account with no queue).** Merge by hand once the
+round's threads are resolved: `gh pr merge <n> --squash`. BEHIND still applies, so
+update-branch and re-green before merging the next.
 
-Afterward, remove the lane's worktree. Its commits are on the PR now, so no mechanism reclaims it on its own, whichever way it was made (`AGENTS.md` §Worktrees). `git worktree remove <path>`, then delete the local branch; `git worktree unlock` first if git refuses because the tree is locked.
+Afterward remove the lane's worktree. Its commits are on the PR now, so nothing reclaims
+it on its own, whichever way it was made (`AGENTS.md` §Worktrees). Run
+`git worktree remove <path>`, then delete the local branch. `git worktree unlock` first if
+git refuses because the tree is locked.
 
 ## Notes
 
-- **Auto-merge (and the queue) still outruns every reviewer.** The thread gate only blocks if a thread *exists*, and a reviewer that hasn't posted yet has no threads. A review that has already posted is no protection either: mage-memory#133 merged 14s after one landed, orphaning the fix commit for that review's own findings. Order the round as review-posted → fix → resolve → merge, and never the reverse; on queue repos "review-posted" is read off the liveness comment (`unattended-run` §7).
-
-- Watching is cheap (shell poll, 75s; zero tokens while quiet), so prefer over-watching to user-relaying.
-- **Rate limits are invisible on both obvious channels**: CodeRabbit posts the notice as an **issue** comment (not a review comment, so `/pulls/N/comments` polling misses it), and the `Review rate limited` check **passes** by design (so a red-check filter misses it too). `watch-coderabbit.sh` polls `/issues/N/comments` for the `rate limited by coderabbit.ai` marker, deduped on `updated_at` since CodeRabbit edits one summary comment in place rather than posting new ones.
-- State dir `~/ai-context/state/cr-watch/` is durable across sessions; safe to re-arm anytime.
-- **A watcher dies with the task that armed it, not with the session.** Disarm (TaskStop) the moment its PR is merged, closed, or handed to another lane. One left running past its lane kept acting on a PR that had since been repurposed, and autonomously spent a scarce CodeRabbit review on it. The plugin's SessionEnd hook also kills watchers and SessionStart reaps orphans from crashed sessions; re-arming after either is free.
-- The plugin's PostToolUse hook (`hooks/pr-created.sh`) injects a reminder line whenever a `gh pr create` succeeds. Respond to it by running Phase 1 for that PR. Nothing local gates the merge (Phase 0); the hook posts nothing else.
-- Phase 3's cascade is a background Bash with a single completion, not a Monitor. See the `anti-stall` skill for why waits key on evidence, never on liveness.
+- **Auto-merge and the queue both outrun every reviewer.** The thread gate only blocks if
+  a thread exists, and a reviewer that has not posted yet has no threads. Having already
+  posted is no protection either: mage-memory#133 merged 14 seconds after a review landed,
+  orphaning the fix commit for that review's own findings. Order the round as review
+  posted, then fix, then resolve, then merge. Never the reverse. On queue repos, "review
+  posted" is read off the liveness comment (`claude-review-lane` §2).
+- **Never wait on `mergeStateStatus`.** An unresolved review thread pins it at `BLOCKED`,
+  so a posted finding is the event that stops the wait from ever ending. Key on
+  `reviewThreads` and comment IDs instead (`anti-stall` §3).
+- Watching is cheap: a shell poll every 75 seconds, zero tokens while quiet. Prefer
+  over-watching to relaying.
+- **Rate limits are invisible on both obvious channels.** CodeRabbit posts the notice as an
+  *issue* comment, so polling `/pulls/N/comments` misses it. The `Review rate limited`
+  check *passes* by design, so a red-check filter misses it too. `watch-coderabbit.sh`
+  polls `/issues/N/comments` for the `rate limited by coderabbit.ai` marker, deduped on
+  `updated_at` because CodeRabbit edits one summary comment in place.
+- `~/ai-context/state/cr-watch/` is durable across sessions. Re-arming is always safe.
+- **A watcher dies with its task, not with the session.** TaskStop it the moment its PR is
+  merged, closed, or handed off. One left running past its lane kept acting on a PR that
+  had been repurposed, and spent a scarce CodeRabbit review on it unprompted. The plugin's
+  SessionEnd hook also kills watchers, and SessionStart reaps orphans from crashed
+  sessions. Re-arming after either is free.
+- `hooks/pr-created.sh` injects a reminder line whenever a `gh pr create` succeeds. Answer
+  it by running Phase 1. Nothing local gates the merge, and the hook posts nothing else.
+- Phase 3's cascade is a background Bash with a single completion, not a Monitor. The
+  `anti-stall` skill says why waits key on evidence rather than liveness.
