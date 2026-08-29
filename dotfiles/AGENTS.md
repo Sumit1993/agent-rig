@@ -14,7 +14,8 @@ whose description says "must always apply" still only loads when something trigg
 Unslop only cuts. These say what to write.
 
 - Write for someone who was not watching. What happened, what it means, what is open.
-- Plain words, exact identifiers. Paths, commands, numbers and error text stay verbatim.
+- Plain words, exact identifiers. Paths, commands and numbers stay verbatim. Quote errors
+  exact, shortest decisive line only, never the whole trace.
 - 20 lines is the ceiling on a chat reply. Longer goes in a file and the reply links it.
 - Terse is length, plain is vocabulary. Unslop turns the first dial only.
 - One idea per sentence. Past 35 words, split it.

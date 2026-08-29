@@ -22,22 +22,29 @@ case "$cmd" in
   *"gh pr merge"*|*"gh pr close"*) exit 0 ;;
 esac
 
-url=$(jq -r '.tool_response | tostring' <<<"$in" 2>/dev/null \
-  | grep -oE 'https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/pull/[0-9]+' | head -1)
-[ -z "$url" ] && exit 0
-pr=${url##*/}
+urls=$(jq -r '.tool_response | tostring' <<<"$in" 2>/dev/null \
+  | grep -oE 'https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/pull/[0-9]+' | sort -u)
+[ -z "$urls" ] && exit 0
 
 # one reminder per PR, ever. The state dir is overridable so the test suite can
 # run against a scratch directory instead of the real one.
 state_dir=${PR_WATCH_STATE_DIR:-$HOME/ai-context/state/pr-seen}
-key=$(printf '%s' "${url#https://github.com/}" | tr '/' '-')
 mkdir -p "$state_dir" 2>/dev/null || exit 0
-[ -e "$state_dir/$key" ] && exit 0
-: > "$state_dir/$key" 2>/dev/null || exit 0
 
-jq -n --arg pr "$pr" --arg url "$url" \
+# every new PR in this output, not just the first: a batch script can raise several
+fresh=""
+while read -r url; do
+  [ -z "$url" ] && continue
+  key=$(printf '%s' "${url#https://github.com/}" | tr '/' '-')
+  [ -e "$state_dir/$key" ] && continue
+  : > "$state_dir/$key" 2>/dev/null || continue
+  fresh="${fresh}PR #${url##*/} ($url); "
+done <<< "$urls"
+[ -z "$fresh" ] && exit 0
+
+jq -n --arg fresh "${fresh%; }" \
   '{hookSpecificOutput:{hookEventName:"PostToolUse",additionalContext:(
-      "PR #\($pr) (\($url)) is in play in this session and has no watcher. "
-      + "Standard practice: arm the pr-watch monitor NOW — invoke the pr-watch skill (Phase 1: seed seen-state, arm Monitor with watch-coderabbit.sh) so review and CI feedback arrives as notifications instead of the user relaying it. "
-      + "If this PR is already merged or closed, ignore this."
+      "\($fresh) — in play in this session with no watcher armed. "
+      + "If you raised it or are driving its review round, arm the pr-watch monitor NOW: invoke the pr-watch skill (Phase 1: seed seen-state, arm Monitor with watch-coderabbit.sh) so review and CI feedback arrives as notifications instead of the user relaying it. "
+      + "If it is merged, closed, or someone else'"'"'s round, ignore this."
    )}}'

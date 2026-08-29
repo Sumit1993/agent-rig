@@ -59,6 +59,20 @@ esac
 # --- A PR that did not come from `gh pr create` still arms ------------------
 out=$(run "agy run --task raise-pr" "created $URL")
 valid_json "$out" && pass "PR URL from a delegated lane emits valid JSON" || fail "delegated lane missed: $out"
+c=$(printf '%s' "$out" | ctx)
+case "$c" in
+  *"PR #12"*"$URL"*"arm the pr-watch monitor"*) pass "delegated lane gets the same reminder as a direct create" ;;
+  *) fail "delegated lane reminder differs: $c" ;;
+esac
+
+# --- Several PRs in one output all get reminded -----------------------------
+URL2="https://github.com/acme/widget/pull/13"
+c=$(run "bash raise-all.sh" "made $URL and $URL2" | ctx)
+case "$c" in
+  *"PR #12"*) case "$c" in *"PR #13"*) pass "every new PR URL in one output is reminded" ;;
+              *) fail "second PR dropped: $c" ;; esac ;;
+  *) fail "first PR dropped: $c" ;;
+esac
 
 # --- One reminder per PR, ever ---------------------------------------------
 shared=$(mktemp -d)

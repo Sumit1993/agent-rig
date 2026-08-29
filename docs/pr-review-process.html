@@ -3,204 +3,930 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PR Review &amp; Resolution Process</title>
+<title>The PR review process</title>
 <style>
-  :root { --bg:#f7f5f0; --panel:#fff; --ink:#1f2430; --muted:#6b7280; --accent:#b4552d;
-          --good:#2e7d4f; --bad:#b3403a; --info:#2b5f9e; --code:#f0ede6; --line:#e2ddd2; }
-  * { box-sizing:border-box; margin:0; padding:0; }
-  body { background:var(--bg); color:var(--ink); font:16px/1.6 "Segoe UI",system-ui,sans-serif; padding:2.5rem 1rem 5rem; }
-  main { max-width:980px; margin:0 auto; }
-  h1 { font-size:1.85rem; margin-bottom:.3rem; }
-  .sub { color:var(--muted); margin-bottom:1.6rem; }
-  h2 { font-size:1.25rem; margin:2.4rem 0 .8rem; padding-top:1.1rem; border-top:2px solid var(--line); }
-  h2 .n { color:var(--accent); margin-right:.45rem; }
-  h3 { font-size:1.02rem; margin:1.3rem 0 .5rem; }
-  p, li { max-width:78ch; } p { margin-bottom:.85rem; } ul,ol { margin:0 0 1rem 1.4rem; } li { margin-bottom:.35rem; }
-  code { font-family:Consolas,monospace; font-size:.86em; background:var(--code); padding:.08em .35em; border-radius:4px; }
-  pre { font-family:Consolas,monospace; font-size:.84em; background:var(--code); border:1px solid var(--line);
-        border-radius:6px; padding:.8rem 1rem; overflow-x:auto; margin-bottom:1rem; line-height:1.5; }
-  table { border-collapse:collapse; width:100%; margin-bottom:1.1rem; font-size:.9rem; }
-  th,td { border:1px solid var(--line); padding:.5rem .65rem; text-align:left; vertical-align:top; }
-  th { background:var(--code); }
-  .rule { background:#fdf3e4; border:1px solid #ecd9b0; border-radius:6px; padding:.8rem 1rem; margin:1rem 0; max-width:78ch; }
-  .rule strong:first-child { color:var(--accent); }
-  figure { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:1rem; margin:1.2rem 0; }
-  figcaption { font-weight:600; margin-bottom:.6rem; }
-  svg { width:100%; height:auto; display:block; } svg text { font-family:"Segoe UI",system-ui,sans-serif; }
-  .foot { margin-top:3rem; color:var(--muted); font-size:.85rem; border-top:2px solid var(--line); padding-top:1rem; }
-  .who-c { color:var(--info); font-weight:600; } .who-r { color:var(--good); font-weight:600; } .who-o { color:var(--accent); font-weight:600; }
+  :root{
+    --bg:#f6f4ef; --panel:#fff; --ink:#1e222b; --muted:#6b7280; --line:#e3ddd1; --code:#f0ece4;
+    --human:#b4552d; --agent:#6d4aa8; --robot:#2b5f9e; --third:#177a70; --good:#2e7d4f; --bad:#b3403a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font:16px/1.62 "Segoe UI",system-ui,sans-serif;padding:2.5rem 1rem 5rem}
+  main{max-width:1020px;margin:0 auto}
+  h1{font-size:2rem;letter-spacing:-.01em}
+  .sub{color:var(--muted);margin:.4rem 0 2rem;max-width:75ch}
+  h2{font-size:1.3rem;margin:3rem 0 .9rem;padding-top:1.1rem;border-top:2px solid var(--line)}
+  h2 .n{color:var(--human);margin-right:.5rem;font-variant-numeric:tabular-nums}
+  h3{font-size:1.03rem;margin:1.6rem 0 .5rem}
+  p,li{max-width:76ch}p{margin-bottom:.85rem}ul,ol{margin:0 0 1rem 1.35rem}li{margin-bottom:.35rem}
+  code{font-family:Consolas,ui-monospace,monospace;font-size:.85em;background:var(--code);padding:.08em .35em;border-radius:4px}
+  table{border-collapse:collapse;width:100%;margin-bottom:1.1rem;font-size:.9rem}
+  th,td{border:1px solid var(--line);padding:.5rem .65rem;text-align:left;vertical-align:top}
+  th{background:var(--code)}
+  figure{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1rem 1rem .8rem;margin:1.3rem 0}
+  figcaption{font-weight:600;font-size:.93rem;margin-bottom:.7rem;color:#333}
+  svg{width:100%;height:auto;display:block}
+  svg text{font-family:"Segoe UI",system-ui,sans-serif}
+  .note{background:#fdf4e6;border:1px solid #ecd9b0;border-left:4px solid var(--human);border-radius:0 7px 7px 0;padding:.8rem 1rem;margin:1.1rem 0;max-width:78ch}
+  .warn{background:#fdeeed;border:1px solid #f0cdcb;border-left:4px solid var(--bad);border-radius:0 7px 7px 0;padding:.8rem 1rem;margin:1.1rem 0;max-width:78ch}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:.8rem;margin:1.2rem 0}
+  .card{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--muted);border-radius:8px;padding:.75rem .9rem}
+  .card.human{border-left-color:var(--human)} .card.agent{border-left-color:var(--agent)}
+  .card.robot{border-left-color:var(--robot)} .card.third{border-left-color:var(--third)}
+  .card h4{font-size:.95rem;margin-bottom:.15rem}
+  .card .id{font-family:Consolas,monospace;font-size:.76rem;color:var(--muted);display:block;margin-bottom:.45rem}
+  .card p{font-size:.85rem;margin-bottom:.35rem;max-width:none}
+  .kind{display:inline-block;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;padding:.1em .5em;border-radius:20px;color:#fff;vertical-align:2px}
+  .k-human{background:var(--human)} .k-agent{background:var(--agent)} .k-robot{background:var(--robot)} .k-third{background:var(--third)}
+  .no{color:var(--bad);font-weight:600} .yes{color:var(--good);font-weight:600}
+  .legend{display:flex;flex-wrap:wrap;gap:1rem;font-size:.82rem;color:var(--muted);margin:.5rem 0 0}
+  .legend span{display:flex;align-items:center;gap:.35rem}
+  .sw{width:13px;height:13px;border-radius:3px;display:inline-block}
+  .foot{margin-top:3.5rem;color:var(--muted);font-size:.85rem;border-top:2px solid var(--line);padding-top:1rem;max-width:none}
 </style>
 </head>
 <body>
 <main>
-  <h1>The PR review &amp; resolution process</h1>
-  <p class="sub">Living doc for <code>prismalens/prismalens</code>, <code>prismalens/sreforge</code>, <code>Sumit1993/mage-memory</code>.
-  Owner: the operator. Update trigger: any change to a <code>claude-*.yml</code> workflow, the canon repo, a ruleset, or the resolution protocol
-  <em>must</em> update this page in the same working session. Established 2026-08-12 (prismalens#403).</p>
 
-  <h2><span class="n">1</span>Topology: who reviews, who fixes, who merges</h2>
-  <figure>
-    <figcaption>Canon repo feeds three consumers; every reviewer is advisory; humans and queues merge</figcaption>
-    <svg viewBox="0 0 900 300" role="img" aria-label="Topology: gh-workflows canon serves reusable workflows to three repos; each repo has review, mention, fixer lanes; merge via queue or classic">
-      <rect x="330" y="14" width="240" height="54" rx="8" fill="#2b5f9e"/>
-      <text x="450" y="36" text-anchor="middle" fill="#fff" font-size="14" font-weight="600">prismalens/gh-workflows</text>
-      <text x="450" y="55" text-anchor="middle" fill="#dbe7f5" font-size="11">reusable workflows (workflow_call) + composite actions · consumers hold thin caller stubs</text>
-      <line x1="380" y1="68" x2="160" y2="120" stroke="#2b5f9e" stroke-width="2" marker-end="url(#a1)"/>
-      <line x1="450" y1="68" x2="450" y2="120" stroke="#2b5f9e" stroke-width="2" marker-end="url(#a1)"/>
-      <line x1="520" y1="68" x2="740" y2="120" stroke="#2b5f9e" stroke-width="2" marker-end="url(#a1)"/>
-      <g>
-        <rect x="30" y="122" width="270" height="112" rx="8" fill="#fff" stroke="#e2ddd2"/>
-        <text x="165" y="144" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2430">prismalens/prismalens</text>
-        <text x="165" y="165" text-anchor="middle" font-size="11" fill="#6b7280">review · mention · fixer lanes</text>
-        <text x="165" y="183" text-anchor="middle" font-size="11" fill="#6b7280">CodeRabbit via coderabbit_review</text>
-        <text x="165" y="205" text-anchor="middle" font-size="12" fill="#2e7d4f" font-weight="600">merge: QUEUE (squash)</text>
-      </g>
-      <g>
-        <rect x="320" y="122" width="260" height="112" rx="8" fill="#fff" stroke="#e2ddd2"/>
-        <text x="450" y="144" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2430">prismalens/sreforge</text>
-        <text x="450" y="165" text-anchor="middle" font-size="11" fill="#6b7280">review · mention · fixer lanes</text>
-        <text x="450" y="205" text-anchor="middle" font-size="12" fill="#2e7d4f" font-weight="600">merge: QUEUE (squash)</text>
-      </g>
-      <g>
-        <rect x="600" y="122" width="270" height="112" rx="8" fill="#fff" stroke="#e2ddd2"/>
-        <text x="735" y="144" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2430">Sumit1993/mage-memory</text>
-        <text x="735" y="165" text-anchor="middle" font-size="11" fill="#6b7280">review · mention · fixer lanes</text>
-        <text x="735" y="183" text-anchor="middle" font-size="11" fill="#b3403a">merge queue unavailable (personal repo)</text>
-        <text x="735" y="205" text-anchor="middle" font-size="12" fill="#b4552d" font-weight="600">merge: classic squash, attended</text>
-      </g>
-      <text x="450" y="262" text-anchor="middle" font-size="12" fill="#6b7280">Required to merge, everywhere: CI gate + PR-title check + all review threads resolved. Reviewers gate nothing.</text>
-      <text x="450" y="282" text-anchor="middle" font-size="12" fill="#6b7280">Secrets (CLAUDE_CODE_OAUTH_TOKEN) live per-repo, never in canon. Consumers hold thin caller stubs; lane logic changes happen in prismalens/gh-workflows only.</text>
-      <defs><marker id="a1" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#2b5f9e"/></marker></defs>
-    </svg>
-  </figure>
+<h1>The PR review process</h1>
+<p class="sub">How a pull request gets reviewed, argued with, and merged across
+<code>prismalens/prismalens</code>, <code>prismalens/sreforge</code> and <code>Sumit1993/mage-memory</code>.
+Living doc. Any change to a <code>claude-*.yml</code> workflow, a ruleset, or the resolution protocol updates this page in the same session.
+Last rewritten 2026-08-27, after gh-workflows#19 ("give the mutate job a token that can actually resolve threads").</p>
 
-  <h2><span class="n">2</span>Lifecycle of a PR</h2>
-  <figure>
-    <figcaption>From open to merged: advisory reviews, one fix loop, native thread gate</figcaption>
-    <svg viewBox="0 0 900 210" role="img" aria-label="Flow: PR opened; CI and Claude review run; optional CodeRabbit; threads open; local fix; in-thread replies; reviewer self-resolves; queue merge">
-      <g font-size="12">
-        <rect x="10" y="80" width="100" height="44" rx="7" fill="#2b5f9e"/><text x="60" y="106" text-anchor="middle" fill="#fff">PR opened</text>
-        <rect x="150" y="20" width="150" height="40" rx="7" fill="#fff" stroke="#e2ddd2"/><text x="225" y="44" text-anchor="middle">CI + title check</text>
-        <rect x="150" y="80" width="150" height="44" rx="7" fill="#fff" stroke="#e2ddd2"/><text x="225" y="98" text-anchor="middle">Claude review lane</text><text x="225" y="114" text-anchor="middle" fill="#6b7280" font-size="10">auto, same-repo PRs · pauses after 3 rounds</text>
-        <rect x="150" y="146" width="150" height="44" rx="7" fill="#fff" stroke="#e2ddd2" stroke-dasharray="4 3"/><text x="225" y="164" text-anchor="middle">CodeRabbit</text><text x="225" y="180" text-anchor="middle" fill="#6b7280" font-size="10">only via coderabbit_review label</text>
-        <rect x="345" y="80" width="130" height="44" rx="7" fill="#fdf3e4" stroke="#ecd9b0"/><text x="410" y="98" text-anchor="middle">liveness comment</text><text x="410" y="114" text-anchor="middle" fill="#6b7280" font-size="10">posted N / posted nothing</text>
-        <rect x="520" y="80" width="120" height="44" rx="7" fill="#fff" stroke="#e2ddd2"/><text x="580" y="98" text-anchor="middle">threads open</text><text x="580" y="114" text-anchor="middle" fill="#6b7280" font-size="10">each blocks merge</text>
-        <rect x="680" y="20" width="190" height="52" rx="7" fill="#fff" stroke="#e2ddd2"/><text x="775" y="40" text-anchor="middle">fix loop</text><text x="775" y="58" text-anchor="middle" fill="#6b7280" font-size="10">local seat, then reply in-thread</text>
-        <rect x="680" y="146" width="190" height="52" rx="7" fill="#2e7d4f"/><text x="775" y="166" text-anchor="middle" fill="#fff">resolve threads → merge</text><text x="775" y="184" text-anchor="middle" fill="#d9ead9" font-size="10">queue (org) / classic (personal)</text>
-        <line x1="110" y1="95" x2="150" y2="45" stroke="#9aa" stroke-width="2" marker-end="url(#a2)"/>
-        <line x1="110" y1="102" x2="150" y2="102" stroke="#9aa" stroke-width="2" marker-end="url(#a2)"/>
-        <line x1="110" y1="110" x2="150" y2="165" stroke="#9aa" stroke-width="2" marker-end="url(#a2)"/>
-        <line x1="300" y1="102" x2="345" y2="102" stroke="#9aa" stroke-width="2" marker-end="url(#a2)"/>
-        <line x1="475" y1="102" x2="520" y2="102" stroke="#9aa" stroke-width="2" marker-end="url(#a2)"/>
-        <line x1="640" y1="92" x2="680" y2="52" stroke="#9aa" stroke-width="2" marker-end="url(#a2)"/>
-        <line x1="775" y1="72" x2="775" y2="146" stroke="#9aa" stroke-width="2" marker-end="url(#a2)"/>
-        <line x1="640" y1="112" x2="680" y2="160" stroke="#9aa" stroke-width="2" marker-end="url(#a2)"/>
-      </g>
-      <defs><marker id="a2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9aa"/></marker></defs>
-    </svg>
-  </figure>
+<h2><span class="n">1</span>The cast</h2>
+<p>Nine parties touch a PR. The thing worth holding in your head is which of them has a model inside it,
+because that is the line the whole permission design is drawn along.</p>
 
-  <h2><span class="n">3</span>Operator cheat-sheet: the questions that actually come up</h2>
+<div class="legend">
+  <span><i class="sw" style="background:var(--human)"></i> human</span>
+  <span><i class="sw" style="background:var(--agent)"></i> model runs here</span>
+  <span><i class="sw" style="background:var(--robot)"></i> deterministic automation, no model</span>
+  <span><i class="sw" style="background:var(--third)"></i> third party</span>
+</div>
 
-  <h3>Summon grammar: the three verbs</h3>
-  <p>Bare PR comments, <strong>org members only</strong> (<code>OWNER</code>, <code>MEMBER</code> or <code>COLLABORATOR</code>). The comment body is read only by workflow <code>contains()</code> expressions. It never reaches a prompt or a shell string.</p>
-  <table>
-    <tr><th>Comment</th><th>Lane</th><th>Behaviour</th></tr>
-    <tr><td><code>@claude review</code></td><td>review</td>
-        <td><strong>Incremental.</strong> The lane's own mode detection decides: a verify round when unresolved <code>claude[bot]</code> threads exist, otherwise a normal review.</td></tr>
-    <tr><td><code>@claude review --model opus</code></td><td>review</td>
-        <td><strong>Incremental with model override.</strong> Runs an incremental review using <code>claude-opus-5</code>.</td></tr>
-    <tr><td><code>@claude review --model sonnet</code></td><td>review</td>
-        <td><strong>Incremental with model override.</strong> Runs an incremental review using <code>claude-sonnet-5</code>.</td></tr>
-    <tr><td><code>@claude full review</code></td><td>review</td>
-        <td><strong>From scratch, dedup disabled.</strong> Existing comments and threads are explicitly not dedup targets. Without that the plugin's dedup makes a re-review publish nothing (prismalens#410). Posts a <code>## Code review — full review</code> summary.</td></tr>
-    <tr><td><code>@claude fix</code></td><td>none</td>
-        <td><strong>Dead verb.</strong> The fixer lane is deleted. The mention stub still excludes this phrase, so the comment fires nothing at all.</td></tr>
-    <tr><td>bare <code>@claude …</code></td><td>mention</td>
-        <td>Anything not matching the verbs above.</td></tr>
-  </table>
-  <p>Summons run on <strong>draft</strong> PRs (explicit intent overrides the draft skip), bypass <code>skip_authors</code>, and always run past the auto-pause counter. Fork-head PRs stay refused even when summoned (v1). Each summon is a full agent run, <strong>one per round</strong>.</p>
-  <div class="rule"><strong>The mention stub must exclude all three verbs.</strong> The <code>claude.yml</code> caller stub carries a caller-level <code>if:</code> excluding comment bodies containing <code>@claude fix</code>, <code>@claude review</code>, or <code>@claude full review</code>. The review verbs belong to the review lane; without the exclusion each such comment fires <em>two</em> lanes on the same PR. All three checks are needed: <code>@claude full review</code> does not contain <code>@claude review</code> as a substring. <strong>Stale since the fixer was deleted:</strong> the stub still excludes <code>@claude fix</code>, which now routes to nothing, so that comment is silently swallowed. Dropping it from the exclusion would let the mention lane answer instead.</div>
+<div class="cards">
+  <div class="card human">
+    <h4>Operator <span class="kind k-human">human</span></h4>
+    <span class="id">your own GitHub account</span>
+    <p>Opens PRs, rules on disputes, enqueues merges. The only party allowed to resolve a thread on judgment rather than on proof.</p>
+  </div>
+  <div class="card agent">
+    <h4>Local session <span class="kind k-agent">agent</span></h4>
+    <span class="id">posts under the operator's credential</span>
+    <p>The Claude Code seat holding the diff. Writes the fix, pushes it, replies in each thread with the SHA.</p>
+    <p><span class="no">Never</span> resolves a <code>claude[bot]</code> thread and never merges without a liveness verdict.</p>
+  </div>
+  <div class="card agent">
+    <h4>Review lane <span class="kind k-agent">agent</span></h4>
+    <span class="id">claude[bot]</span>
+    <p>Reads the diff, posts inline findings, and on a verify round writes a per-thread verdict file.</p>
+    <p><span class="no">Holds no write permission at all.</span> It cannot comment through the API, resolve anything, or reach GraphQL. Its allowlist has no <code>gh api</code> entry.</p>
+  </div>
+  <div class="card agent">
+    <h4>Mention lane <span class="kind k-agent">agent</span></h4>
+    <span class="id">claude[bot]</span>
+    <p>Answers a bare <code>@claude …</code> question on a PR. Same identity as the review lane, different workflow.</p>
+    <p><span class="no">Denied</span> <code>gh pr review</code> and the reviews API by explicit tool deny-list.</p>
+  </div>
+  <div class="card robot">
+    <h4>Mutate job <span class="kind k-robot">deterministic</span></h4>
+    <span class="id">prismalens-automation[bot], or github-actions[bot] without the App</span>
+    <p>Plain Python and <code>gh api</code>. Reads the verdict file, re-fetches live threads, posts one reply per thread, resolves the verified ones.</p>
+    <p>This is the only job that writes to threads, and it is the only job with no model in it. Those two facts are the same design decision.</p>
+  </div>
+  <div class="card robot">
+    <h4>Liveness job <span class="kind k-robot">deterministic</span></h4>
+    <span class="id">github-actions[bot]</span>
+    <p>Upserts one comment per PR saying what the reviewer actually posted. Runs even when the review failed, which is the point of it.</p>
+  </div>
+  <div class="card third">
+    <h4>CodeRabbit <span class="kind k-third">third party</span></h4>
+    <span class="id">coderabbitai[bot]</span>
+    <p>The escalation reviewer. One org-wide counter, roughly one review per 40 minutes. Automatic on <code>gh-workflows</code>, admitted by the <code>coderabbit_review</code> label everywhere else.</p>
+  </div>
+  <div class="card human">
+    <h4>Fork contributor <span class="kind k-human">human</span></h4>
+    <span class="id">outside account</span>
+    <p>Gets no Claude review at all. GitHub withholds secrets from fork code and a summon does not override it. The lane says so out loud instead of going quiet.</p>
+  </div>
+  <div class="card robot">
+    <h4>Dependabot <span class="kind k-robot">bot</span></h4>
+    <span class="id">dependabot[bot]</span>
+    <p>On the <code>skip_authors</code> list, so its pushes buy no automatic review. A summon still works on its PRs.</p>
+  </div>
+</div>
 
-  <h3>Review lane inputs</h3>
-  <table>
-    <tr><th>Input</th><th>Default</th><th>Meaning</th></tr>
-    <tr><td><code>default_model</code></td><td><code>claude-sonnet-5</code></td>
-        <td>Default Claude model for the review lane, passed through to <code>anthropics/claude-code-action@v1</code> as <code>--model</code> inside <code>claude_args</code> (the action has no <code>model</code> input; CLI flag pass-through is the only available mechanism). Sonnet is the deliberate default: the review lane is the highest-volume Claude spend across the three consumer repos. Can be overridden per-run via summon comment (<code>@claude review --model opus</code> &rarr; <code>claude-opus-5</code>; <code>@claude review --model sonnet</code> &rarr; <code>claude-sonnet-5</code>; anything else, including automatic <code>pull_request</code> rounds, uses <code>default_model</code>). <strong>Allowlist, not extraction:</strong> the comment body is read strictly by workflow <code>contains()</code> expressions and never leaves them. It must never reach a prompt, a shell string, or <code>claude_args</code>. The override is implemented as fixed <code>contains()</code> checks mapping to pinned model-ID literals so no attacker-supplied text is ever interpolated into a command (the reason the syntax looks rigid). <strong>Known gap:</strong> <code>@claude full review --model opus</code> does <em>not</em> switch models. It falls through to <code>default_model</code> because the literal <code>@claude review --model opus</code> is not a substring of it. <strong>Runtime status:</strong> which model IDs actually work is set by the repo's <code>CLAUDE_CODE_OAUTH_TOKEN</code> subscription tier, not by this input. <code>default_model</code> pass-through is proven at runtime (2026-08-21, mage-memory#176). The per-run <code>--model</code> override is still unexercised. The callee repo gained CI on 2026-08-21 (<code>tests.yml</code>). Before that nothing verified it at all.</td></tr>
-    <tr><td><code>skip_authors</code></td><td><code>dependabot[bot]</code></td>
-        <td>Comma-separated PR author logins whose <strong>automatic</strong> <code>pull_request</code> rounds are skipped entirely: no review, no verify, no liveness comment. Matching is exact-login (the list is delimiter-wrapped), so <code>bot</code> never collides with <code>dependabot[bot]</code>; use no spaces after the commas. A <code>@claude review</code> summon bypasses the list: manual intent wins.</td></tr>
-    <tr><td><code>auto_pause_rounds</code></td><td><code>5</code></td>
-        <td>Automatic rounds allowed on one PR before the lane pauses itself. The count lives in the liveness marker and only automatic rounds that actually ran increment it. On pause the lane posts <em>auto-paused after N automatic rounds</em> instead of reviewing. <strong>Monotonic.</strong> v1 never resets it, so a summon resumes for exactly that one run. <strong>Raised 3 &rarr; 5 on 2026-08-21</strong>: three ran out on long-lived PRs, which then went silently unreviewed on every later push (mage-memory#176 landed two fix commits that way). A resettable counter is the real fix and is not built yet.</td></tr>
-  </table>
+<h2><span class="n">2</span>Where the code lives</h2>
+<figure>
+<figcaption>One canon repo holds the lane. Consumers hold caller stubs and secrets, and they are not all configured the same.</figcaption>
+<svg viewBox="0 0 940 330" role="img" aria-label="gh-workflows canon repo serves a reusable workflow to three consumer repos; prismalens is missing the App secrets">
+  <defs><marker id="ar" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#9aa3ad"/></marker></defs>
+  <rect x="290" y="10" width="360" height="66" rx="9" fill="#2b5f9e"/>
+  <text x="470" y="34" text-anchor="middle" fill="#fff" font-size="15" font-weight="600">prismalens/gh-workflows</text>
+  <text x="470" y="53" text-anchor="middle" fill="#cfe0f3" font-size="11.5">claude-code-review.yml &#183; claude.yml &#183; tests.yml</text>
+  <text x="470" y="69" text-anchor="middle" fill="#cfe0f3" font-size="11.5">all lane logic lives here and nowhere else</text>
 
-  <h3>Reviewers left 3 comments. Where do fixes come from now?</h3>
-  <p><strong>From the session holding the diff.</strong> The fixer lane is deleted, so no remote actor writes code. Fix locally, push, then reply in each thread with the commit SHA and what changed. The reviewer re-evaluates on that reply and resolves the threads it can verify against the current head.</p>
-  <p>The lane was never used: across 141 workflow runs on the consumer repos every one concluded <code>skipped</code>, because it gated on <code>@claude fix</code> and nobody ever typed it.</p>
+  <line x1="360" y1="76" x2="165" y2="112" stroke="#9aa3ad" stroke-width="2" marker-end="url(#ar)"/>
+  <line x1="470" y1="76" x2="470" y2="112" stroke="#9aa3ad" stroke-width="2" marker-end="url(#ar)"/>
+  <line x1="580" y1="76" x2="775" y2="112" stroke="#9aa3ad" stroke-width="2" marker-end="url(#ar)"/>
+  <text x="470" y="99" text-anchor="middle" font-size="10.5" fill="#6b7280">workflow_call, pinned @main</text>
 
-  <h3>Who resolves which thread?</h3>
-  <table>
-    <tr><th>Thread author</th><th>After a fix lands</th><th>After a decline/defer</th></tr>
-    <tr><td>CodeRabbit</td>
-        <td><span class="who-c">CodeRabbit</span>: batch ALL fixes, push, reply in each thread with the SHA (<em>never</em> the word "resolve" in a reply, since it parses as a command and no-ops), then spend one <code>@coderabbitai review</code>: it re-verifies and self-resolves what's genuinely addressed. Threads it leaves open get individually resolved with stated rationale (operator, or session under operator credential). <strong>Bare <code>@coderabbitai resolve</code> is discouraged</strong>, because it blanket-resolves with zero validation; reserve it for rounds that are entirely declines/deferrals with dispositions already stated.</td>
-        <td><span class="who-o">Operator</span> resolves, after stating the disposition in-thread and waiting ~60s for its counter-reply. Point at a tracking issue by number.</td></tr>
-    <tr><td>claude[bot] (review lane)</td>
-        <td><span class="who-c">claude[bot]</span> re-evaluates upon an in-thread reply from a non-bot account and resolves verified fixed threads directly, citing the commit SHA and what it checked. Threads left open stay for human judgment.</td>
-        <td><span class="who-o">Operator</span> resolves with reasoning in-thread.</td></tr>
-    <tr><td>Human</td><td colspan="2">Whoever opened it resolves it.</td></tr>
-  </table>
-  <div class="rule"><strong>Never</strong> let the fixer resolve anything. It is denied the tools, and the deny list is load-bearing:
-  threads are the only thing standing between a pushed "fix" and a merge. The fixer fixes and replies; verification belongs to a different party. Disputes: operator tie-breaks.</div>
+  <g>
+    <rect x="20" y="116" width="290" height="150" rx="9" fill="#fff" stroke="#e3ddd1"/>
+    <text x="165" y="139" text-anchor="middle" font-size="13.5" font-weight="600">prismalens/prismalens</text>
+    <text x="165" y="160" text-anchor="middle" font-size="11" fill="#6b7280">caller stub &#183; review + mention lanes</text>
+    <rect x="38" y="172" width="254" height="26" rx="5" fill="#fdeeed" stroke="#f0cdcb"/>
+    <text x="165" y="189" text-anchor="middle" font-size="11" fill="#b3403a" font-weight="600">App secrets NOT forwarded by the stub</text>
+    <text x="165" y="215" text-anchor="middle" font-size="10.5" fill="#6b7280">so verified threads stay open, job still green</text>
+    <text x="165" y="238" text-anchor="middle" font-size="11.5" fill="#2e7d4f" font-weight="600">merge: queue (squash)</text>
+    <text x="165" y="256" text-anchor="middle" font-size="10.5" fill="#6b7280">0 approvals &#183; thread resolution required</text>
+  </g>
+  <g>
+    <rect x="325" y="116" width="290" height="150" rx="9" fill="#fff" stroke="#e3ddd1"/>
+    <text x="470" y="139" text-anchor="middle" font-size="13.5" font-weight="600">prismalens/sreforge</text>
+    <text x="470" y="160" text-anchor="middle" font-size="11" fill="#6b7280">caller stub &#183; review + mention lanes</text>
+    <rect x="343" y="172" width="254" height="26" rx="5" fill="#eaf4ee" stroke="#bcdcc7"/>
+    <text x="470" y="189" text-anchor="middle" font-size="11" fill="#2e7d4f" font-weight="600">App secrets forwarded</text>
+    <text x="470" y="215" text-anchor="middle" font-size="10.5" fill="#6b7280">the repo the canary ran on</text>
+    <text x="470" y="238" text-anchor="middle" font-size="11.5" fill="#2e7d4f" font-weight="600">merge: queue (squash)</text>
+    <text x="470" y="256" text-anchor="middle" font-size="10.5" fill="#6b7280">0 approvals &#183; thread resolution required</text>
+  </g>
+  <g>
+    <rect x="630" y="116" width="290" height="150" rx="9" fill="#fff" stroke="#e3ddd1"/>
+    <text x="775" y="139" text-anchor="middle" font-size="13.5" font-weight="600">Sumit1993/mage-memory</text>
+    <text x="775" y="160" text-anchor="middle" font-size="11" fill="#6b7280">personal account, not the org</text>
+    <rect x="648" y="172" width="254" height="26" rx="5" fill="#eaf4ee" stroke="#bcdcc7"/>
+    <text x="775" y="189" text-anchor="middle" font-size="11" fill="#2e7d4f" font-weight="600">App secrets forwarded</text>
+    <text x="775" y="215" text-anchor="middle" font-size="10.5" fill="#6b7280">App installed per account, secrets set per repo</text>
+    <text x="775" y="238" text-anchor="middle" font-size="11.5" fill="#b4552d" font-weight="600">merge: classic squash</text>
+    <text x="775" y="256" text-anchor="middle" font-size="10.5" fill="#6b7280">merge queue is org-only</text>
+  </g>
 
-  <h3>Reading the liveness comment</h3>
-  <p>Every PR gets one auto-updated comment from <code>github-actions[bot]</code>, marked
-  <code>&lt;!-- claude-review-liveness rounds=N sha=&lt;head&gt; --&gt;</code>.
-  <strong>Match the marker prefix, never the whole string.</strong> The fields change, and since 2026-08-21 the set of fields does too, so an exact-string matcher silently stops seeing the comment.
-  <code>sha=</code> names the head that last received a <em>posted</em> review; it is absent until one has. It advances only when the run actually published. A green run that posted nothing leaves it alone, so nothing later mistakes those commits for reviewed. Groundwork for incremental review; nothing reads it yet. Four verdicts:</p>
-  <ul>
-    <li><em>"reviewed <code>abc12345</code> and posted N inline / M summary comment(s)"</em>: the reviewer ran and published.</li>
-    <li><em>"posted <b>nothing</b>"</em>: this head has <strong>no machine review on record</strong>; silence is never approval. First-line re-request is <code>@claude full review</code> (dedup off), not another push.</li>
-    <li><em>"auto-paused after N automatic rounds at <code>abc12345</code> — re-request with <code>@claude review</code>"</em>: the lane hit <code>auto_pause_rounds</code> and stopped reviewing this PR automatically. <strong>A paused PR is not reviewed on push; waiting for one waits forever.</strong> Summon, or report the pause. Not review evidence, so never enqueue on it.</li>
-    <li><em>"did not run … no CLAUDE_CODE_OAUTH_TOKEN reached this lane"</em>: the secret is not mapped in the caller stub (<code>inherit</code> does not cross owners). No review on record.</li>
-  </ul>
-  <p>A PR that edits <code>claude-code-review.yml</code> itself is never reviewed by the lane (self-skip is a security control) and <strong>no summon fixes that one</strong>: label it <code>coderabbit_review</code> for a CodeRabbit read instead.</p>
+  <rect x="20" y="284" width="900" height="36" rx="7" fill="#f0ece4" stroke="#e3ddd1"/>
+  <text x="36" y="307" font-size="11.5" fill="#4a5160"><tspan font-weight="600">Secrets never inherit.</tspan> `secrets: inherit` does not cross an ownership boundary, so every stub maps each secret by name. A missing map is silent, which is how the red box above happened.</text>
+</svg>
+</figure>
 
-  <h3>Fork PRs</h3>
-  <p>Fork heads never reach the reviewer: GitHub withholds the repository's secrets from fork code, and the lane deliberately does not use <code>pull_request_target</code>. A summon does not override this (v1). Instead a <code>fork-notice</code> job upserts a comment marked <code>&lt;!-- claude-review-fork-notice --&gt;</code> saying so and pointing at the <code>coderabbit_review</code> label, so a fork PR is <em>refused out loud</em> rather than silently quiet. Fork <code>pull_request</code> runs also hold a read-only <code>GITHUB_TOKEN</code> unless the repo enables <em>Send write tokens to workflows from fork pull requests</em> (off by default); when the comment is denied the job falls back to a workflow warning annotation carrying the same text.</p>
+<h2><span class="n">3</span>Anatomy of one run</h2>
+<p>Five jobs. The one with the model in it holds no write permission, and the ones that write hold no model.
+Everything else in this document follows from that split.</p>
 
-  <h3>When to spend a CodeRabbit review</h3>
-  <p>Apply the <code>coderabbit_review</code> label (or comment a <em>bare</em> <code>@coderabbitai review</code>). A PR without the label shows "Review skipped: excluded by label configuration", which is the valve working, not an error. It's an org-wide,
-  ~40-min-cooldown counter. Spend it on security-sensitive paths, workflow changes, or a second opinion; never routinely. Batch your
-  fixes before re-requesting.</p>
+<figure>
+<figcaption>The job graph, with the permission each job actually declares</figcaption>
+<svg viewBox="0 0 940 420" role="img" aria-label="Job graph: resolve, review, mutate, announce, fork-notice with their permissions">
+  <defs>
+    <marker id="ar2" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#9aa3ad"/></marker>
+    <marker id="ar3" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#6d4aa8"/></marker>
+  </defs>
 
-  <h3>Merging</h3>
-  <ul>
-    <li><strong>prismalens, sreforge:</strong> <code>gh pr merge N --squash</code> enqueues; the queue tests a speculative merge onto main and lands it. No more update-branch / BEHIND cascades, no full-CI reruns per sibling merge.</li>
-    <li><strong>mage-memory:</strong> classic squash (merge queue is org-only). Update-branch still applies there.</li>
-    <li>Bots never merge, anywhere. The fixer is tool-denied both <code>gh pr merge</code> and the REST merge endpoint.</li>
-  </ul>
+  <rect x="14" y="14" width="912" height="392" rx="10" fill="none" stroke="#e3ddd1"/>
+  <text x="30" y="36" font-size="11.5" fill="#6b7280">caller ceiling: contents: read &#183; pull-requests: write &#183; issues: read &#183; id-token: write</text>
 
-  <h2><span class="n">4</span>Standing doctrine</h2>
-  <ul>
-    <li><strong>A green job is never evidence a review happened.</strong> The action exits <code>success</code> when the reviewer posts nothing. Only posted output counts: inline threads, a <code>## Code review</code> summary, the liveness count.</li>
-    <li><strong>Automatic review is finite; a summon is the only resume.</strong> Automatic rounds stop after <code>auto_pause_rounds</code> and the counter is monotonic in v1, so pushing more commits produces nothing. Anything that waits on a machine review must read the liveness verdict, not the absence of one.</li>
-    <li><strong>Canary before trust.</strong> After any lane lands on a new repo or a workflow change merges: open a trivial docs PR, wait for the review run, read the liveness comment. Close the canary unmerged.</li>
-    <li><strong>Consumers hold thin caller stubs; lane logic changes happen in prismalens/gh-workflows only.</strong> Reusable workflows live in canon (<code>prismalens/gh-workflows</code>); consumers hold thin caller stubs. Lane logic changes happen in <code>prismalens/gh-workflows</code> only.</li>
-    <li><strong><code>CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1</code> stays on every lane</strong> until upstream print mode survives background-subagent gaps (async launches end one-shot sessions before results arrive, the bug that silenced reviews for two days). Unpin = remove the env var, then re-canary; a green run is not verification.</li>
-    <li><strong>Reviewer lanes are read-only; the fixer holds the only model-adjacent write</strong>, fork-guarded (resolve-pr job) and tool-denied from reviewing/resolving/merging. Don't add writes to any other lane.</li>
-  </ul>
+  <rect x="30" y="52" width="180" height="74" rx="8" fill="#2b5f9e"/>
+  <text x="120" y="76" text-anchor="middle" fill="#fff" font-size="13.5" font-weight="600">resolve</text>
+  <text x="120" y="94" text-anchor="middle" fill="#cfe0f3" font-size="10.5">one set of PR facts for every</text>
+  <text x="120" y="108" text-anchor="middle" fill="#cfe0f3" font-size="10.5">trigger shape &#183; admission gate</text>
+  <rect x="52" y="112" width="136" height="18" rx="9" fill="#1c4877"/>
+  <text x="120" y="125" text-anchor="middle" fill="#bcd4ec" font-size="10">pull-requests: read</text>
 
-  <h2><span class="n">5</span>claude-kit changes this rollout requires</h2>
-  <table>
-    <tr><th>Where</th><th>Change</th><th>Why</th></tr>
-    <tr><td><code>skills/pr-watch</code></td><td><strong>Shrink to a session-scoped watcher; delete the lifecycle manager.</strong> The rollout removed its reasons to exist: the queue killed merge shepherding (no BEHIND cascade, no <code>merge-cascade.sh</code>, no update-branch babysitting), the liveness comment answers "did the reviewer post" on the PR itself, <code>@claude fix</code> replaced routing findings into local seats, and CodeRabbit is a rare deliberate act. What remains: "watch the PR <em>this session</em> just raised until its round completes": the watcher script (now also emitting claude[bot] threads + the liveness verdict), the in-thread reply protocol (incl. no-'resolve'-in-CodeRabbit-replies; top-level <code>@coderabbitai resolve</code>), rate-limit handling. Post-session, GitHub notifications are the watch mechanism; the two human moments (verify-then-resolve, enqueue) don't need a local poller.</td><td>The queue + liveness + fixer lane replaced the lifecycle; verdict 2026-08-12</td></tr>
-    <tr><td><code>data/repo-meta.json</code></td><td>Per-repo fields: <code>merge_queue</code>, <code>claude_lane</code>, <code>fixer_lane</code>, <code>canon: prismalens/gh-workflows</code>.</td><td>Watchers/skills must not guess</td></tr>
-    <tr><td><code>skills/agy-delegate</code> / global standards</td><td>Add: "reference repo content = fetch live refs (gh api / git show origin/main:path), never a checkout's working tree."</td><td>The stale-seed incident</td></tr>
-    <tr><td><code>skills/unattended-run</code> §7</td><td>Align the auto-merge rule with queue semantics (reviewer can still be outrun, since the thread gate only blocks if a thread exists; keep "wait for the liveness comment before enqueueing" as the unattended rule).</td><td>Queue changes timing, not the race</td></tr>
-    <tr><td>mage hub note</td><td>Mark <code>github-automerge-behind-branches</code> gotcha stale for queue-enabled repos.</td><td>Superseded mechanics</td></tr>
-  </table>
+  <rect x="290" y="40" width="230" height="100" rx="8" fill="#6d4aa8"/>
+  <text x="405" y="64" text-anchor="middle" fill="#fff" font-size="13.5" font-weight="600">review</text>
+  <text x="405" y="82" text-anchor="middle" fill="#e0d3f2" font-size="10.5">the agent runs here, on diff text</text>
+  <text x="405" y="96" text-anchor="middle" fill="#e0d3f2" font-size="10.5">an attacker can influence</text>
+  <text x="405" y="112" text-anchor="middle" fill="#e0d3f2" font-size="10.5">emits verdicts.json as an artifact</text>
+  <rect x="322" y="118" width="166" height="18" rx="9" fill="#4e3379"/>
+  <text x="405" y="131" text-anchor="middle" fill="#d5c4ee" font-size="10">contents: read &#183; issues: read</text>
+  <text x="405" y="26" text-anchor="middle" fill="#6d4aa8" font-size="11" font-weight="700">READ-ONLY BY INVARIANT</text>
 
-  <p class="foot">Living doc · established 2026-08-12 · sources: prismalens#403 (rollout + root cause), #415 (advisory doctrine), #419/#421/#422 (liveness, env pin, fixer lane), sreforge#143/#146, mage-memory#146/#148, canon repo <code>prismalens/gh-workflows</code>.
-  Companion deep-dive: <code>~/ai-context/prismalens-301/review-lane-async-subagent-bug.html</code>.</p>
+  <rect x="600" y="40" width="310" height="100" rx="8" fill="#b3403a"/>
+  <text x="755" y="64" text-anchor="middle" fill="#fff" font-size="13.5" font-weight="600">mutate</text>
+  <text x="755" y="82" text-anchor="middle" fill="#f6d8d6" font-size="10.5">plain Python. Re-fetches live threads,</text>
+  <text x="755" y="96" text-anchor="middle" fill="#f6d8d6" font-size="10.5">replies once each, resolves the verified.</text>
+  <text x="755" y="112" text-anchor="middle" fill="#f6d8d6" font-size="10.5">Runs only when mode == verify.</text>
+  <rect x="628" y="118" width="254" height="18" rx="9" fill="#8a2f2a"/>
+  <text x="755" y="131" text-anchor="middle" fill="#f2c8c5" font-size="10">GITHUB_TOKEN pull-requests: write + App token</text>
+  <text x="755" y="26" text-anchor="middle" fill="#b3403a" font-size="11" font-weight="700">HOLDS WRITE &#183; NO MODEL</text>
+
+  <rect x="290" y="196" width="230" height="72" rx="8" fill="#2b5f9e"/>
+  <text x="405" y="219" text-anchor="middle" fill="#fff" font-size="13.5" font-weight="600">announce</text>
+  <text x="405" y="237" text-anchor="middle" fill="#cfe0f3" font-size="10.5">always() &#183; upserts the liveness comment</text>
+  <rect x="322" y="243" width="166" height="18" rx="9" fill="#1c4877"/>
+  <text x="405" y="256" text-anchor="middle" fill="#bcd4ec" font-size="10">pull-requests: write</text>
+
+  <rect x="600" y="196" width="310" height="72" rx="8" fill="#2b5f9e"/>
+  <text x="755" y="219" text-anchor="middle" fill="#fff" font-size="13.5" font-weight="600">fork-notice</text>
+  <text x="755" y="237" text-anchor="middle" fill="#cfe0f3" font-size="10.5">speaks to fork heads the lane refuses</text>
+  <rect x="678" y="243" width="154" height="18" rx="9" fill="#1c4877"/>
+  <text x="755" y="256" text-anchor="middle" fill="#bcd4ec" font-size="10">pull-requests: write</text>
+
+  <line x1="210" y1="82" x2="290" y2="82" stroke="#9aa3ad" stroke-width="2" marker-end="url(#ar2)"/>
+  <line x1="520" y1="82" x2="600" y2="82" stroke="#6d4aa8" stroke-width="2" marker-end="url(#ar3)"/>
+  <text x="560" y="74" text-anchor="middle" font-size="10" fill="#6d4aa8">verdicts.json</text>
+  <text x="560" y="99" text-anchor="middle" font-size="9.5" fill="#6b7280">an artifact, not a token</text>
+  <line x1="120" y1="126" x2="120" y2="232" stroke="#9aa3ad" stroke-width="2"/>
+  <line x1="120" y1="232" x2="290" y2="232" stroke="#9aa3ad" stroke-width="2" marker-end="url(#ar2)"/>
+  <line x1="405" y1="140" x2="405" y2="196" stroke="#9aa3ad" stroke-width="2" marker-end="url(#ar2)"/>
+  <line x1="210" y1="100" x2="240" y2="100" stroke="#9aa3ad" stroke-width="2"/>
+  <line x1="240" y1="100" x2="240" y2="290" stroke="#9aa3ad" stroke-width="2"/>
+  <line x1="240" y1="290" x2="755" y2="290" stroke="#9aa3ad" stroke-width="2"/>
+  <line x1="755" y1="290" x2="755" y2="268" stroke="#9aa3ad" stroke-width="2" marker-end="url(#ar2)"/>
+
+  <rect x="30" y="316" width="880" height="76" rx="8" fill="#f0ece4" stroke="#e3ddd1"/>
+  <text x="46" y="338" font-size="12" font-weight="600" fill="#1e222b">The one sentence version</text>
+  <text x="46" y="358" font-size="11.5" fill="#4a5160">The model reads the diff and writes a file. A separate job with no model in it reads that file, checks it against live GitHub state, and does the writing.</text>
+  <text x="46" y="376" font-size="11.5" fill="#4a5160">Nothing the model produces is trusted as an instruction. It is trusted only as data that the next job re-derives against reality.</text>
+</svg>
+</figure>
+
+<h2><span class="n">4</span>Modes: what the review job decides to be</h2>
+<p>The <code>review</code> job is not one thing. Before the agent starts, a mode step reads the trigger and the PR's
+current thread state and picks one of four behaviours. Almost every confusing thing about this lane comes from not knowing
+which mode a given run was in.</p>
+
+<figure>
+<figcaption>How a run picks its mode. Note the left branch: a push can never produce a verify round.</figcaption>
+<svg viewBox="0 0 940 400" role="img" aria-label="Decision tree from trigger to one of four review modes">
+  <defs><marker id="mR" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#7a828c"/></marker></defs>
+
+  <rect x="360" y="14" width="220" height="42" rx="8" fill="#4a5160"/>
+  <text x="470" y="40" text-anchor="middle" fill="#fff" font-size="12.5" font-weight="600">a run is admitted</text>
+  <line x1="470" y1="56" x2="470" y2="74" stroke="#7a828c" stroke-width="2" marker-end="url(#mR)"/>
+
+  <rect x="340" y="78" width="260" height="42" rx="8" fill="#fff" stroke="#e3ddd1" stroke-width="2"/>
+  <text x="470" y="104" text-anchor="middle" font-size="12">what triggered it?</text>
+
+  <line x1="340" y1="99" x2="200" y2="99" stroke="#7a828c" stroke-width="2"/>
+  <line x1="200" y1="99" x2="200" y2="140" stroke="#7a828c" stroke-width="2" marker-end="url(#mR)"/>
+  <text x="248" y="93" font-size="10.5" fill="#6b7280">a push</text>
+  <line x1="600" y1="99" x2="745" y2="99" stroke="#7a828c" stroke-width="2"/>
+  <line x1="745" y1="99" x2="745" y2="140" stroke="#7a828c" stroke-width="2" marker-end="url(#mR)"/>
+  <text x="672" y="93" text-anchor="middle" font-size="10.5" fill="#6b7280">a comment</text>
+
+  <rect x="70" y="144" width="260" height="56" rx="8" fill="#fff" stroke="#e3ddd1" stroke-width="2"/>
+  <text x="200" y="166" text-anchor="middle" font-size="11.5">token present, and under</text>
+  <text x="200" y="184" text-anchor="middle" font-size="11.5">the auto-pause limit?</text>
+  <line x1="70" y1="172" x2="40" y2="172" stroke="#7a828c" stroke-width="2"/>
+  <line x1="40" y1="172" x2="40" y2="248" stroke="#7a828c" stroke-width="2" marker-end="url(#mR)"/>
+  <text x="52" y="216" font-size="10.5" fill="#b3403a" font-weight="600">no</text>
+  <line x1="200" y1="200" x2="200" y2="248" stroke="#7a828c" stroke-width="2" marker-end="url(#mR)"/>
+  <text x="212" y="228" font-size="10.5" fill="#2e7d4f" font-weight="600">yes</text>
+
+  <rect x="615" y="144" width="260" height="56" rx="8" fill="#fff" stroke="#e3ddd1" stroke-width="2"/>
+  <text x="745" y="166" text-anchor="middle" font-size="11.5">was the verb</text>
+  <text x="745" y="184" text-anchor="middle" font-size="11.5"><tspan font-family="Consolas,monospace">@claude full review</tspan>?</text>
+  <line x1="875" y1="172" x2="905" y2="172" stroke="#7a828c" stroke-width="2"/>
+  <line x1="905" y1="172" x2="905" y2="248" stroke="#7a828c" stroke-width="2" marker-end="url(#mR)"/>
+  <text x="880" y="216" font-size="10.5" fill="#2e7d4f" font-weight="600">yes</text>
+  <line x1="745" y1="200" x2="745" y2="222" stroke="#7a828c" stroke-width="2" marker-end="url(#mR)"/>
+  <text x="757" y="216" font-size="10.5" fill="#b3403a" font-weight="600">no</text>
+
+  <rect x="600" y="226" width="200" height="44" rx="8" fill="#fff" stroke="#e3ddd1" stroke-width="2"/>
+  <text x="700" y="244" text-anchor="middle" font-size="11">any unresolved</text>
+  <text x="700" y="261" text-anchor="middle" font-size="11"><tspan font-family="Consolas,monospace">claude[bot]</tspan> threads?</text>
+  <line x1="600" y1="248" x2="530" y2="248" stroke="#7a828c" stroke-width="2"/>
+  <line x1="530" y1="248" x2="530" y2="300" stroke="#7a828c" stroke-width="2" marker-end="url(#mR)"/>
+  <text x="545" y="286" font-size="10.5" fill="#b3403a" font-weight="600">none</text>
+  <line x1="700" y1="270" x2="700" y2="300" stroke="#7a828c" stroke-width="2" marker-end="url(#mR)"/>
+  <text x="712" y="290" font-size="10.5" fill="#2e7d4f" font-weight="600">yes</text>
+
+  <rect x="14" y="252" width="120" height="52" rx="7" fill="#9aa3ad"/>
+  <text x="74" y="274" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">skip</text>
+  <text x="74" y="292" text-anchor="middle" fill="#eef1f3" font-size="9.5">nothing reviewed</text>
+
+  <rect x="145" y="252" width="130" height="52" rx="7" fill="#2b5f9e"/>
+  <text x="210" y="274" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">review</text>
+  <text x="210" y="292" text-anchor="middle" fill="#cfe0f3" font-size="9.5">the ordinary round</text>
+
+  <rect x="465" y="304" width="130" height="52" rx="7" fill="#2b5f9e"/>
+  <text x="530" y="326" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">review</text>
+  <text x="530" y="344" text-anchor="middle" fill="#cfe0f3" font-size="9.5">nothing to verify</text>
+
+  <rect x="620" y="304" width="160" height="52" rx="7" fill="#6d4aa8"/>
+  <text x="700" y="326" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">verify</text>
+  <text x="700" y="344" text-anchor="middle" fill="#ddd0f0" font-size="9.5">the only mode that can resolve</text>
+
+  <rect x="820" y="252" width="105" height="52" rx="7" fill="#2b5f9e"/>
+  <text x="872" y="274" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">review-full</text>
+  <text x="872" y="292" text-anchor="middle" fill="#cfe0f3" font-size="9.5">dedup off</text>
+
+  <rect x="14" y="370" width="906" height="26" rx="6" fill="#fdf4e6" stroke="#ecd9b0"/>
+  <text x="28" y="387" font-size="11.5" fill="#8a4021"><tspan font-weight="600">Read the left branch again.</tspan> Push events go straight to `review`. Fixing a finding and pushing it does not get the finding re-checked, no matter how many times you push.</text>
+</svg>
+</figure>
+
+<table>
+  <tr><th>Mode</th><th>Fires when</th><th>The agent does</th><th>Runs after</th></tr>
+  <tr><td><code>skip</code></td><td>No OAuth token reached the lane, or the PR hit the auto-pause limit.</td><td>Nothing. It never starts.</td><td><code>announce</code> only, saying which of the two it was.</td></tr>
+  <tr><td><code>review</code></td><td>Any push. Or a comment trigger when no unresolved <code>claude[bot]</code> threads exist.</td><td>Reviews the diff, posts inline findings, sometimes a summary.</td><td><code>announce</code>. <strong><code>mutate</code> does not run.</strong></td></tr>
+  <tr><td><code>review-full</code></td><td><code>@claude full review</code>, always, regardless of thread state.</td><td>Same, from scratch, with dedup explicitly disabled so a re-review can publish findings it published before.</td><td><code>announce</code>. <code>mutate</code> does not run.</td></tr>
+  <tr><td><code>verify</code></td><td>A comment trigger, not <code>full review</code>, <em>and</em> at least one unresolved <code>claude[bot]</code> thread exists.</td><td>Three things, below.</td><td><code>announce</code> <strong>and <code>mutate</code></strong>, which is what makes resolution possible.</td></tr>
+</table>
+
+<h3>What a verify round actually is</h3>
+<p>A verify round is the lane re-checking its own past findings against the current head, instead of taking a claim that
+they are fixed on trust. It is the only mode whose output feeds a job that can write to threads, and the only one that can
+end with something resolved.</p>
+<p>The trigger is a reply, not a push. A <em>non-bot</em> reply inside one of the threads is enough on its own, with no
+verb needed; <code>@claude review</code> also works. Bot identities are excluded, which is how the lane avoids retriggering
+on its own reply.</p>
+
+<figure>
+<figcaption>One verify round, three outputs, three different destinations</figcaption>
+<svg viewBox="0 0 940 300" role="img" aria-label="The three outputs of a verify round and where each goes">
+  <rect x="20" y="90" width="200" height="110" rx="9" fill="#6d4aa8"/>
+  <text x="120" y="122" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">verify round</text>
+  <text x="120" y="146" text-anchor="middle" fill="#ddd0f0" font-size="10.5">reads unresolved-claude-</text>
+  <text x="120" y="162" text-anchor="middle" fill="#ddd0f0" font-size="10.5">threads.json, staged into the</text>
+  <text x="120" y="178" text-anchor="middle" fill="#ddd0f0" font-size="10.5">workspace before the agent runs</text>
+
+  <rect x="330" y="14" width="290" height="76" rx="8" fill="#fff" stroke="#b3403a" stroke-width="2"/>
+  <text x="475" y="38" text-anchor="middle" font-size="12" font-weight="600" fill="#b3403a">1 &#183; verdicts.json</text>
+  <text x="475" y="58" text-anchor="middle" font-size="10.5" fill="#4a5160">one entry per thread: thread_id, verdict,</text>
+  <text x="475" y="74" text-anchor="middle" font-size="10.5" fill="#4a5160">sha, and a one-sentence evidence string</text>
+
+  <rect x="330" y="108" width="290" height="76" rx="8" fill="#fff" stroke="#e3ddd1" stroke-width="2"/>
+  <text x="475" y="132" text-anchor="middle" font-size="12" font-weight="600">2 &#183; delta review</text>
+  <text x="475" y="152" text-anchor="middle" font-size="10.5" fill="#4a5160">new inline findings the existing threads</text>
+  <text x="475" y="168" text-anchor="middle" font-size="10.5" fill="#4a5160">do not already cover. Never a re-post.</text>
+
+  <rect x="330" y="202" width="290" height="82" rx="8" fill="#fff" stroke="#2b5f9e" stroke-width="2"/>
+  <text x="475" y="226" text-anchor="middle" font-size="12" font-weight="600" fill="#2b5f9e">3 &#183; the summary comment</text>
+  <text x="475" y="246" text-anchor="middle" font-size="10.3" font-family="Consolas,monospace" fill="#1e222b">## Code review &#8212; verification round</text>
+  <text x="475" y="264" text-anchor="middle" font-size="10.5" fill="#4a5160">a table, one row per thread, url and verdict.</text>
+  <text x="475" y="279" text-anchor="middle" font-size="10.5" fill="#b3403a" font-weight="600">Mandatory, even when nothing changed.</text>
+
+  <line x1="220" y1="120" x2="323" y2="60" stroke="#7a828c" stroke-width="2" marker-end="url(#mR)"/>
+  <line x1="220" y1="145" x2="323" y2="145" stroke="#7a828c" stroke-width="2" marker-end="url(#mR)"/>
+  <line x1="220" y1="172" x2="323" y2="240" stroke="#7a828c" stroke-width="2" marker-end="url(#mR)"/>
+
+  <rect x="680" y="14" width="240" height="76" rx="8" fill="#b3403a"/>
+  <text x="800" y="42" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">to the mutate job</text>
+  <text x="800" y="62" text-anchor="middle" fill="#f6d8d6" font-size="10.5">as an artifact, not a token.</text>
+  <text x="800" y="78" text-anchor="middle" fill="#f6d8d6" font-size="10.5">mutate re-derives everything anyway.</text>
+
+  <rect x="680" y="108" width="240" height="76" rx="8" fill="#f0ece4" stroke="#e3ddd1"/>
+  <text x="800" y="136" text-anchor="middle" font-size="12" font-weight="600">straight to the PR</text>
+  <text x="800" y="156" text-anchor="middle" font-size="10.5" fill="#4a5160">posted by the agent itself,</text>
+  <text x="800" y="172" text-anchor="middle" font-size="10.5" fill="#4a5160">exactly as a normal round would</text>
+
+  <rect x="680" y="202" width="240" height="82" rx="8" fill="#fdeeed" stroke="#f0cdcb"/>
+  <text x="800" y="228" text-anchor="middle" font-size="12" font-weight="600" fill="#b3403a">and it is checked for</text>
+  <text x="800" y="249" text-anchor="middle" font-size="10.5" fill="#8a2f2a">A later step greps the PR for that exact</text>
+  <text x="800" y="265" text-anchor="middle" font-size="10.5" fill="#8a2f2a">first line. Missing, and the job fails.</text>
+  <text x="800" y="281" text-anchor="middle" font-size="10.5" fill="#8a2f2a">Silence is the failure this catches.</text>
+
+  <line x1="620" y1="52" x2="673" y2="52" stroke="#7a828c" stroke-width="2" marker-end="url(#mR)"/>
+  <line x1="620" y1="146" x2="673" y2="146" stroke="#7a828c" stroke-width="2" marker-end="url(#mR)"/>
+  <line x1="620" y1="243" x2="673" y2="243" stroke="#7a828c" stroke-width="2" marker-end="url(#mR)"/>
+</svg>
+</figure>
+
+<p>Per thread it reads the code at that thread's path plus the PR diff, and judges whether the concern still stands at
+current head. <code>verified</code> means fixed; <code>not_verified</code> means the finding survives. The verdict is a
+judgement about the code, not about what the reply claimed.</p>
+
+<div class="note"><strong>What a verify round is forbidden to do,</strong> and this is where the design lives: it cannot
+resolve a thread, cannot post a reply inside a thread, cannot submit a formal review, and cannot merge. It writes a file
+and posts comments. Everything that touches thread state happens afterwards, in a job with no model in it. The prompt even
+forbids writing the word "resolve" as an instruction in any comment, because CodeRabbit parses that word as a command.</div>
+
+<div class="warn"><strong>The consequence people trip on.</strong> Push a fix and nothing gets verified, because pushes
+produce <code>review</code> rounds. The thread stays open, the merge stays blocked, and the liveness comment cheerfully
+reports a successful review. You have to reply in the thread. That single fact explains most "why is this still blocked"
+confusion, and it is deliberate: a push is a claim about code, a reply is a claim about a specific finding, and only the
+second one tells the lane which threads to re-check.</div>
+
+<h2><span class="n">5</span>The token question</h2>
+<p>Resolving a review thread needs <code>contents: write</code>. Nothing else about the credential matters.
+Posting a reply needs only <code>pull-requests: write</code>, which is why the original failure was so confusing:
+the same token in the same step posted the reply and was refused the resolution.</p>
+
+<figure>
+<figcaption>One permission decides it. Both credential kinds behave identically on either side of the line.</figcaption>
+<svg viewBox="0 0 940 250" role="img" aria-label="resolveReviewThread requires contents write; both GITHUB_TOKEN and an App token behave the same">
+  <defs><marker id="g1" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#2e7d4f"/></marker>
+         <marker id="b1" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#b3403a"/></marker></defs>
+
+  <rect x="20" y="26" width="250" height="70" rx="9" fill="#fff" stroke="#e3ddd1" stroke-width="2"/>
+  <text x="145" y="52" text-anchor="middle" font-size="12.5" font-weight="600">pull-requests: write</text>
+  <text x="145" y="72" text-anchor="middle" font-size="11" fill="#6b7280">plus contents: <tspan font-weight="700" fill="#b3403a">read</tspan></text>
+  <text x="145" y="88" text-anchor="middle" font-size="10.5" fill="#6b7280">what the mutate job used to hold</text>
+
+  <rect x="20" y="150" width="250" height="70" rx="9" fill="#fff" stroke="#e3ddd1" stroke-width="2"/>
+  <text x="145" y="176" text-anchor="middle" font-size="12.5" font-weight="600">pull-requests: write</text>
+  <text x="145" y="196" text-anchor="middle" font-size="11" fill="#6b7280">plus contents: <tspan font-weight="700" fill="#2e7d4f">write</tspan></text>
+  <text x="145" y="212" text-anchor="middle" font-size="10.5" fill="#6b7280">what it holds now</text>
+
+  <rect x="470" y="26" width="230" height="70" rx="9" fill="#f0ece4" stroke="#e3ddd1"/>
+  <text x="585" y="52" text-anchor="middle" font-size="12" font-weight="600">post a thread reply</text>
+  <text x="585" y="74" text-anchor="middle" font-size="11" fill="#2e7d4f" font-weight="600">works either way</text>
+
+  <rect x="470" y="150" width="230" height="70" rx="9" fill="#f0ece4" stroke="#e3ddd1"/>
+  <text x="585" y="176" text-anchor="middle" font-size="12" font-weight="600">resolveReviewThread</text>
+  <text x="585" y="198" text-anchor="middle" font-size="11" fill="#4a5160">needs the write</text>
+
+  <line x1="270" y1="56" x2="463" y2="56" stroke="#2e7d4f" stroke-width="2" marker-end="url(#g1)"/>
+  <line x1="270" y1="80" x2="463" y2="172" stroke="#b3403a" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#b1)"/>
+  <text x="360" y="132" text-anchor="middle" font-size="10.5" fill="#b3403a" font-weight="600">Resource not accessible by integration</text>
+  <line x1="270" y1="178" x2="463" y2="82" stroke="#2e7d4f" stroke-width="2" marker-end="url(#g1)"/>
+  <line x1="270" y1="196" x2="463" y2="192" stroke="#2e7d4f" stroke-width="2" marker-end="url(#g1)"/>
+
+  <rect x="730" y="26" width="190" height="194" rx="9" fill="#eaf4ee" stroke="#bcdcc7"/>
+  <text x="825" y="52" text-anchor="middle" font-size="12" font-weight="600" fill="#2e7d4f">Both credentials</text>
+  <text x="825" y="70" text-anchor="middle" font-size="12" font-weight="600" fill="#2e7d4f">behave the same</text>
+  <text x="825" y="96" text-anchor="middle" font-size="10.8" fill="#2e7d4f">GITHUB_TOKEN with</text>
+  <text x="825" y="112" text-anchor="middle" font-size="10.8" fill="#2e7d4f">contents: write resolves.</text>
+  <text x="825" y="136" text-anchor="middle" font-size="10.8" fill="#2e7d4f">Probed on sreforge,</text>
+  <text x="825" y="152" text-anchor="middle" font-size="10.8" fill="#2e7d4f">2026-08-26 19:37 UTC:</text>
+  <text x="825" y="176" text-anchor="middle" font-size="10" font-family="Consolas,monospace" fill="#1e222b">{"isResolved":true}</text>
+  <text x="825" y="200" text-anchor="middle" font-size="10.5" fill="#4a5160">So the App is a choice,</text>
+  <text x="825" y="214" text-anchor="middle" font-size="10.5" fill="#4a5160">not a requirement.</text>
+</svg>
+</figure>
+
+<p>Resolving a thread therefore costs a credential that can also push code. That is the reason the <code>mutate</code> job
+contains no agent: the grant is real, so nothing model-influenced may ever hold it. That part of the design is right and
+should not move.</p>
+
+<h3>Which credential, then</h3>
+<p>This is a live decision, not settled doctrine. The App is what shipped; <code>GITHUB_TOKEN</code> now demonstrably works too.</p>
+<table>
+  <tr><th></th><th><code>GITHUB_TOKEN</code> at <code>contents: write</code></th><th>App installation token</th></tr>
+  <tr><td>Config surface</td><td class="yes">None. Nothing to forward, nothing to install, nothing to drift.</td><td class="no">Two secrets per repo, one App install per account, one stub mapping per consumer. One of three repos is currently mis-wired.</td></tr>
+  <tr><td>Blast radius if leaked</td><td class="yes">One job, one repo, expires with the run.</td><td>A shared private key covering every repo the App is installed on.</td></tr>
+  <tr><td>Workflow-wide ceiling</td><td class="no">The caller must raise its ceiling to <code>contents: write</code>, which covers every job in the callee. <code>review</code> still self-restricts to read, but the ceiling stops being a second line of defence.</td><td class="yes">Ceiling stays <code>contents: read</code>. The read-only invariant on <code>review</code> is enforced twice.</td></tr>
+  <tr><td>Identity on the thread</td><td><code>github-actions[bot]</code>, same as the liveness comment.</td><td class="yes"><code>prismalens-automation[bot]</code>, so the audit trail names which automation closed it.</td></tr>
+  <tr><td>Isolation from the review agent</td><td colspan="2">Identical. Job-level <code>permissions:</code> scopes each job's token independently, so neither option gives <code>review</code> anything it does not declare for itself.</td></tr>
+</table>
+
+<div class="note"><strong>My read.</strong> The ceiling is the only argument that survives scrutiny, and it is weaker than it looks:
+it defends against a future edit to <code>review</code>'s own permissions block, which would be a visible change to the one file
+CodeRabbit reviews automatically. Against that, the App's config surface has already produced a real, currently-broken repo.
+A test in <code>tests.yml</code> asserting <code>review</code>'s permission block byte for byte is a stronger guarantee than a
+ceiling, because it fails on the pull request that breaks it and it also catches the case a ceiling cannot: someone raising
+both at once. I would drop the App, hold <code>contents: write</code> in <code>mutate</code> only, and buy the invariant back
+with that test. The counter-argument I would actually listen to is the identity one, and it is worth deciding on its own terms
+rather than as a side effect.</div>
+
+<h2><span class="n">6</span>Scenarios</h2>
+<p>Same five parties every time. What changes is who speaks and who stays quiet.</p>
+
+<h3>6.1 The normal round: finding, fix, verify, resolve</h3>
+<figure>
+<figcaption>The only path that ends in an automatically resolved thread. Note the trigger at step 6: it is the reply, not the push.</figcaption>
+<svg viewBox="0 0 940 512" role="img" aria-label="Sequence diagram of a normal review round from PR open to merge">
+  <defs>
+    <marker id="R" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#7a828c"/></marker>
+    <marker id="L" markerWidth="9" markerHeight="9" refX="1" refY="4.5" orient="auto"><path d="M9,0 L0,4.5 L9,9 z" fill="#7a828c"/></marker>
+  </defs>
+  <g font-size="11.5" font-weight="600" text-anchor="middle">
+    <rect x="18" y="12" width="134" height="36" rx="7" fill="#b4552d"/><text x="85" y="35" fill="#fff">Operator</text>
+    <rect x="188" y="12" width="134" height="36" rx="7" fill="#6d4aa8"/><text x="255" y="30" fill="#fff">Local session</text><text x="255" y="43" fill="#ddd0f0" font-size="9.5" font-weight="400">holds the diff</text>
+    <rect x="368" y="12" width="134" height="36" rx="7" fill="#6d4aa8"/><text x="435" y="30" fill="#fff">review job</text><text x="435" y="43" fill="#ddd0f0" font-size="9.5" font-weight="400">claude[bot], read-only</text>
+    <rect x="563" y="12" width="134" height="36" rx="7" fill="#b3403a"/><text x="630" y="30" fill="#fff">mutate + announce</text><text x="630" y="43" fill="#f6d8d6" font-size="9.5" font-weight="400">no model</text>
+    <rect x="783" y="12" width="134" height="36" rx="7" fill="#4a5160"/><text x="850" y="35" fill="#fff">the PR</text>
+  </g>
+  <g stroke="#cfc9bc" stroke-width="1.5" stroke-dasharray="4 5">
+    <line x1="85" y1="48" x2="85" y2="500"/><line x1="255" y1="48" x2="255" y2="500"/>
+    <line x1="435" y1="48" x2="435" y2="500"/><line x1="630" y1="48" x2="630" y2="500"/><line x1="850" y1="48" x2="850" y2="500"/>
+  </g>
+  <g font-size="10.8" fill="#1e222b">
+    <line x1="85" y1="80" x2="843" y2="80" stroke="#7a828c" stroke-width="1.8" marker-end="url(#R)"/>
+    <text x="464" y="74" text-anchor="middle">1 &#183; open the PR, or push to it</text>
+
+    <line x1="843" y1="122" x2="442" y2="122" stroke="#7a828c" stroke-width="1.8" marker-end="url(#L)"/>
+    <text x="642" y="116" text-anchor="middle">2 &#183; same-repo, not draft, author not skipped, under the pause limit</text>
+
+    <line x1="435" y1="164" x2="843" y2="164" stroke="#7a828c" stroke-width="1.8" marker-end="url(#R)"/>
+    <text x="639" y="158" text-anchor="middle">3 &#183; two inline findings on abc12345, as claude[bot]</text>
+
+    <line x1="630" y1="206" x2="843" y2="206" stroke="#7a828c" stroke-width="1.8" marker-end="url(#R)"/>
+    <text x="736" y="200" text-anchor="middle">4 &#183; liveness comment</text>
+    <text x="736" y="220" text-anchor="middle" font-size="9.5" fill="#6b7280">reviewed abc12345 and posted 2 inline / 0 summary</text>
+
+    <line x1="255" y1="256" x2="843" y2="256" stroke="#7a828c" stroke-width="1.8" marker-end="url(#R)"/>
+    <text x="549" y="250" text-anchor="middle">5 &#183; fix locally, push</text>
+    <text x="549" y="270" text-anchor="middle" font-size="9.5" fill="#6b7280">this supersedes the in-flight run and starts a fresh automatic round. It does not resolve anything.</text>
+
+    <rect x="196" y="286" width="700" height="34" rx="6" fill="#fdf4e6" stroke="#ecd9b0"/>
+    <line x1="255" y1="303" x2="843" y2="303" stroke="#b4552d" stroke-width="2" marker-end="url(#R)"/>
+    <text x="549" y="299" text-anchor="middle" font-weight="600" fill="#8a4021">6 &#183; reply in each thread citing the SHA and what changed &#8592; THIS is the trigger</text>
+
+    <line x1="843" y1="346" x2="442" y2="346" stroke="#7a828c" stroke-width="1.8" marker-end="url(#L)"/>
+    <text x="642" y="340" text-anchor="middle">7 &#183; a non-bot member replied, and claude[bot] threads are open &#8594; verify mode</text>
+
+    <line x1="435" y1="388" x2="623" y2="388" stroke="#7a828c" stroke-width="1.8" marker-end="url(#R)"/>
+    <text x="529" y="382" text-anchor="middle">8 &#183; verdicts.json</text>
+    <text x="529" y="402" text-anchor="middle" font-size="9.5" fill="#6b7280">verified | not_verified, per thread</text>
+
+    <line x1="630" y1="428" x2="843" y2="428" stroke="#7a828c" stroke-width="1.8" marker-end="url(#R)"/>
+    <text x="736" y="422" text-anchor="middle">9 &#183; reply, then resolve</text>
+    <text x="736" y="442" text-anchor="middle" font-size="9.5" fill="#6b7280">re-fetched live, never trusted from the artifact</text>
+
+    <line x1="85" y1="472" x2="843" y2="472" stroke="#2e7d4f" stroke-width="2" marker-end="url(#R)"/>
+    <text x="464" y="466" text-anchor="middle" fill="#2e7d4f" font-weight="600">10 &#183; gh pr merge --squash, once the liveness comment says a review was posted</text>
+  </g>
+</svg>
+</figure>
+<div class="note"><strong>The verify agent does not take your word for it.</strong> Measured during the canary: a reply of
+<code>Fixed in 7eed363</code> on a finding that was not fixed drew back
+<em>"Still applies to 7eed363d: scripts/canary-retention.sh line 11 still uses unquoted $ARTIFACT_DIR in the find -delete call;
+the seeded bug is unchanged at current PR head."</em> The thread stayed open. This is the single most important property of the
+whole design, because it is what makes automatic resolution something other than a rubber stamp.</div>
+
+<h3>6.2 A finding you disagree with</h3>
+<figure>
+<figcaption>The reviewer never closes a thread on judgment. Declines, deferrals and disputes route to a human, by construction.</figcaption>
+<svg viewBox="0 0 940 300" role="img" aria-label="Sequence for a disputed finding: reviewer leaves it open, human resolves">
+  <g font-size="11.5" font-weight="600" text-anchor="middle">
+    <rect x="18" y="12" width="134" height="36" rx="7" fill="#b4552d"/><text x="85" y="35" fill="#fff">Operator</text>
+    <rect x="188" y="12" width="134" height="36" rx="7" fill="#6d4aa8"/><text x="255" y="35" fill="#fff">Local session</text>
+    <rect x="368" y="12" width="134" height="36" rx="7" fill="#6d4aa8"/><text x="435" y="35" fill="#fff">review job</text>
+    <rect x="563" y="12" width="134" height="36" rx="7" fill="#b3403a"/><text x="630" y="35" fill="#fff">mutate</text>
+    <rect x="783" y="12" width="134" height="36" rx="7" fill="#4a5160"/><text x="850" y="35" fill="#fff">the PR</text>
+  </g>
+  <g stroke="#cfc9bc" stroke-width="1.5" stroke-dasharray="4 5">
+    <line x1="85" y1="48" x2="85" y2="288"/><line x1="255" y1="48" x2="255" y2="288"/>
+    <line x1="435" y1="48" x2="435" y2="288"/><line x1="630" y1="48" x2="630" y2="288"/><line x1="850" y1="48" x2="850" y2="288"/>
+  </g>
+  <g font-size="10.8" fill="#1e222b">
+    <line x1="255" y1="82" x2="843" y2="82" stroke="#7a828c" stroke-width="1.8" marker-end="url(#R)"/>
+    <text x="549" y="76" text-anchor="middle">1 &#183; reply in-thread: why the finding is wrong, or why it is deferred, with the issue number</text>
+
+    <line x1="843" y1="124" x2="442" y2="124" stroke="#7a828c" stroke-width="1.8" marker-end="url(#L)"/>
+    <text x="642" y="118" text-anchor="middle">2 &#183; verify round, same as always</text>
+
+    <line x1="435" y1="166" x2="623" y2="166" stroke="#7a828c" stroke-width="1.8" marker-end="url(#R)"/>
+    <text x="529" y="160" text-anchor="middle">3 &#183; not_verified</text>
+
+    <line x1="630" y1="208" x2="843" y2="208" stroke="#7a828c" stroke-width="1.8" marker-end="url(#R)"/>
+    <text x="736" y="202" text-anchor="middle">4 &#183; posts why, leaves the thread open</text>
+
+    <rect x="26" y="240" width="870" height="38" rx="6" fill="#fdf4e6" stroke="#ecd9b0"/>
+    <line x1="85" y1="262" x2="843" y2="262" stroke="#b4552d" stroke-width="2" marker-end="url(#R)"/>
+    <text x="464" y="257" text-anchor="middle" font-weight="600" fill="#8a4021">5 &#183; the operator resolves it, and nobody else can &#183; a bot has no vote on a judgment call</text>
+  </g>
+</svg>
+</figure>
+
+<h3>6.3 No resolver credential: the failure that looks like success</h3>
+<p>This is the live state on <code>prismalens/prismalens</code> right now. Both secrets are set on the repo. The caller stub
+never passes them, and a reusable workflow can only see what its caller explicitly maps: <code>secrets</code> in a
+<code>workflow_call</code> callee contains the mapped names and nothing else, so a secret existing on the repo is not the
+same as the lane being able to read it. <code>sreforge</code> and <code>mage-memory</code> got the stub change; this repo
+did not. This whole failure class exists only because the App needs wiring, which is the strongest practical argument in
+section 5.</p>
+<figure>
+<figcaption>The same round as 6.1, diverging at step 9. Everything is green and nothing is finished.</figcaption>
+<svg viewBox="0 0 940 320" role="img" aria-label="Diagram of the degraded path when the App credential is missing">
+  <rect x="20" y="16" width="420" height="284" rx="9" fill="#fff" stroke="#bcdcc7" stroke-width="2"/>
+  <text x="230" y="42" text-anchor="middle" font-size="13" font-weight="600" fill="#2e7d4f">App secrets forwarded</text>
+  <rect x="44" y="58" width="372" height="34" rx="6" fill="#f0ece4"/><text x="60" y="80" font-size="11">mutate posts &#8220;Verified fixed in e200d6f&#8221;</text>
+  <rect x="44" y="102" width="372" height="34" rx="6" fill="#eaf4ee"/><text x="60" y="124" font-size="11" fill="#2e7d4f" font-weight="600">resolveReviewThread succeeds &#8594; thread closes</text>
+  <rect x="44" y="146" width="372" height="34" rx="6" fill="#eaf4ee"/><text x="60" y="168" font-size="11" fill="#2e7d4f">merge gate satisfied</text>
+  <rect x="44" y="190" width="372" height="34" rx="6" fill="#f0ece4"/><text x="60" y="212" font-size="11">job: success</text>
+  <text x="230" y="256" text-anchor="middle" font-size="11.5" fill="#4a5160">Reading the PR tells you the truth.</text>
+  <text x="230" y="276" text-anchor="middle" font-size="11.5" fill="#4a5160">Green job, closed thread, mergeable.</text>
+
+  <rect x="500" y="16" width="420" height="284" rx="9" fill="#fff" stroke="#f0cdcb" stroke-width="2"/>
+  <text x="710" y="42" text-anchor="middle" font-size="13" font-weight="600" fill="#b3403a">App secrets missing from the stub</text>
+  <rect x="524" y="58" width="372" height="34" rx="6" fill="#f0ece4"/><text x="540" y="80" font-size="11">mutate posts &#8220;Verified fixed in e200d6f&#8221;</text>
+  <rect x="524" y="102" width="372" height="34" rx="6" fill="#fdeeed"/><text x="540" y="124" font-size="11" fill="#b3403a" font-weight="600">resolution skipped &#8594; thread stays open</text>
+  <rect x="524" y="146" width="372" height="34" rx="6" fill="#fdeeed"/><text x="540" y="168" font-size="11" fill="#b3403a">merge gate NOT satisfied, no approvals to fall back on</text>
+  <rect x="524" y="190" width="372" height="34" rx="6" fill="#f0ece4"/><text x="540" y="212" font-size="11">job: success, with a ::warning:: nobody reads</text>
+  <text x="710" y="256" text-anchor="middle" font-size="11.5" fill="#8a2f2a">A thread reading &#8220;Verified fixed&#8221; that still blocks</text>
+  <text x="710" y="276" text-anchor="middle" font-size="11.5" fill="#8a2f2a">the merge. Reads as done, behaves as pending.</text>
+</svg>
+</figure>
+<div class="warn"><strong>The third state fails loudly, and that was deliberate.</strong> If the credential is present and the
+mutation is <em>denied</em>, the job exits non-zero. Before that existed, a denial printed an error and carried on, which is exactly
+how this shipped unnoticed the first time. The gap is the middle column above: credential simply absent degrades to a warning on a
+green job, and a two-line fix to <code>prismalens/prismalens</code>'s caller stub closes it.</div>
+
+<h3>6.4 The four silences</h3>
+<p>The lane going quiet is normal and means four different things. None of them mean approval.
+Every one of them puts a sentence on the PR saying which it was, which is the whole reason the <code>announce</code> job runs on <code>always()</code>.</p>
+<figure>
+<figcaption>Why nothing was reviewed, and what actually clears it</figcaption>
+<svg viewBox="0 0 940 400" role="img" aria-label="Four reasons the review lane stays quiet and the fix for each">
+  <g>
+    <rect x="20" y="14" width="440" height="178" rx="9" fill="#fff" stroke="#e3ddd1"/>
+    <rect x="20" y="14" width="440" height="34" rx="9" fill="#f0ece4"/><rect x="20" y="40" width="440" height="8" fill="#f0ece4"/>
+    <text x="40" y="37" font-size="12.5" font-weight="600">1 &#183; Auto-paused</text>
+    <text x="40" y="72" font-size="11" fill="#4a5160">Five automatic rounds have run on this PR. The counter lives</text>
+    <text x="40" y="89" font-size="11" fill="#4a5160">in the liveness marker and is monotonic: v1 never resets it.</text>
+    <text x="40" y="115" font-size="11" fill="#b3403a" font-weight="600">Pushing more commits produces nothing, forever.</text>
+    <text x="40" y="142" font-size="11" fill="#4a5160">Waiting on a paused PR waits until the heat death of the</text>
+    <text x="40" y="159" font-size="11" fill="#4a5160">universe. Read the verdict, do not infer from silence.</text>
+    <rect x="40" y="168" width="400" height="16" rx="8" fill="#eaf4ee"/>
+    <text x="50" y="180" font-size="10.5" fill="#2e7d4f" font-weight="600">clears with: @claude review  (one run, then paused again)</text>
+  </g>
+  <g>
+    <rect x="480" y="14" width="440" height="178" rx="9" fill="#fff" stroke="#e3ddd1"/>
+    <rect x="480" y="14" width="440" height="34" rx="9" fill="#f0ece4"/><rect x="480" y="40" width="440" height="8" fill="#f0ece4"/>
+    <text x="500" y="37" font-size="12.5" font-weight="600">2 &#183; No token reached the lane</text>
+    <text x="500" y="72" font-size="11" fill="#4a5160">CLAUDE_CODE_OAUTH_TOKEN is not mapped in the caller stub.</text>
+    <text x="500" y="89" font-size="11" fill="#4a5160">`secrets: inherit` does not cross an ownership boundary,</text>
+    <text x="500" y="106" font-size="11" fill="#4a5160">so a cross-owner consumer fails silently without this.</text>
+    <text x="500" y="133" font-size="11" fill="#b3403a" font-weight="600">The lane says so rather than no-oping: that trap class is</text>
+    <text x="500" y="150" font-size="11" fill="#b3403a" font-weight="600">the reason the loud-failure rule exists at all.</text>
+    <rect x="500" y="168" width="400" height="16" rx="8" fill="#eaf4ee"/>
+    <text x="510" y="180" font-size="10.5" fill="#2e7d4f" font-weight="600">clears with: map the secret by name in the stub</text>
+  </g>
+  <g>
+    <rect x="20" y="206" width="440" height="178" rx="9" fill="#fff" stroke="#e3ddd1"/>
+    <rect x="20" y="206" width="440" height="34" rx="9" fill="#f0ece4"/><rect x="20" y="232" width="440" height="8" fill="#f0ece4"/>
+    <text x="40" y="229" font-size="12.5" font-weight="600">3 &#183; Ran, posted nothing</text>
+    <text x="40" y="264" font-size="11" fill="#4a5160">The job exits success when the reviewer publishes nothing.</text>
+    <text x="40" y="281" font-size="11" fill="#4a5160">A green check is not evidence a review happened, and the</text>
+    <text x="40" y="298" font-size="11" fill="#4a5160">liveness comment exists precisely to say so out loud.</text>
+    <text x="40" y="325" font-size="11" fill="#4a5160">The reviewed-head baseline does not advance on these runs,</text>
+    <text x="40" y="342" font-size="11" fill="#4a5160">so those commits are never counted as read.</text>
+    <rect x="40" y="360" width="400" height="16" rx="8" fill="#eaf4ee"/>
+    <text x="50" y="372" font-size="10.5" fill="#2e7d4f" font-weight="600">clears with: @claude full review  (dedup off), not another push</text>
+  </g>
+  <g>
+    <rect x="480" y="206" width="440" height="178" rx="9" fill="#fff" stroke="#e3ddd1"/>
+    <rect x="480" y="206" width="440" height="34" rx="9" fill="#f0ece4"/><rect x="480" y="232" width="440" height="8" fill="#f0ece4"/>
+    <text x="500" y="229" font-size="12.5" font-weight="600">4 &#183; Skipped on purpose</text>
+    <text x="500" y="264" font-size="11" fill="#4a5160">Draft PR, or the author is on skip_authors, or the head is a</text>
+    <text x="500" y="281" font-size="11" fill="#4a5160">fork, or the PR edits claude-code-review.yml itself.</text>
+    <text x="500" y="308" font-size="11" fill="#b3403a" font-weight="600">The self-skip is a security control, and no summon</text>
+    <text x="500" y="325" font-size="11" fill="#b3403a" font-weight="600">overrides it. Nor does one override a fork head.</text>
+    <text x="500" y="348" font-size="11" fill="#4a5160">Draft and skip_authors both yield to an explicit summon.</text>
+    <rect x="500" y="360" width="400" height="16" rx="8" fill="#eaf4ee"/>
+    <text x="510" y="372" font-size="10.5" fill="#2e7d4f" font-weight="600">clears with: a summon, or the coderabbit_review label</text>
+  </g>
+</svg>
+</figure>
+
+<h3>6.5 A fork PR</h3>
+<figure>
+<figcaption>Refused out loud. Silence would read as approval, so the lane spends a job saying nothing happened.</figcaption>
+<svg viewBox="0 0 940 200" role="img" aria-label="Fork PR flow: secrets withheld, fork-notice comment posted, CodeRabbit as the escape hatch">
+  <rect x="20" y="60" width="160" height="60" rx="8" fill="#b4552d"/>
+  <text x="100" y="85" text-anchor="middle" fill="#fff" font-size="12.5" font-weight="600">fork contributor</text>
+  <text x="100" y="103" text-anchor="middle" fill="#f4dcd0" font-size="10.5">opens a PR</text>
+
+  <line x1="180" y1="90" x2="243" y2="90" stroke="#7a828c" stroke-width="2" marker-end="url(#R)"/>
+
+  <rect x="250" y="52" width="200" height="76" rx="8" fill="#fdeeed" stroke="#f0cdcb" stroke-width="2"/>
+  <text x="350" y="76" text-anchor="middle" font-size="12.5" font-weight="600" fill="#b3403a">GitHub withholds secrets</text>
+  <text x="350" y="95" text-anchor="middle" font-size="10.5" fill="#8a2f2a">from fork code, by design</text>
+  <text x="350" y="113" text-anchor="middle" font-size="10.5" fill="#8a2f2a">pull_request_target is not used</text>
+
+  <line x1="450" y1="90" x2="513" y2="90" stroke="#7a828c" stroke-width="2" marker-end="url(#R)"/>
+
+  <rect x="520" y="44" width="200" height="92" rx="8" fill="#2b5f9e"/>
+  <text x="620" y="68" text-anchor="middle" fill="#fff" font-size="12.5" font-weight="600">fork-notice job</text>
+  <text x="620" y="87" text-anchor="middle" fill="#cfe0f3" font-size="10.5">upserts a comment saying this</text>
+  <text x="620" y="103" text-anchor="middle" fill="#cfe0f3" font-size="10.5">head has no machine review</text>
+  <text x="620" y="123" text-anchor="middle" fill="#cfe0f3" font-size="10">github.token only, so it works</text>
+
+  <line x1="720" y1="90" x2="783" y2="90" stroke="#7a828c" stroke-width="2" marker-end="url(#R)"/>
+
+  <rect x="790" y="52" width="130" height="76" rx="8" fill="#177a70"/>
+  <text x="855" y="80" text-anchor="middle" fill="#fff" font-size="12.5" font-weight="600">CodeRabbit</text>
+  <text x="855" y="99" text-anchor="middle" fill="#c9e6e2" font-size="10.5">the escape hatch,</text>
+  <text x="855" y="114" text-anchor="middle" fill="#c9e6e2" font-size="10.5">via the label</text>
+
+  <rect x="20" y="152" width="900" height="34" rx="7" fill="#f0ece4" stroke="#e3ddd1"/>
+  <text x="36" y="174" font-size="11.5" fill="#4a5160">Fork runs also hold a read-only GITHUB_TOKEN unless the repo enables write tokens for fork PRs, which is off. When the comment is refused, the job falls back to a workflow warning annotation carrying the same words.</text>
+</svg>
+</figure>
+
+<h3>6.6 Spending a CodeRabbit review</h3>
+<p>CodeRabbit is the independent second opinion, spent on changes where being wrong is expensive and where a reviewer
+sharing no model, prompt or failure mode is worth having. The counter is <strong>per developer</strong>, not per repo:
+all three repos draw one pool, and a review costs roughly a 40-minute cooldown across all of them.</p>
+<figure>
+<figcaption>Why it is admitted by hand, and what the numbers behind that decision were</figcaption>
+<svg viewBox="0 0 940 300" role="img" aria-label="CodeRabbit admission: two cases to spend a review, and the measured traffic that forced hand admission">
+  <rect x="20" y="16" width="580" height="128" rx="9" fill="#fff" stroke="#177a70" stroke-width="2"/>
+  <text x="40" y="42" font-size="12.5" font-weight="600" fill="#177a70">Case 1 &#183; someone decides this PR deserves an independent look</text>
+  <text x="40" y="66" font-size="11" fill="#4a5160">A sensitive surface: the CI and workflow surface itself, credential and crypto</text>
+  <text x="40" y="83" font-size="11" fill="#4a5160">handling, the engine core, contract or schema changes.</text>
+  <text x="40" y="106" font-size="11" fill="#4a5160">Or a Claude finding that deserves a check from a reviewer sharing no model,</text>
+  <text x="40" y="123" font-size="11" fill="#4a5160">no prompt and no failure mode. Two agreeing Claude runs are one opinion twice.</text>
+
+  <rect x="20" y="156" width="580" height="80" rx="9" fill="#fff" stroke="#177a70" stroke-width="2"/>
+  <text x="40" y="182" font-size="12.5" font-weight="600" fill="#177a70">Case 2 &#183; the Claude lane is down</text>
+  <text x="40" y="206" font-size="11" fill="#4a5160">A bare @coderabbitai review comment, by hand. Manual triggers run regardless</text>
+  <text x="40" y="223" font-size="11" fill="#4a5160">of the label config, and still spend the counter. That is the escape hatch.</text>
+
+  <rect x="630" y="16" width="290" height="220" rx="9" fill="#f0ece4" stroke="#e3ddd1"/>
+  <text x="775" y="42" text-anchor="middle" font-size="12.5" font-weight="600">Why it is not automatic</text>
+  <text x="775" y="70" text-anchor="middle" font-size="11" fill="#4a5160">Measured over 180 merged PRs</text>
+  <text x="775" y="98" text-anchor="middle" font-size="22" font-weight="700" fill="#177a70">7.5</text>
+  <text x="775" y="114" text-anchor="middle" font-size="10.5" fill="#6b7280">PRs per day, worst hour 8 opens</text>
+  <text x="775" y="146" text-anchor="middle" font-size="22" font-weight="700" fill="#b3403a">61%</text>
+  <text x="775" y="162" text-anchor="middle" font-size="10.5" fill="#6b7280">arrived with the counter empty,</text>
+  <text x="775" y="177" text-anchor="middle" font-size="10.5" fill="#6b7280">at one review per hour</text>
+  <text x="775" y="204" text-anchor="middle" font-size="10.8" fill="#4a5160">Automatic review spends the slot</text>
+  <text x="775" y="220" text-anchor="middle" font-size="10.8" fill="#4a5160">where PRs land, not where it matters.</text>
+
+  <rect x="20" y="248" width="900" height="44" rx="8" fill="#fdf4e6" stroke="#ecd9b0"/>
+  <text x="40" y="266" font-size="11.5" font-weight="600" fill="#8a4021">This used to be automatic, and the automation was deliberately retired.</text>
+  <text x="40" y="283" font-size="11" fill="#8a4021">review-admit.yml applied the label on a path match against .github/high-risk-paths.txt, and the review-evidence gate held such PRs red until CodeRabbit evidence existed. Both died with that gate in #415. Neither file is on main. The label is now the whole mechanism, and it is a judgement call.</text>
+</svg>
+</figure>
+<p>Once a PR is admitted, <code>auto_pause_after_reviewed_commits: 1</code> stops a fix-push loop from spending the counter
+again on every push. Batch the fixes, push, reply with SHAs, then re-request explicitly. <strong>Never write the word
+"resolve" in a reply to CodeRabbit</strong>: it parses as a command and no-ops the reply.</p>
+<p><code>gh-workflows</code> is the exception and reviews automatically, because it is the one repo the Claude lane refuses
+to review. Everywhere else, <em>"Review skipped: excluded by label configuration"</em> is the valve working.</p>
+
+<h2><span class="n">7</span>Who resolves this thread</h2>
+<figure>
+<figcaption>The question that comes up most, as a flowchart. Only one branch ends in a machine closing a thread.</figcaption>
+<svg viewBox="0 0 940 360" role="img" aria-label="Decision flowchart for who resolves a review thread">
+  <rect x="360" y="12" width="220" height="42" rx="8" fill="#4a5160"/>
+  <text x="470" y="38" text-anchor="middle" fill="#fff" font-size="12.5" font-weight="600">a thread is open</text>
+  <line x1="470" y1="54" x2="470" y2="76" stroke="#7a828c" stroke-width="2" marker-end="url(#R)"/>
+
+  <rect x="330" y="80" width="280" height="42" rx="8" fill="#fff" stroke="#e3ddd1" stroke-width="2"/>
+  <text x="470" y="106" text-anchor="middle" font-size="12">who opened it?</text>
+
+  <line x1="330" y1="101" x2="180" y2="101" stroke="#7a828c" stroke-width="2"/>
+  <line x1="180" y1="101" x2="180" y2="140" stroke="#7a828c" stroke-width="2" marker-end="url(#R)"/>
+  <line x1="610" y1="101" x2="800" y2="101" stroke="#7a828c" stroke-width="2"/>
+  <line x1="800" y1="101" x2="800" y2="140" stroke="#7a828c" stroke-width="2" marker-end="url(#R)"/>
+  <line x1="470" y1="122" x2="470" y2="140" stroke="#7a828c" stroke-width="2" marker-end="url(#R)"/>
+
+  <rect x="90" y="144" width="180" height="40" rx="7" fill="#b4552d"/>
+  <text x="180" y="169" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">a human</text>
+  <rect x="90" y="196" width="180" height="52" rx="7" fill="#fdf4e6" stroke="#ecd9b0"/>
+  <text x="180" y="219" text-anchor="middle" font-size="11">whoever opened it</text>
+  <text x="180" y="237" text-anchor="middle" font-size="11">closes it</text>
+  <line x1="180" y1="184" x2="180" y2="192" stroke="#7a828c" stroke-width="2" marker-end="url(#R)"/>
+
+  <rect x="380" y="144" width="180" height="40" rx="7" fill="#6d4aa8"/>
+  <text x="470" y="169" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">claude[bot]</text>
+  <line x1="470" y1="184" x2="470" y2="196" stroke="#7a828c" stroke-width="2" marker-end="url(#R)"/>
+  <rect x="350" y="200" width="240" height="44" rx="7" fill="#fff" stroke="#e3ddd1" stroke-width="2"/>
+  <text x="470" y="219" text-anchor="middle" font-size="11.5">did the verify round prove it</text>
+  <text x="470" y="235" text-anchor="middle" font-size="11.5">fixed at the current head?</text>
+
+  <line x1="350" y1="222" x2="270" y2="222" stroke="#7a828c" stroke-width="2"/>
+  <line x1="270" y1="222" x2="270" y2="286" stroke="#7a828c" stroke-width="2" marker-end="url(#R)"/>
+  <text x="300" y="216" font-size="10.5" fill="#b3403a" font-weight="600">no</text>
+  <line x1="590" y1="222" x2="660" y2="222" stroke="#7a828c" stroke-width="2"/>
+  <line x1="660" y1="222" x2="660" y2="286" stroke="#7a828c" stroke-width="2" marker-end="url(#R)"/>
+  <text x="614" y="216" font-size="10.5" fill="#2e7d4f" font-weight="600">yes</text>
+
+  <rect x="150" y="290" width="240" height="54" rx="7" fill="#fdf4e6" stroke="#ecd9b0"/>
+  <text x="270" y="311" text-anchor="middle" font-size="11" font-weight="600" fill="#8a4021">the operator, and only them</text>
+  <text x="270" y="329" text-anchor="middle" font-size="10.5" fill="#8a4021">state the disposition in-thread first</text>
+
+  <rect x="540" y="290" width="240" height="54" rx="7" fill="#eaf4ee" stroke="#bcdcc7"/>
+  <text x="660" y="311" text-anchor="middle" font-size="11" font-weight="600" fill="#2e7d4f">the mutate job closes it</text>
+  <text x="660" y="329" text-anchor="middle" font-size="10.5" fill="#2e7d4f">citing the SHA and what it checked</text>
+
+  <rect x="710" y="144" width="180" height="40" rx="7" fill="#177a70"/>
+  <text x="800" y="169" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">coderabbitai[bot]</text>
+  <line x1="800" y1="184" x2="800" y2="192" stroke="#7a828c" stroke-width="2" marker-end="url(#R)"/>
+  <rect x="710" y="196" width="200" height="86" rx="7" fill="#e8f4f2" stroke="#bcdcd8"/>
+  <text x="810" y="217" text-anchor="middle" font-size="10.8">push all fixes, reply with SHAs,</text>
+  <text x="810" y="234" text-anchor="middle" font-size="10.8">then one @coderabbitai review.</text>
+  <text x="810" y="251" text-anchor="middle" font-size="10.8">It self-resolves what it verifies;</text>
+  <text x="810" y="270" text-anchor="middle" font-size="10.5" fill="#4a5160">the rest go to the operator.</text>
+</svg>
+</figure>
+
+<h2><span class="n">8</span>Reading the liveness comment</h2>
+<p>Every PR gets exactly one, from <code>github-actions[bot]</code>, updated in place. Match the marker <em>prefix</em>,
+never the whole string: the field set changes, and an exact-string matcher silently stops finding the comment.</p>
+<div class="note"><strong>It is not a display. It is where the lane keeps its state.</strong> <code>rounds=</code> is read
+back by the mode step on every automatic round and is what enforces auto-pause. <code>sha=</code> is the reviewed-head
+baseline that incremental review is designed to consume. Deleting the comment deletes auto-pause and the incremental
+baseline with it, so it cannot go anywhere until something else holds that state. Its display half also still earns its
+place: "a green job is never evidence" is the invariant this lane was built around, and this comment is the only thing
+that answers it on the PR itself.</div>
+<figure>
+<figcaption>The comment, annotated</figcaption>
+<svg viewBox="0 0 940 250" role="img" aria-label="Annotated liveness comment showing the marker fields and the verdict">
+  <rect x="20" y="16" width="600" height="118" rx="8" fill="#fff" stroke="#e3ddd1" stroke-width="2"/>
+  <circle cx="46" cy="42" r="11" fill="#4a5160"/>
+  <text x="66" y="46" font-size="11.5" font-weight="600">github-actions[bot]</text>
+  <text x="190" y="46" font-size="11" fill="#6b7280">commented &#183; updated in place, never duplicated</text>
+  <text x="40" y="76" font-size="10.8" font-family="Consolas,monospace" fill="#8a8578">&lt;!-- claude-review-liveness rounds=2 sha=e200d6fb... --&gt;</text>
+  <text x="40" y="102" font-size="11.5" font-weight="600">Claude review lane</text>
+  <text x="152" y="102" font-size="11.5" fill="#4a5160">&#8212; run: reviewed `e200d6fb` and posted</text>
+  <text x="40" y="120" font-size="11.5" fill="#4a5160">3 inline / 0 summary comment(s).</text>
+
+  <line x1="330" y1="70" x2="700" y2="52" stroke="#b4552d" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <rect x="700" y="30" width="228" height="46" rx="6" fill="#fdf4e6" stroke="#ecd9b0"/>
+  <text x="712" y="48" font-size="10.5" font-weight="600" fill="#8a4021">rounds= automatic rounds that</text>
+  <text x="712" y="64" font-size="10.5" fill="#8a4021">actually reviewed. Summons never count.</text>
+
+  <line x1="470" y1="80" x2="700" y2="104" stroke="#b4552d" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <rect x="700" y="86" width="228" height="62" rx="6" fill="#fdf4e6" stroke="#ecd9b0"/>
+  <text x="712" y="104" font-size="10.5" font-weight="600" fill="#8a4021">sha= the last head a review was</text>
+  <text x="712" y="120" font-size="10.5" fill="#8a4021">actually posted on. Advances only on</text>
+  <text x="712" y="136" font-size="10.5" fill="#8a4021">posted output, never on a green job.</text>
+
+  <line x1="300" y1="124" x2="700" y2="172" stroke="#2e7d4f" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <rect x="700" y="158" width="228" height="46" rx="6" fill="#eaf4ee" stroke="#bcdcc7"/>
+  <text x="712" y="176" font-size="10.5" font-weight="600" fill="#2e7d4f">the verdict. One of four. This is</text>
+  <text x="712" y="192" font-size="10.5" fill="#2e7d4f">the only one that means &#8220;reviewed&#8221;.</text>
+
+  <rect x="20" y="152" width="600" height="80" rx="8" fill="#f0ece4" stroke="#e3ddd1"/>
+  <text x="40" y="174" font-size="11.5" font-weight="600">The other three verdicts</text>
+  <text x="40" y="194" font-size="10.8" fill="#4a5160">&#183; posted <tspan font-weight="700">nothing</tspan> &#8212; no machine review on record. Silence is not approval.</text>
+  <text x="40" y="211" font-size="10.8" fill="#4a5160">&#183; auto-paused after N automatic rounds &#8212; will not review on push again until summoned.</text>
+  <text x="40" y="228" font-size="10.8" fill="#4a5160">&#183; did not run: no CLAUDE_CODE_OAUTH_TOKEN reached this lane.</text>
+</svg>
+</figure>
+
+<h2><span class="n">9</span>Summoning</h2>
+<p>Bare PR comments from an <code>OWNER</code>, <code>MEMBER</code> or <code>COLLABORATOR</code>. The comment body is read only by
+workflow <code>contains()</code> expressions and never reaches a prompt or a shell string. That rigidity is the security property,
+not an oversight, which is why the model override is an allowlist of two fixed phrases rather than a parsed argument.</p>
+<table>
+  <tr><th>What you type</th><th>What happens</th></tr>
+  <tr><td><code>@claude review</code></td><td>Incremental. The lane picks its own mode: a verify round if unresolved <code>claude[bot]</code> threads exist, otherwise a normal review. The only resume for an auto-paused PR, and it buys exactly one run.</td></tr>
+  <tr><td><code>@claude review --model opus</code><br><code>@claude review --model sonnet</code></td><td>Same, on a pinned model ID. Default is <code>claude-sonnet-5</code>, deliberately: the review lane is the highest-volume Claude spend across the three repos.</td></tr>
+  <tr><td><code>@claude full review</code></td><td>From scratch with dedup disabled. Existing comments are explicitly not dedup targets, without which a re-review publishes nothing. This is the right answer to a "posted nothing" verdict.</td></tr>
+  <tr><td>a plain reply inside a thread</td><td>No verb needed. A non-bot in-thread reply is itself the verify trigger.</td></tr>
+  <tr><td>bare <code>@claude …</code></td><td>Routes to the mention lane, which answers questions and holds no write permission.</td></tr>
+</table>
+<p>Summons run on drafts, bypass <code>skip_authors</code>, and ignore the pause counter. They do not override the fork guard or the
+self-skip. <strong>Known gap:</strong> <code>@claude full review --model opus</code> silently uses the default model, because the
+literal <code>@claude review --model opus</code> is not a substring of it.</p>
+
+<h2><span class="n">10</span>Standing rules</h2>
+<ul>
+  <li><strong>A green job is never evidence a review happened.</strong> The action exits <code>success</code> having posted nothing. Only published output counts, and the liveness comment is where you read it.</li>
+  <li><strong>Automatic review is finite, and a summon is the only resume.</strong> Anything waiting on a machine review reads the verdict rather than the absence of one.</li>
+  <li><strong>The reviewing job never holds a write.</strong> Not the review lane, not the mention lane. If a change wants to add one, the change is wrong.</li>
+  <li><strong>The mutate job never holds a model.</strong> It holds a credential that can push code, which is the same statement from the other side.</li>
+  <li><strong>Verdicts are data, not instructions.</strong> The mutate job re-fetches live threads and matches them itself. Nothing the agent wrote is executed.</li>
+  <li><strong>Canary before trust.</strong> After any lane change lands: open a trivial docs PR, let the round run, read the liveness comment, close it unmerged. gh-workflows#18 exists because a canary was run and the feature did not work.</li>
+  <li><strong>Lane logic changes happen in <code>prismalens/gh-workflows</code> only.</strong> Consumers hold thin stubs.</li>
+</ul>
+
+<h2><span class="n">11</span>What is still open</h2>
+<table>
+  <tr><th>Item</th><th>State</th><th>Next move</th></tr>
+  <tr>
+    <td><strong>Which credential resolves threads</strong></td>
+    <td><code>GITHUB_TOKEN</code> at <code>contents: write</code> resolves, probed on <code>sreforge</code> 2026-08-26. The App is a choice, and its config surface has already left one of three repos mis-wired.</td>
+    <td>Decide it on the ceiling and identity arguments in section 5, then delete whichever path loses. Leaving both is the worst option.</td>
+  </tr>
+  <tr>
+    <td><strong><code>prismalens/prismalens</code> is mis-wired</strong></td>
+    <td>Its caller stub does not forward the App secrets, so every verified thread stays open behind a reply saying it is fixed, on a green job. With 0 required approvals, thread resolution is the only merge gate on that repo.</td>
+    <td>Two lines copied from the <code>sreforge</code> stub. Do this even if the App is on its way out, because the repo is broken today.</td>
+  </tr>
+  <tr>
+    <td><strong>gh-workflows#12 still says auto-resolution is rejected</strong></td>
+    <td>The roadmap issue rejects it on the read-only invariant. #17 and #19 then shipped it, and the review-and-mutate split is the answer to that objection: the agent's whole influence is a fixed-shape record that a modelless job re-derives from live state.</td>
+    <td>Update #12 so the standing roadmap and the shipped design stop contradicting each other. Right now a reader has to know which one is newer.</td>
+  </tr>
+  <tr>
+    <td><strong>0 approvals plus bot-resolvable threads</strong></td>
+    <td>All three repos. The lane can now satisfy the only review-shaped merge gate with nobody involved. Defensible, because the verify round re-derives from head rather than trusting a reply, but shipped rather than decided.</td>
+    <td>Write it down as intended next to the ruleset, or set the approval count to 1.</td>
+  </tr>
+  <tr>
+    <td><strong>Incremental review, increment 2</strong></td>
+    <td>Designed, adjudicated, unbuilt. Mode set becomes <code>skip / review / incremental</code>, driven by the <code>sha=</code> baseline through the compare API. This is the real answer to review cost, and it beats anything cache-shaped.</td>
+    <td>Build it. Two rulings not to re-derive: <code>git merge-base</code> cannot work here (<code>fetch-depth: 1</code> and the synthetic merge ref), and config must be read from the base branch, never the head.</td>
+  </tr>
+  <tr>
+    <td><strong>The auto-pause counter is monotonic</strong></td>
+    <td>A long-lived PR goes permanently unreviewed on push after five rounds. A summon buys one run and the count keeps climbing.</td>
+    <td>Increment 3: <code>announce</code> writes <code>rounds=0</code> on a successful summon-triggered review.</td>
+  </tr>
+  <tr>
+    <td><strong>Actions pinned to mutable tags</strong></td>
+    <td><code>actions/checkout@v4</code> and <code>anthropics/claude-code-action@v1</code>, in the workflow that holds the write-capable token.</td>
+    <td>SHA-pin them. This is the oldest surviving debt item.</td>
+  </tr>
+  <tr>
+    <td><strong><code>@claude full review --model opus</code> silently ignores the model</strong></td>
+    <td>The literal <code>@claude review --model opus</code> is not a substring of that phrasing, so it falls through to the default.</td>
+    <td>Two more <code>contains()</code> arms. It must stay an allowlist.</td>
+  </tr>
+  <tr>
+    <td><strong>Vendored prompt drift</strong></td>
+    <td>The lane inlines upstream's <code>code-review</code> command at blob <code>0b27765f</code>, minus its step 1. Upstream moves a few times a year and nothing detects it.</td>
+    <td>A periodic blob-SHA comparison.</td>
+  </tr>
+  <tr>
+    <td><strong><code>claude-kit</code> reviews nothing</strong></td>
+    <td>The repo holding the lane's consumer tooling and doctrine has one lint workflow, no <code>.coderabbit.yaml</code>, and does not call the shared lane.</td>
+    <td>Adopt the lane, or state why it is exempt.</td>
+  </tr>
+</table>
+
+<p class="foot">Living doc &#183; established 2026-08-12, rewritten 2026-08-27 &#183;
+sources: prismalens#403 (rollout and root cause), #415 (advisory doctrine), #422 (injection containment),
+gh-workflows#18 ("Thread self-resolution is denied: GITHUB_TOKEN cannot call resolveReviewThread"),
+gh-workflows#19 ("give the mutate job a token that can actually resolve threads"),
+canary run on prismalens/sreforge#157.
+Skills that carry the procedures: <code>claude-review-lane</code>, <code>coderabbit-lane</code>, <code>pr-watch</code>.</p>
+
 </main>
 </body>
 </html>

@@ -75,10 +75,16 @@ Seed the seen-state first, so existing comments are never replayed:
 ```bash
 mkdir -p ~/ai-context/state/cr-watch
 REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner); KEY=${REPO//\//-}
-gh api "repos/$REPO/pulls/<pr>/comments?per_page=100" \
-  --jq '.[] | select(.user.login|test("coderabbit")) | .id' \
+gh api "repos/$REPO/pulls/<pr>/comments?per_page=100" > /tmp/c.json
+jq -r '.[] | select(.user.login|test("coderabbit")) | .id' /tmp/c.json \
   > ~/ai-context/state/cr-watch/$KEY-pr<pr>.seen
+jq -r '.[] | select(.user.login|test("claude";"i")) | .id' /tmp/c.json \
+  > ~/ai-context/state/cr-watch/$KEY-pr<pr>-claude.seen
 ```
+
+Both files, not just the first. The watcher keeps a separate `-claude.seen` and only
+`touch`es it, so a PR that already carries `claude[bot]` threads replays every one of them
+as `NEW` on the first arm unless you seed it here.
 
 Then arm the **Monitor tool** with `persistent: true`:
 
@@ -93,15 +99,20 @@ re-arm with the combined list. Seen-state makes re-arming free.
 Event lines:
 
 ```
-NEW coderabbit <thread|reply-in-ID> — id N — path — payload <state-file> — excerpt
-NEW claude <thread|reply-in-ID> — …
-CLAUDE LIVENESS — <verdict text>
-CI FAIL — <check>
-CODERABBIT RATE-LIMITED — …
-CODERABBIT RE-TRIGGERED — …
-CODERABBIT RESUMED — …
-PR#N MERGED/CLOSED
+PR#N NEW coderabbit <thread|reply-in-ID> — id N — path — payload <state-file> — excerpt
+PR#N NEW claude <thread|reply-in-ID> — id N — path — payload <state-file> — excerpt
+PR#N CLAUDE LIVENESS — <verdict text>
+PR#N CI FAIL — <check>
+PR#N CODERABBIT RATE-LIMITED — no review ran; <window>
+PR#N CODERABBIT RE-TRIGGERED — posted @coderabbitai review (attempt K/MAX)
+PR#N CODERABBIT RE-TRIGGER FAILED — post '@coderabbitai review' by hand
+PR#N CODERABBIT ANSWERED AS CHAT — no review ran; re-trigger with a BARE '@coderabbitai review'
+PR#N CODERABBIT RESUMED — rate-limit notice cleared, review ran
+PR#N <MERGED|CLOSED> — dropped from watch
 ```
+
+`ANSWERED AS CHAT` and `RE-TRIGGER FAILED` both mean no review ran, same as
+`RATE-LIMITED`. Treat all three as an unreviewed diff.
 
 **The monitor emits pointers, not payloads.** The body is already saved at the `payload` path. Route that path. Never fetch
 a body into the session that owns the Monitor.
@@ -142,10 +153,10 @@ delta prompt, judgment goes to the resumed Claude seat.
   no remote fix route to choose between.
 - **Fix protocol.** Commit, push, then reply in-thread to root comments. Follow the
   reviewer's own rules: `coderabbit-lane` §5 and §6 for CodeRabbit, including `cr-reply.sh`
-  and the no-"resolve"-in-replies rule, and `claude-review-lane` §7 for `claude[bot]`,
+  and the no-"resolve"-in-replies rule, and `claude-review-lane` §6 for `claude[bot]`,
   where a reply from a non-bot account is what triggers re-evaluation.
 - **Deferring or declining a finding.** State the disposition in-thread, wait for replies,
-  link the tracking issue. Timing is in `coderabbit-lane` §6 and `claude-review-lane` §7.
+  link the tracking issue. Timing is in `coderabbit-lane` §6 and `claude-review-lane` §6.
 - **Reply-in events** are CodeRabbit's verdict on your fix. Read them. It may push back.
 - **`CLAUDE LIVENESS —` and the fork notice.** Read the verdict through
   `claude-review-lane` §2 before anything else. Only one of the four verdicts means a
@@ -172,7 +183,7 @@ babysitting, no `merge-cascade.sh`. That script describes pre-queue mechanics an
 be used here. One timing rule survives: **do not enqueue before the liveness comment shows
 posted review output.** The queue gates on checks and threads, not on whether a reviewer
 spoke, so enqueueing into silence merges an unreviewed head. Three of the four verdicts in
-`claude-review-lane` §7 do not count as posted output.
+`claude-review-lane` §2 do not count as posted output.
 
 **Classic repos (mage-memory, a personal account with no queue).** Merge by hand once the
 round's threads are resolved: `gh pr merge <n> --squash`. BEHIND still applies, so
@@ -190,7 +201,7 @@ git refuses because the tree is locked.
   posted is no protection either: mage-memory#133 merged 14 seconds after a review landed,
   orphaning the fix commit for that review's own findings. Order the round as review
   posted, then fix, then resolve, then merge. Never the reverse. On queue repos, "review
-  posted" is read off the liveness comment (`unattended-run` §8).
+  posted" is read off the liveness comment (`claude-review-lane` §2).
 - **Never wait on `mergeStateStatus`.** An unresolved review thread pins it at `BLOCKED`,
   so a posted finding is the event that stops the wait from ever ending. Key on
   `reviewThreads` and comment IDs instead (`anti-stall` §3).

@@ -56,11 +56,15 @@ for f in "${files[@]}"; do
   # rule 28: one idea per sentence. Past 35 words, split it. Not a regex, so it runs
   # as its own pass. Table rows and headings are layout, not sentences: skipped.
   n=$(printf "%s\n" "$body" | awk '
-    /^---$/ { fm = !fm; next }  fm { next }
+    # frontmatter only: the first two delimiters, so a horizontal rule later in
+    # the file does not exempt everything after it
+    /^---$/ && (NR == 1 || fm) { fm = !fm; next }  fm { next }
     /^[[:space:]]*[|#>]/ { next }
     { gsub(/\[[^]]*\]\([^)]*\)/, "link")
       gsub(/[*_]/, "")   # **bold.** hides the period from the split below
-      k = split($0, s, /[.!?)] /)
+      # ") " is NOT a boundary: a mid-sentence aside would split one long
+      # sentence into two short ones and hide it
+      k = split($0, s, /[.!?] /)
       for (i = 1; i <= k; i++) if (split(s[i], w, " ") > 35) c++ }
     END { print c + 0 }')
   if [ "$n" -gt 0 ]; then
