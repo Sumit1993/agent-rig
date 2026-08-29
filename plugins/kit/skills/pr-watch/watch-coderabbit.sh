@@ -187,6 +187,23 @@ while [ ${#PRS[@]} -gt 0 ]; do
         fi
       fi
     fi
+
+    # --- auto-pause channel (issue comments; dedupe on updated_at, same as above) ---
+    ap_state="$STATE_DIR/$KEY-pr$pr.autopause"
+    ap_prev=""; [ -f "$ap_state" ] && ap_prev=$(cat "$ap_state" 2>/dev/null)
+    if is_json_array <<<"$rl_raw" && ap_ts=$(jq -r '[.[] | select(.user.login | test("coderabbit"))
+                         | select(.body | test("review paused by coderabbit\\.ai"))]
+                    | last | .updated_at // empty' <<<"$rl_raw" 2>/dev/null); then
+      if [ -z "$ap_ts" ] || [ "$ap_ts" = "null" ]; then
+        if [ -f "$ap_state" ]; then
+          rm -f "$ap_state"
+          echo "PR#$pr CODERABBIT AUTO-PAUSE CLEARED — reviews resumed"
+        fi
+      elif [ "$ap_ts" != "$ap_prev" ]; then
+        printf '%s' "$ap_ts" > "$ap_state"
+        echo "PR#$pr CODERABBIT AUTO-PAUSED — no review ran; resume with '@coderabbitai resume'"
+      fi
+    fi
     fi  # CR_PRESENT
 
     # --- Claude review lane channel (inline comments + liveness verdict) ---
