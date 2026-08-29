@@ -76,7 +76,7 @@ CR_PRESENT=${CR_WATCH_ASSUME_CODERABBIT:-$(detect_coderabbit)}
 if [ "$CR_PRESENT" = "1" ]; then
   echo "CODERABBIT ACTIVE on $REPO — watching reviews, rate limits, CI and merge state"
 else
-  echo "CODERABBIT ABSENT on $REPO — watching CI + merge state ONLY. No review will arrive, so silence here is NOT a clean review: get line-level coverage from the CodeRabbit CLI pre-push or a model review pass."
+  echo "CODERABBIT ABSENT on $REPO — watching CI + merge state ONLY. No review will arrive, so silence here is NOT a clean review: get line-level coverage from a model review pass."
 fi
 
 # Minutes until the next review window, parsed from the rate-limit notice
