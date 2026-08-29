@@ -76,7 +76,7 @@ CR_PRESENT=${CR_WATCH_ASSUME_CODERABBIT:-$(detect_coderabbit)}
 if [ "$CR_PRESENT" = "1" ]; then
   echo "CODERABBIT ACTIVE on $REPO — watching reviews, rate limits, CI and merge state"
 else
-  echo "CODERABBIT ABSENT on $REPO — watching CI + merge state ONLY. No review will arrive, so silence here is NOT a clean review: get line-level coverage from the CodeRabbit CLI pre-push or a model review pass."
+  echo "CODERABBIT ABSENT on $REPO — watching CI + merge state ONLY. No review will arrive, so silence here is NOT a clean review: get line-level coverage from a model review pass."
 fi
 
 # Minutes until the next review window, parsed from the rate-limit notice
@@ -185,6 +185,23 @@ while [ ${#PRS[@]} -gt 0 ]; do
           fi
           printf '%s\t0\t%s\n' "$prev_ts" "$((used + 1))" > "$rl_state"
         fi
+      fi
+    fi
+
+    # --- auto-pause channel (issue comments; dedupe on updated_at, same as above) ---
+    ap_state="$STATE_DIR/$KEY-pr$pr.autopause"
+    ap_prev=""; [ -f "$ap_state" ] && ap_prev=$(cat "$ap_state" 2>/dev/null)
+    if is_json_array <<<"$rl_raw" && ap_ts=$(jq -r '[.[] | select(.user.login | test("coderabbit"))
+                         | select(.body | test("review paused by coderabbit\\.ai"))]
+                    | last | .updated_at // empty' <<<"$rl_raw" 2>/dev/null); then
+      if [ -z "$ap_ts" ] || [ "$ap_ts" = "null" ]; then
+        if [ -f "$ap_state" ]; then
+          rm -f "$ap_state"
+          echo "PR#$pr CODERABBIT AUTO-PAUSE CLEARED — reviews resumed"
+        fi
+      elif [ "$ap_ts" != "$ap_prev" ]; then
+        printf '%s' "$ap_ts" > "$ap_state"
+        echo "PR#$pr CODERABBIT AUTO-PAUSED — no review ran; resume with '@coderabbitai resume'"
       fi
     fi
     fi  # CR_PRESENT

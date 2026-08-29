@@ -107,12 +107,14 @@ PR#N CODERABBIT RATE-LIMITED — no review ran; <window>
 PR#N CODERABBIT RE-TRIGGERED — posted @coderabbitai review (attempt K/MAX)
 PR#N CODERABBIT RE-TRIGGER FAILED — post '@coderabbitai review' by hand
 PR#N CODERABBIT ANSWERED AS CHAT — no review ran; re-trigger with a BARE '@coderabbitai review'
+PR#N CODERABBIT AUTO-PAUSED — no review ran; resume with '@coderabbitai resume'
+PR#N CODERABBIT AUTO-PAUSE CLEARED — reviews resumed
 PR#N CODERABBIT RESUMED — rate-limit notice cleared, review ran
 PR#N <MERGED|CLOSED> — dropped from watch
 ```
 
-`ANSWERED AS CHAT` and `RE-TRIGGER FAILED` both mean no review ran, same as
-`RATE-LIMITED`. Treat all three as an unreviewed diff.
+`ANSWERED AS CHAT`, `AUTO-PAUSED` and `RE-TRIGGER FAILED` all mean no review ran, same as
+`RATE-LIMITED`. Treat all four as an unreviewed diff.
 
 **The monitor emits pointers, not payloads.** The body is already saved at the `payload` path. Route that path. Never fetch
 a body into the session that owns the Monitor.
@@ -172,6 +174,10 @@ delta prompt, judgment goes to the resumed Claude seat.
   merge is never actually blocked. Low-risk diff: merge on CI plus the re-trigger.
   Otherwise run the Opus 5 pass now, rather than spending 45 minutes on a tier that would
   have found less. On `auto-retry budget spent`, the model pass *is* the review.
+- **`CODERABBIT AUTO-PAUSED`.** No review ran, so the diff is unreviewed, not clean. The
+  watcher deliberately does not auto-resume: resuming immediately spends a slot from the
+  shared org-wide counter. The operator resumes with a bare `@coderabbitai resume` when
+  they want the review.
 
 ## Phase 3: merge, once the user says so or under an explicit standing grant
 
