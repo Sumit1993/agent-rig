@@ -15,52 +15,56 @@ Assumed here and not repeated: **`anti-stall`** for how a wait is built, **`agy-
 
 ## 0. The first tick: arm the wake-up, then write the plan file
 
-These two are the whole first tick. Nothing else is dispatched until both exist, because they are what makes every later tick happen at all.
+Nothing is dispatched until both exist.
 
 ### Arm the wake-up
 
 With no scheduled wake-up the run is one turn long.
 
-1. `CronCreate` is a deferred tool, so its schema is not loaded. Fetch it first:
-   `ToolSearch("select:CronCreate,CronList,CronDelete")`. Nothing in the tool list prompts you
-   to, which is why this step gets skipped.
-2. **30 minutes is the default.** Set it off the :00 and :30 marks, because every scheduled
-   job on the planet lands there: `7,37 * * * *`. Go longer when the thing you are waiting on
-   moves slower, and never shorter than the scarce resource's cooldown (§0).
-3. The prompt fires into **this** session, so the context is still here. It asks for current
-   state rather than restating the run: "tick: read the plan file, check lane and PR state,
-   then dispatch or report."
-4. `CronList` straight after, to confirm it armed. A cron that failed to arm looks identical
-   to a run that is quietly working.
-5. Put the job ID in the plan file next to the condition that ends it (§3).
+1. `CronCreate` is a deferred tool. Fetch it first:
+   `ToolSearch("select:CronCreate,CronList,CronDelete")`. Nothing prompts you to, which is
+   why this gets skipped.
+2. **30 minutes, off the :00 and :30 marks where every scheduled job lands:**
+   `7,37 * * * *`. Longer when the thing you wait on moves slower, never shorter than the
+   scarce resource's cooldown.
+3. The prompt fires into **this** session, so the context is still here. Ask for current
+   state: "tick: read the plan file, check lane and PR state, then dispatch or report."
+4. `CronList` after, to confirm. A cron that failed to arm looks like a quiet run.
+5. Record the job ID in the plan file beside the condition that ends it (§3).
 
-Three facts about `CronCreate` change how the run is planned:
+Three facts change how the run is planned:
 
-- **Jobs live in this session's memory only.** If the session ends, the cron goes with it and
-  the run stops. The plan file still reads healthy, so nothing announces this.
-- **Jobs fire only while the REPL is idle.** A long foreground wait (`anti-stall` 0) holds
-  the turn and blocks the tick. Keep foreground waits shorter than one tick.
-- **Recurring jobs expire after 7 days.** They fire one last time, then delete themselves.
+- **Jobs live in this session's memory only.** End the session and the cron goes with it,
+  leaving a plan file that still reads healthy.
+- **Jobs fire only while the REPL is idle.** A long foreground wait (`anti-stall` §2) blocks
+  the tick. Keep those shorter than one interval.
+- **Recurring jobs expire after 7 days.**
 
 `ScheduleWakeup` paces `/loop` from inside a session and is not this. Use `CronCreate`.
 
 ### Write the plan file
 
-One file, `~/ai-context/<repo>-<task>-plan.md`, is the source of truth. A tick fires into this session, so scrollback usually survives a wake-up. It does not survive compaction, a crash, or the operator picking the run up in a new session. The plan file survives all three. It holds the standing rules, a lane table with live state, the decisions waiting on the operator, verified facts about the environment, and a running log. Detail belongs here, not in the terminal (§11).
+`~/ai-context/<repo>-<task>-plan.md` is the source of truth. Scrollback usually survives a
+wake-up, since the tick fires into this session. It does not survive compaction, a crash, or
+the operator resuming in a new session. The plan file survives all three. It holds the
+standing rules, the lane table, the decisions waiting on the operator, verified environment
+facts, and a running log. Detail goes here, not the terminal (§11).
 
-Before the operator leaves, record what is scarce, which repos and worktrees exist, what is frozen, and what must never be merged.
+If it does not exist yet, building it is the rest of the first tick. Read the queue without
+touching anything and group it into waves by what blocks what. Probe the environment rather
+than assuming it: which stacks are up, which worktrees exist, which repo owns which name.
+Write down the standing rules, including the ones the operator only said out loud, plus what
+is frozen and what must never be merged.
 
-If the file does not exist yet, building it is the rest of the first tick. Read the queue without touching anything and group it into waves by what blocks what. Probe the environment instead of assuming it: which stacks are up, which worktrees exist, which repo owns which name. Then write down the standing rules, including the ones the operator only said out loud.
+**Name the scarce resource and its scope.** Lane count follows from it. Two kinds recur: a
+shared external counter, such as an org-wide review quota with a cooldown, and something
+that only works one at a time, such as merges to a branch. Scope is what gets assumed wrong.
+One counter turned out to be per-developer, not per-repo, so three repos drew on one pool
+and spending on one starved another. Serialise inside that scope; everything else runs wide.
 
-**Name the scarce resource, and its scope.** Lane count follows from it, and there is no
-right number. Two kinds recur: a shared external counter, such as one org-wide review
-quota with a cooldown, and something that only works one at a time, such as merges to a
-branch. Scope is the part that gets assumed wrong. One review counter turned out to be
-per-developer rather than per-repo, so three repos drew on one pool and spending on one
-starved another. Serialise everything inside that scope. Anything not competing for it
-runs as wide as you like.
-
-**Respect the window.** Never start a lane that cannot finish *and* be verified in the time left. As the end approaches, only take work to a state that is safe to leave: pushed, commented, or parked. Never mid-merge or mid-rebase.
+**Respect the window.** Never start a lane that cannot finish *and* be verified in the time
+left. Near the end, take work only to a state that is safe to leave: pushed, commented, or
+parked. Never mid-merge or mid-rebase.
 
 ## 1. The organizer never edits repo files
 
@@ -68,9 +72,17 @@ Dispatch and judge. Editing a file means the seat holding the whole goal spent i
 
 Lanes work in worktrees, never in the main checkout. `AGENTS.md` sets which mechanism, and a Claude subagent lane and an agy lane do not get the same one. The main checkout and its stack belong to the organizer. A lane that helpfully "restores" its branch takes the run down with it. The organizer creates or reuses the worktree and hands the lane an absolute path, with instructions to stop and report if it is missing.
 
-**Every dispatch prompt says, in as many words:** the absolute worktree path, the exact verify commands and that the lane runs them itself, the report format (findings, evidence, SHAs, blockers, no prose), the stop conditions ("abort and report rather than improvise" on any conflict, any frozen path, any gate still red after N minutes), what the lane may **not** do (merge, close, bypass, edit a frozen path), and the stall rule (§3).
+**Every dispatch prompt says, in as many words:**
 
-Never override a lane's brief with reasoning you invented on the spot. One organizer ordered a lane to spend the run's last unit of a scarce counter on an action the lane's own brief had already called a guaranteed waste, backed by a claim that sounded right and had no source. The lane refused, correctly. If you contradict a brief, cite what supersedes it. With no source, the brief wins.
+- The absolute worktree path.
+- The exact verify commands, and that the lane runs them itself.
+- The report format: findings, evidence, SHAs, blockers, no prose.
+- The stop conditions. "Abort and report rather than improvise" on any conflict, any frozen
+  path, any gate still red after N minutes.
+- What the lane may **not** do: merge, close, bypass, edit a frozen path.
+- The stall rule (§3).
+
+Never override a lane's brief with reasoning you invented on the spot. One organizer ordered a lane to spend the run's last unit of a scarce counter on an action its own brief had already called a guaranteed waste. The claim behind the order sounded right and had no source. The lane refused, correctly. If you contradict a brief, cite what supersedes it. With no source, the brief wins.
 
 **Workflows and subagents are free to use. Cost is the only limit.** Do not ration agents
 to save money and do not do work by hand to avoid spawning one. That trades the expensive
@@ -88,10 +100,12 @@ Judgment work skips the cheap lane entirely: security and crypto, anything users
 
 Here is why. A completion notification fires only when an agent has **no live background children**. The moment an agent launches something in the background and hands control back, that notification can never arrive. Returning guaranteed that nothing is watching. This keeps happening in lanes that were handed the rule, so treat it as a trap built into the tooling rather than a bad agent.
 
-- A wait is real **only while the agent is still running inside its own turn**: a foreground `until` loop keyed on durable evidence, with the loop length as the deadline (`anti-stall` 0).
+- A wait is real **only while the agent is still running inside its own turn**: a foreground `until` loop keyed on durable evidence, with the loop length as the deadline (`anti-stall` §2).
 - A background launch followed by handing control back is a stall, every time.
 
-**Fix it immediately and skip the acknowledgement.** `SendMessage` to that lane: "go read <the concrete artifact: log path, PR check, SHA> now, then wait in the foreground with a deadline, and do not return until the evidence resolves or the deadline expires." Never accept two "waiting" reports in a row. Read the artifact yourself instead.
+**Fix it immediately and skip the acknowledgement.** `SendMessage` to that lane: "go read <the concrete artifact: log path, PR check, SHA>
+now. Then wait in the foreground with a deadline. Do not return until the evidence
+resolves or the deadline expires." Never accept two "waiting" reports in a row. Read the artifact yourself instead.
 
 Put this rule in every dispatch prompt. Assume the lane walks into it otherwise.
 
@@ -171,9 +185,9 @@ you are parking at the end of the drain, not the start.
 
 When a gate blocks the only fix available, **escalate. Do not override.** Waiting out a cooldown inside an eight hour window is cheap. A bypass cannot be undone.
 
-First tell a gate that is **failing**, where retrying is right, from one that **cannot be satisfied**, where retrying burns the rest of the run for nothing. One required check demanded a reviewer artifact the reviewer only emits when it has findings, so a correct trivial change could never produce that evidence and the fix for the gate could not pass the gate. The tell: the same action gives the same empty result twice with no error. On the second identical empty result, stop and escalate. Do not try a third time.
+First tell a gate that is **failing**, where retrying is right, from one that **cannot be satisfied**, where retrying burns the rest of the run for nothing. One required check demanded a reviewer artifact the reviewer only emits when it has findings. A correct trivial change could never produce that evidence, so the fix for the gate could not pass the gate. The tell: the same action gives the same empty result twice with no error. On the second identical empty result, stop and escalate. Do not try a third time.
 
-What makes this bite: the PR that *repairs* the gate is the **worst** candidate in the repo for skipping review. Every catch an independent reviewer made on that track landed in exactly that territory, **including ones the adjudicating model had already approved.** A gate change reviewed only by the model that wrote it is the precise failure independent review exists to catch (§7).
+What makes this bite: the PR that *repairs* the gate is the **worst** candidate in the repo for skipping review. Every catch an independent reviewer made on that track landed in exactly that territory, **including ones the adjudicating model had already approved.** A gate change reviewed only by the model that wrote it is the failure independent review exists to catch (§7).
 
 - A **conditional** pre-authorisation ("this might need a bypass") is a reserve, not an instruction. Write down the exact condition that would spend it, and do not spend it just because things are slow.
 - Never reach for a skip flag, an `--admin` merge, a `--no-verify` push, or a ruleset edit. If a lane already used one, record it and stop that lane. Do not quietly keep the result.
@@ -182,7 +196,10 @@ What makes this bite: the PR that *repairs* the gate is the **worst** candidate 
 ## 10. Park anything that needs the operator to sign off
 
 - Work that changes what the operator sees or owns goes **to green and stops**: interface shape, exported API, architecture naming, scope. Never merge it.
-- PRs that have diverged, been superseded, or gone obsolete get a **comment** stating the state and stay open. Never close one. "Obsolete" is the operator's call, not yours. A PR earns the comment-and-leave treatment when its own body puts it outside the current scope, when it carries an open question only the operator can answer, or when its diff no longer applies to the current base for some reason other than a mechanical rebase. Age alone is not divergence.
+- PRs that have diverged, been superseded, or gone obsolete get a **comment** stating the state and stay open. Never close one. "Obsolete" is the operator's call, not yours. A PR earns the comment-and-leave treatment on three grounds: its own body puts it outside
+  the current scope, it carries an open question only the operator can answer, or its diff
+  no longer applies to the base for some reason other than a mechanical rebase. Age alone is
+  not divergence.
 - An honest gap beats an invented claim. Where the evidence for a parked item is incomplete, say so in the artifact.
 - Every parked item goes in the plan file's decision list as a specific question with options, never as "needs review".
 

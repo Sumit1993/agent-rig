@@ -59,6 +59,7 @@ for f in "${files[@]}"; do
     /^---$/ { fm = !fm; next }  fm { next }
     /^[[:space:]]*[|#>]/ { next }
     { gsub(/\[[^]]*\]\([^)]*\)/, "link")
+      gsub(/[*_]/, "")   # **bold.** hides the period from the split below
       k = split($0, s, /[.!?)] /)
       for (i = 1; i <= k; i++) if (split(s[i], w, " ") > 35) c++ }
     END { print c + 0 }')
