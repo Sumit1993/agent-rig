@@ -19,25 +19,34 @@ These two are the whole first tick. Nothing else is dispatched until both exist,
 
 ### Arm the wake-up
 
-With no scheduled wake-up the run is one turn long and then it is over. Arm it before anything else.
+With no scheduled wake-up the run is one turn long.
 
-1. `CronCreate` is a deferred tool, so its schema is not loaded. Fetch it first: `ToolSearch("select:CronCreate,CronList,CronDelete")`. Nothing in the tool list prompts you to do this, which is exactly why this step gets skipped.
-2. Set the interval from the scarce resource (§2), not from habit. A 5 minute tick against a 40 minute review cooldown wakes up eight times to learn nothing. Match the tick to how fast the thing you are waiting on can actually change.
-3. Write the fired prompt so it stands alone. It wakes with no memory of this conversation. It has to name the plan file's absolute path, name the repo, and say to load this skill. A prompt that says "continue" wakes into nothing.
-4. Call `CronList` straight after and confirm the job is there. A cron that failed to arm looks identical to a run that is quietly working.
+1. `CronCreate` is a deferred tool, so its schema is not loaded. Fetch it first:
+   `ToolSearch("select:CronCreate,CronList,CronDelete")`. Nothing in the tool list prompts you
+   to, which is why this step gets skipped.
+2. **30 minutes is the default.** Set it off the :00 and :30 marks, because every scheduled
+   job on the planet lands there: `7,37 * * * *`. Go longer when the thing you are waiting on
+   moves slower, and never shorter than the scarce resource's cooldown (§2).
+3. The prompt fires into **this** session, so the context is still here. It asks for current
+   state rather than restating the run: "tick: read the plan file, check lane and PR state,
+   then dispatch or report."
+4. `CronList` straight after, to confirm it armed. A cron that failed to arm looks identical
+   to a run that is quietly working.
 5. Put the job ID in the plan file next to the condition that ends it (§4).
 
 Three facts about `CronCreate` change how the run is planned:
 
-- **Jobs live in this session's memory only.** If the session ends, the cron dies with it and the run stops. The plan file still reads healthy, so nothing announces this. Write the plan file complete enough that a fresh session can pick the run back up cold.
-- **Jobs fire only while the REPL is idle.** A long foreground wait (`anti-stall` §2) holds the turn and blocks the tick. Keep foreground waits shorter than one tick interval, or expect the tick late.
+- **Jobs live in this session's memory only.** If the session ends, the cron goes with it and
+  the run stops. The plan file still reads healthy, so nothing announces this.
+- **Jobs fire only while the REPL is idle.** A long foreground wait (`anti-stall` §2) holds
+  the turn and blocks the tick. Keep foreground waits shorter than one tick.
 - **Recurring jobs expire after 7 days.** They fire one last time, then delete themselves.
 
 `ScheduleWakeup` paces `/loop` from inside a session and is not this. Use `CronCreate`.
 
 ### Write the plan file
 
-One file, `~/ai-context/<repo>-<task>-plan.md`, is the source of truth. It survives compaction, wake-ups and the operator's return. Chat scrollback survives none of those. It holds the standing rules, a lane table with live state, the decisions waiting on the operator, verified facts about the environment, and a running log. Detail belongs here, not in the terminal (§11).
+One file, `~/ai-context/<repo>-<task>-plan.md`, is the source of truth. A tick fires into this session, so scrollback usually survives a wake-up. It does not survive compaction, a crash, or the operator picking the run up in a new session. The plan file survives all three. It holds the standing rules, a lane table with live state, the decisions waiting on the operator, verified facts about the environment, and a running log. Detail belongs here, not in the terminal (§11).
 
 Before the operator leaves, record what is scarce, which repos and worktrees exist, what is frozen, and what must never be merged.
 
