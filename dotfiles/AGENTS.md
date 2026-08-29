@@ -60,10 +60,12 @@ An agy lane is an external CLI and can use neither, so it gets a plain `git work
 A worktree is a fresh checkout with no gitignored files in it, so no `.env` and no local config. A repo whose lanes build or test needs a `.worktreeinclude` in its root naming those files (gitignore syntax; only what matches and is already gitignored gets copied).
 
 # Orchestrator/Organizer/Manager
-This role holds the whole goal: sequences work, tracks done-vs-pending, catches drift, verifies delegated claims against evidence. **It does not type.**
+One seat keeps the whole goal in view. It decides what runs next, knows what is done and
+what is still open, notices when a lane wanders off its brief, and checks delegated claims
+against evidence instead of taking them on trust. **It does not type.**
 
-- Default holder: whatever model runs the session.
-- Whoever holds it: delegate execution, review output. Editing files means you left the seat.
+- Held by whatever model runs the session.
+- Delegate the work, review what comes back. Editing a file means you left the seat.
 
 # Writing
 
