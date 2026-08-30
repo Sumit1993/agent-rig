@@ -69,8 +69,14 @@ nothing to read, and a watcher waiting for one waits forever. Section 3 lists ev
 
 ## 3. Admission, and every way the lane stays quiet
 
-Automatic rounds fire on `pull_request` for same-repo heads. A summon also requires an
-org-member author (`OWNER`, `MEMBER`, or `COLLABORATOR`), an explicit verb, and an open PR.
+Automatic rounds fire on `pull_request` for same-repo heads. A summon or an in-thread reply
+also requires **write access to the repository**, checked live against the collaborators API
+by the `admit` action, plus an explicit verb for summons and an open PR.
+
+**Admission is not `author_association`.** That field is repo-scoped and payload-dependent, so
+the value in a webhook and the value from the REST API can disagree for the same comment.
+Never diagnose an admission refusal by reading `author_association`; it is not the value the
+gate sees. Story: prismalens/gh-workflows#20.
 
 Five ways a PR gets no review. The first four produce no liveness comment either:
 
@@ -95,8 +101,10 @@ Five ways a PR gets no review. The first four produce no liveness comment either
    first. The liveness comment says which, and the run log says why.
 5. **Auto-paused.** After `auto_pause_rounds` automatic rounds (default 5) the lane pauses itself
    and posts the auto-paused verdict instead of reviewing. This one does leave a liveness comment.
-   **A paused PR is not reviewed on push, so a wait keyed on the next push has no end.** The
-   counter is monotonic in v1 and never resets, so a summon resumes the lane for exactly one run.
+   **A paused PR is not reviewed on push, so a wait keyed on the next push has no end.** A
+   summon resets the counter to zero and resumes the lane, but only when the round actually
+   posts review output. A green summon that posted nothing leaves the count untouched.
+   Story: prismalens/gh-workflows#28.
 
 ## 4. Summon grammar
 

@@ -27,22 +27,21 @@ for i in $(seq 1 N); do grep -q DONE "$LOG" && exit 0; sleep 15; done; echo WATC
 
 Size `N` as the deadline: `expected_minutes * 4 + 40`. The loop length **is** the timeout. `WATCH_TIMEOUT` in the log means stop waiting and go salvage.
 
-**The Monitor tool is banned for this.** Monitors gated on `pgrep`/timers slept through six-plus wakes in a single session. Monitor is fine for genuinely open-ended watching (new PR comments, a file that may change), never for "did this finish".
+**The Monitor tool is banned for this.** A Monitor gated on `pgrep`/timers can sleep through wake after wake without ever firing. Monitor is fine for genuinely open-ended watching (new PR comments, a file that may change), never for "did this finish".
 
 ## 3. Never wait on a condition the event itself prevents
 Before arming any loop, ask whether the thing you are waiting to hear about could *stop*
 the exit condition from ever being true. If it can, the loop is silent-forever: it spins to
 timeout looking exactly like slow progress.
 
-The case that cost a session a review round (prismalens#495, a `claude[bot]` finding the
-operator had to point out):
+A loop that waits on the condition a review finding itself blocks is silent-forever:
 
 ```bash
 until [ "$(gh pr view 495 --json mergeStateStatus --jq .mergeStateStatus)" = "CLEAN" ]; do sleep 30; done
 ```
 
 An unresolved review thread pins `mergeStateStatus` at `BLOCKED`. So a posted finding, the
-one event worth waking for, is the event that guarantees this loop never exits.
+one event worth waking for, is the event that guarantees this loop never exits. Story: prismalens#495.
 
 - **A PR wait keys on `reviewThreads` and comment IDs, never on merge state.** Any increase
   is the event. Merge state is an output of the thing you are waiting for, not a signal

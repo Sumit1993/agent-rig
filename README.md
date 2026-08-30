@@ -59,8 +59,8 @@ git clone https://github.com/Sumit1993/claude-kit && ./claude-kit/dotfiles/insta
 
 Skills sourced from someone else live here as **real copies**, never symlinks into an
 installer's directory. A symlink puts the file under another tool's ownership: `coderabbit skills`
-and `npx skills` both replace what they manage, which silently drops any patch. Two links tried
-that here and were dangling for a month before anyone noticed.
+and `npx skills` both replace what they manage, which silently drops any patch and leaves a
+dangling link with no warning.
 
 Each vendored `SKILL.md` records its origin in `metadata`: `upstream`, `upstream_version`,
 `upstream_latest_seen`, and `patched` with a `patch_note` when we changed behaviour. Checking for
@@ -87,7 +87,7 @@ marketplaces instead, so a fresh machine still gets them, always-current and rea
 
 | Source | Why a subscription, not a copy |
 |---|---|
-| `mattpocock/skills` → `mattpocock-skills@mattpocock` | Copies installed via `npx skills add` silently rot: they're real files, so pulling the clone updates nothing. Went 40 commits stale that way. The plugin can't drift |
+| `mattpocock/skills` → `mattpocock-skills@mattpocock` | Copies installed via `npx skills add` silently rot: they're real files, so pulling the clone updates nothing, and staleness compounds unnoticed. The plugin can't drift |
 
 mage and context-mode own their own lifecycles (local dev clones); tokens/auth never live here.
 

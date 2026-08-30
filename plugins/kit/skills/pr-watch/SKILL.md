@@ -20,6 +20,8 @@ how the reviewer resolves its own threads. `coderabbit-lane` owns `coderabbitai[
 admission, the org-wide cooldown quota, trigger syntax, in-thread replies, resolution.
 Those two load on a PR of any age. This one loads on a PR this session raised.
 
+**Load the owning skill before you act on that reviewer, not just before you read about it.** The trigger syntax and the `cr-reply.sh` path appear below because a router needs to recognise them, and that is enough to look sufficient. It is not: the preconditions live only in the owning skill, which carries the cooldown arithmetic, the budget rule, and the mandatory post-trigger poll. Acting on the fragments alone produces confidently wrong reports.
+
 Process truth is `claude-kit/docs/pr-review-process.html`. **Whoever changes the process
 updates that page in the same session.**
 
@@ -204,10 +206,10 @@ git refuses because the tree is locked.
 
 - **Auto-merge and the queue both outrun every reviewer.** The thread gate only blocks if
   a thread exists, and a reviewer that has not posted yet has no threads. Having already
-  posted is no protection either: mage-memory#133 merged 14 seconds after a review landed,
-  orphaning the fix commit for that review's own findings. Order the round as review
+  posted is no protection either: auto-merge can still fire between a review landing and
+  its fix commit, merging the PR before the finding is addressed. Order the round as review
   posted, then fix, then resolve, then merge. Never the reverse. On queue repos, "review
-  posted" is read off the liveness comment (`claude-review-lane` §2).
+  posted" is read off the liveness comment (`claude-review-lane` §2). Story: mage-memory#133.
 - **Never wait on `mergeStateStatus`.** An unresolved review thread pins it at `BLOCKED`,
   so a posted finding is the event that stops the wait from ever ending. Key on
   `reviewThreads` and comment IDs instead (`anti-stall` §3).

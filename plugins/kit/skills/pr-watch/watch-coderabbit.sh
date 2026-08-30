@@ -151,7 +151,11 @@ while [ ${#PRS[@]} -gt 0 ]; do
     rl_raw=$(gh api "repos/$REPO/issues/$pr/comments?per_page=100" 2>/dev/null)
     if is_json_array <<<"$rl_raw" && rl=$(jq -r '[.[] | select(.user.login | test("coderabbit"))
                          | select(.body | test("rate limited by coderabbit\\.ai"))]
-                    | last | "\(.updated_at)\t\(.body | gsub("[\\n\\r\\t]"; " "))"' <<<"$rl_raw" 2>/dev/null); then
+                    | if length > 0 then last | "\(.updated_at)\t\(.body | gsub("[\\n\\r\\t]"; " "))"
+                      else empty end' <<<"$rl_raw" 2>/dev/null); then
+      # `last` on an empty array yields the string "null\tnull", not null or empty, so the
+      # length check must come before any interpolation, otherwise the guard is unreachable
+      # and the branch reports the opposite of what happened.
       if [ "$rl" = "null" ] || [ -z "$rl" ]; then
         # Notice gone => a real review ran and replaced it. Existing thread poll covers the findings.
         if [ -f "$rl_state" ]; then

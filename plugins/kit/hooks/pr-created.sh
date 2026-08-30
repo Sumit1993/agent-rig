@@ -6,9 +6,8 @@
 #
 # Matching the URL rather than the `gh pr create` command is deliberate. A PR
 # raised inside a delegated lane never puts that string in the session's own
-# command, so the old text match saw nothing and no watcher was ever armed
-# (prismalens#495, a claude[bot] finding the session learned about from Sumit).
-# Any path that surfaces a PR is a path that needs a watcher.
+# command, so the old text match saw nothing and no watcher was ever armed.
+# Any path that surfaces a PR is a path that needs a watcher. Story: prismalens#495.
 #
 # Reviews are advisory and posted by CI; no required check waits on one, and
 # nothing local has to run for a required check to go green. So this hook's whole

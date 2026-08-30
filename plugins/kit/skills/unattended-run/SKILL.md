@@ -161,10 +161,8 @@ Mechanics live in `pr-watch` Phase 3, including which repos use the queue. What 
 to running unattended:
 
 **Never arm auto-merge.** Reviewers cannot block a merge, so it fires the moment CI goes
-green, routinely before the reviewer has finished. On prismalens#388 at `2bcdbcaf` the CI
-gate ran 05:42:58 to 05:43:01 while the review job ran 05:40:58 to 05:43:42, so the merge
-condition was satisfiable 41 seconds early. Findings then land on an already merged PR and
-`required_review_thread_resolution` has nothing left to block on.
+green, routinely before the reviewer has finished. Findings then land on an already merged
+PR and `required_review_thread_resolution` has nothing left to block on. Story: prismalens#388.
 
 **So an organizer that cannot merge with the operator present does not merge at all.** Take
 the PR to green, report it ready, leave it (§10).
