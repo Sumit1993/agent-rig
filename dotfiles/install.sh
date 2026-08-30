@@ -7,10 +7,9 @@ mkdir -p "$CLAUDE"
 
 # CLAUDE.md is an IMPORT STUB, not a copy.
 #
-# It used to be a one-way `cp` of dotfiles/CLAUDE.md. That silently forked: the live
-# file accumulated real rules for a week while the repo copy sat at its last commit,
-# and the next install would have overwritten them without a word. A copy nothing
-# compares is a claim nothing checks.
+# A one-way `cp` of dotfiles/CLAUDE.md would silently fork: the live file could accumulate
+# real rules while the repo copy sits at an old commit, and the next install would
+# overwrite them without a word. A copy nothing compares is a claim nothing checks.
 #
 # Claude Code does not read AGENTS.md on its own, but CLAUDE.md can `@`-import it, and
 # imports resolve at launch. So the body lives in the repo under version control, and

@@ -200,10 +200,10 @@ git refuses because the tree is locked.
 
 - **Auto-merge and the queue both outrun every reviewer.** The thread gate only blocks if
   a thread exists, and a reviewer that has not posted yet has no threads. Having already
-  posted is no protection either: mage-memory#133 merged 14 seconds after a review landed,
-  orphaning the fix commit for that review's own findings. Order the round as review
+  posted is no protection either: auto-merge can still fire between a review landing and
+  its fix commit, merging the PR before the finding is addressed. Order the round as review
   posted, then fix, then resolve, then merge. Never the reverse. On queue repos, "review
-  posted" is read off the liveness comment (`claude-review-lane` §2).
+  posted" is read off the liveness comment (`claude-review-lane` §2). Story: mage-memory#133.
 - **Never wait on `mergeStateStatus`.** An unresolved review thread pins it at `BLOCKED`,
   so a posted finding is the event that stops the wait from ever ending. Key on
   `reviewThreads` and comment IDs instead (`anti-stall` §3).

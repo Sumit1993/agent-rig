@@ -436,9 +436,8 @@ the same token in the same step posted the reply and was refused the resolution.
   <text x="825" y="70" text-anchor="middle" font-size="12" font-weight="600" fill="#2e7d4f">behave the same</text>
   <text x="825" y="96" text-anchor="middle" font-size="10.8" fill="#2e7d4f">GITHUB_TOKEN with</text>
   <text x="825" y="112" text-anchor="middle" font-size="10.8" fill="#2e7d4f">contents: write resolves.</text>
-  <text x="825" y="136" text-anchor="middle" font-size="10.8" fill="#2e7d4f">Probed on sreforge,</text>
-  <text x="825" y="152" text-anchor="middle" font-size="10.8" fill="#2e7d4f">2026-08-26 19:37 UTC:</text>
-  <text x="825" y="176" text-anchor="middle" font-size="10" font-family="Consolas,monospace" fill="#1e222b">{"isResolved":true}</text>
+  <text x="825" y="140" text-anchor="middle" font-size="10.8" fill="#2e7d4f">Probed on sreforge:</text>
+  <text x="825" y="164" text-anchor="middle" font-size="10" font-family="Consolas,monospace" fill="#1e222b">{"isResolved":true}</text>
   <text x="825" y="200" text-anchor="middle" font-size="10.5" fill="#4a5160">So the App is a choice,</text>
   <text x="825" y="214" text-anchor="middle" font-size="10.5" fill="#4a5160">not a requirement.</text>
 </svg>
@@ -528,10 +527,10 @@ rather than as a side effect.</div>
   </g>
 </svg>
 </figure>
-<div class="note"><strong>The verify agent does not take your word for it.</strong> Measured during the canary: a reply of
-<code>Fixed in 7eed363</code> on a finding that was not fixed drew back
+<div class="note"><strong>The verify agent does not take your word for it.</strong> A reply of
+<code>Fixed in 7eed363</code> on a finding that is not actually fixed draws back
 <em>"Still applies to 7eed363d: scripts/canary-retention.sh line 11 still uses unquoted $ARTIFACT_DIR in the find -delete call;
-the seeded bug is unchanged at current PR head."</em> The thread stayed open. This is the single most important property of the
+the seeded bug is unchanged at current PR head."</em> The thread stays open. This is the single most important property of the
 whole design, because it is what makes automatic resolution something other than a rubber stamp.</div>
 
 <h3>6.2 A finding you disagree with</h3>
@@ -598,10 +597,10 @@ section 5.</p>
   <text x="710" y="276" text-anchor="middle" font-size="11.5" fill="#8a2f2a">the merge. Reads as done, behaves as pending.</text>
 </svg>
 </figure>
-<div class="warn"><strong>The third state fails loudly, and that was deliberate.</strong> If the credential is present and the
-mutation is <em>denied</em>, the job exits non-zero. Before that existed, a denial printed an error and carried on, which is exactly
-how this shipped unnoticed the first time. The gap is the middle column above: credential simply absent degrades to a warning on a
-green job, and a two-line fix to <code>prismalens/prismalens</code>'s caller stub closes it.</div>
+<div class="warn"><strong>The third state fails loudly, by design.</strong> If the credential is present and the
+mutation is <em>denied</em>, the job exits non-zero rather than printing an error and carrying on. The gap is the middle column
+above: credential simply absent degrades to a warning on a green job, and a two-line fix to <code>prismalens/prismalens</code>'s
+caller stub closes it.</div>
 
 <h3>6.4 The four silences</h3>
 <p>The lane going quiet is normal and means four different things. None of them mean approval.
@@ -871,7 +870,7 @@ literal <code>@claude review --model opus</code> is not a substring of it.</p>
   <tr><th>Item</th><th>State</th><th>Next move</th></tr>
   <tr>
     <td><strong>Which credential resolves threads</strong></td>
-    <td><code>GITHUB_TOKEN</code> at <code>contents: write</code> resolves, probed on <code>sreforge</code> 2026-08-26. The App is a choice, and its config surface has already left one of three repos mis-wired.</td>
+    <td><code>GITHUB_TOKEN</code> at <code>contents: write</code> resolves, probed on <code>sreforge</code>. The App is a choice, and its config surface has already left one of three repos mis-wired.</td>
     <td>Decide it on the ceiling and identity arguments in section 5, then delete whichever path loses. Leaving both is the worst option.</td>
   </tr>
   <tr>

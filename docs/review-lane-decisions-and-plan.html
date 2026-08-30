@@ -65,10 +65,10 @@ and the order the work has to land in. 2026-08-27. Nothing here has been impleme
   <div class="r change">
     <span class="tag">reversed</span>
     <h4>3 &#183; <code>GITHUB_TOKEN</code> carries mutate</h4>
-    <p>Delete the App-token path entirely. <code>prismalens-automation</code> was created 58 minutes after the fixer lane
-    was deleted, for one reason: <code>GITHUB_TOKEN</code> appeared unable to resolve threads. That premise is measured
-    false. The only other candidate reason, separating the writer of a fix from its judge, died with the fixer, and an
-    earlier ruling had already disposed of it: "two apps with identical permissions separate nothing".</p>
+    <p>Delete the App-token path entirely. <code>prismalens-automation</code> was created for one reason:
+    <code>GITHUB_TOKEN</code> appeared unable to resolve threads. That premise is measured false. The only other candidate
+    reason, separating the writer of a fix from its judge, died with the fixer, and an earlier ruling had already disposed
+    of it: "two apps with identical permissions separate nothing".</p>
     <p><strong>Changes:</strong> ceilings rise to <code>contents: write</code>, both jobs keep explicit permission blocks,
     six secrets and one App installation get deleted.</p>
   </div>
@@ -312,8 +312,7 @@ could not read.</div>
   <text x="776" y="95" text-anchor="middle" font-size="11" fill="#b3403a" font-weight="600">contents: write &#183; pull-requests: write</text>
   <text x="776" y="122" text-anchor="middle" font-size="10.5" fill="#4a5160">Needs the write to resolve a thread.</text>
   <text x="776" y="138" text-anchor="middle" font-size="10.5" fill="#4a5160">Probed working on GITHUB_TOKEN:</text>
-  <text x="776" y="158" text-anchor="middle" font-size="10" font-family="Consolas,monospace" fill="#1e222b">{"isResolved":true}</text>
-  <text x="776" y="181" text-anchor="middle" font-size="10.5" fill="#4a5160">run 33006099680, 2026-08-26</text>
+  <text x="776" y="167" text-anchor="middle" font-size="10" font-family="Consolas,monospace" fill="#1e222b">{"isResolved":true}</text>
 
   <rect x="20" y="214" width="899" height="34" rx="7" fill="#f0ece4" stroke="#e3ddd1"/>
   <text x="36" y="236" font-size="11.5" fill="#4a5160"><tspan font-weight="600">Why this settled the credential question.</tspan> The App was defended on the caller ceiling staying at contents: read. That ceiling never constrained the credential the agent actually writes with, so it was guarding a door already open.</text>
