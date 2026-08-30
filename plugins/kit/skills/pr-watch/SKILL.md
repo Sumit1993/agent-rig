@@ -20,7 +20,7 @@ how the reviewer resolves its own threads. `coderabbit-lane` owns `coderabbitai[
 admission, the org-wide cooldown quota, trigger syntax, in-thread replies, resolution.
 Those two load on a PR of any age. This one loads on a PR this session raised.
 
-**Load the owning skill before you act on that reviewer, not just before you read about it.** The trigger syntax and the `cr-reply.sh` path appear below because a router needs to recognise them, and that is enough to look sufficient. It is not: the preconditions live only in the owning skill. Posting `@coderabbitai review` off a ~30-minute-old review got it rejected as rate limited on `gh-workflows#43`, and the session reported "re-review requested" without the mandatory post-trigger poll, because `coderabbit-lane` §2 to §4 were never loaded.
+**Load the owning skill before you act on that reviewer, not just before you read about it.** The trigger syntax and the `cr-reply.sh` path appear below because a router needs to recognise them, and that is enough to look sufficient. It is not: the preconditions live only in the owning skill, which carries the cooldown arithmetic, the budget rule, and the mandatory post-trigger poll. Acting on the fragments alone produces confidently wrong reports.
 
 Process truth is `claude-kit/docs/pr-review-process.html`. **Whoever changes the process
 updates that page in the same session.**

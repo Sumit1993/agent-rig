@@ -153,10 +153,9 @@ while [ ${#PRS[@]} -gt 0 ]; do
                          | select(.body | test("rate limited by coderabbit\\.ai"))]
                     | if length > 0 then last | "\(.updated_at)\t\(.body | gsub("[\\n\\r\\t]"; " "))"
                       else empty end' <<<"$rl_raw" 2>/dev/null); then
-      # `last` on an EMPTY array yields the string "null\tnull", not null and not empty, so
-      # interpolating before the length check made this guard unreachable: RESUMED never fired
-      # and a spurious RATE-LIMITED fired instead, reporting "no review ran" at the moment a
-      # review had just run. Measured on gh-workflows#51. Same idiom as the liveness poll below.
+      # `last` on an empty array yields the string "null\tnull", not null or empty, so the
+      # length check must come before any interpolation, otherwise the guard is unreachable
+      # and the branch reports the opposite of what happened.
       if [ "$rl" = "null" ] || [ -z "$rl" ]; then
         # Notice gone => a real review ran and replaced it. Existing thread poll covers the findings.
         if [ -f "$rl_state" ]; then
