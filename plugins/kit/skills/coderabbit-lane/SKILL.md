@@ -40,12 +40,14 @@ The review lane operates on the Free/OSS plan, where seat assignment is disabled
 - **Batch fixes before requesting:** Never spend a slot on a commit you are about to amend.
 - **Remaining capacity is not readable:** Querying `@coderabbitai rate limit` yields documentation links, never remaining counts. The `waitTime` in rate-limit error messages is the only signal.
 - **Cooldown retries:** Retrying 37 minutes after a review is rejected outright without wait times; retries at ≥45 minutes succeed. Budget ≥45 minutes and confirm acceptance.
+- **`review full` is the way past a rejection, not the clock.** Measured on `gh-workflows#43`, 2026-08-30: a bare `@coderabbitai review` was rejected `Review rate limited` at 05:24:27, and `@coderabbit review full` was **accepted** at 05:29:20, five minutes later, reporting "Full review triggered." Use it when a bare trigger is rejected and the round genuinely needs re-reviewing, rather than waiting out the cooldown. Two caveats: whether it draws from the same org-wide counter is unverified, so assume it does and keep the one-review-at-a-time rule; and it re-reads the whole diff, so it costs more reviewer attention than the incremental form.
 
 ## 4. Trigger grammar and polling
 
-- **Keep trigger comments bare:** Post exactly `@coderabbitai review`, with nothing else. Comments containing extra questions or bullet points are parsed as chat rather than commands, returning *"For best results, initiate chat on the files or code changes"* with no review executed. Put context in the PR description instead, which the review reads automatically.
-- **Three polling outcomes:** After triggering, wait ~60 seconds and inspect the latest `coderabbitai[bot]` comment:
-  1. `rate limited`: Request rejected; cooldown active.
+- **Two triggers, both bare.** `@coderabbitai review` is incremental and is the default. `@coderabbit review full` re-reads the whole diff and is the fallback when the incremental one is refused, per §3. The rejection notice names the reason the incremental form gets refused twice over: it is "an incremental review system and does not re-review already reviewed commits", so a push that only moves documentation can be declined even off cooldown.
+- **Keep trigger comments bare:** Post exactly the trigger, with nothing else. Comments containing extra questions or bullet points are parsed as chat rather than commands, returning *"For best results, initiate chat on the files or code changes"* with no review executed. Put context in the PR description instead, which the review reads automatically.
+- **Poll after every trigger, without exception.** A trigger comment posting successfully is not a review starting. Wait ~60 seconds, inspect the latest `coderabbitai[bot]` comment, and only then report an outcome. Three cases:
+  1. `rate limited`: Request rejected, nothing ran. Try `@coderabbit review full` before waiting; see §3.
   2. `initiate chat on the files`: Misparsed as chat; re-trigger with a bare comment.
   3. Anything else: Accepted; review in progress.
 - **Analysis depth:** CodeRabbit is not diff-only. Its analysis chains execute `rg`, `fd`, `sed`, `git show`, and inline Python against the repository checkout to reason across files outside the diff. It does not run test suites.
