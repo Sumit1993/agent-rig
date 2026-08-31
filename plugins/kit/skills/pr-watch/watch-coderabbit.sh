@@ -156,14 +156,32 @@ while [ ${#PRS[@]} -gt 0 ]; do
     # reviews. Reported once per occurrence (dedupe on updated_at, same reason as below).
     chat_state="$STATE_DIR/$KEY-pr$pr.chatmisread"
     chat_prev=""; [ -f "$chat_state" ] && chat_prev=$(cat "$chat_state" 2>/dev/null)
-    if is_json_array <<<"$(gh api "repos/$REPO/issues/$pr/comments?per_page=100" 2>/dev/null)"; then
-      chat_ts=$(gh api "repos/$REPO/issues/$pr/comments?per_page=100" 2>/dev/null \
-        | jq -r '[.[] | select(.user.login | test("coderabbit"))
+    ar_state="$STATE_DIR/$KEY-pr$pr.alreadyreviewed"
+    ar_prev=""; [ -f "$ar_state" ] && ar_prev=$(cat "$ar_state" 2>/dev/null)
+    ic_raw=$(gh api "repos/$REPO/issues/$pr/comments?per_page=100" 2>/dev/null)
+    if is_json_array <<<"$ic_raw"; then
+      chat_ts=$(jq -r '[.[] | select(.user.login | test("coderabbit"))
                       | select(.body | test("initiate chat on the files"))]
-                 | last | .updated_at // empty' 2>/dev/null)
+                 | last | .updated_at // empty' <<<"$ic_raw" 2>/dev/null)
       if [ -n "$chat_ts" ] && [ "$chat_ts" != "$chat_prev" ]; then
         printf '%s' "$chat_ts" > "$chat_state"
-        echo "PR#$pr CODERABBIT ANSWERED AS CHAT — no review ran. Re-trigger with a BARE '@coderabbitai review'; put context in the PR body."
+        # This fires on any chat-formatted reply, including a perfectly correct answer to a
+        # comment that was never a trigger. Say what happened and let the reader decide,
+        # rather than prescribing a re-trigger that may be a no-op or a wasted slot.
+        echo "PR#$pr CODERABBIT ANSWERED AS CHAT — the latest reply is a chat answer, not a review. If the comment it answered was meant as a review trigger, re-post it BARE with nothing else and put context in the PR body."
+      fi
+
+      # A DIFFERENT refusal with the opposite meaning, and the one this watcher used to
+      # miss entirely: CodeRabbit declining because the head is already reviewed. Nothing
+      # matched it, so a refused trigger looked like a review still in flight, and the
+      # nearest event said "no review ran" when the head IS reviewed. `coderabbit-lane` §4
+      # already separates the two refusals; the watcher now does too. Story: claude-kit#28.
+      ar_ts=$(jq -r '[.[] | select(.user.login | test("coderabbit"))
+                      | select(.body | test("already reviewed commits|Already reviewed the last commit"))]
+                 | last | .updated_at // empty' <<<"$ic_raw" 2>/dev/null)
+      if [ -n "$ar_ts" ] && [ "$ar_ts" != "$ar_prev" ]; then
+        printf '%s' "$ar_ts" > "$ar_state"
+        echo "PR#$pr CODERABBIT ALREADY REVIEWED — the trigger was refused because this head is already reviewed. No new review ran and none is coming. Only '@coderabbitai full review' reruns it, and it draws the same budget."
       fi
     fi
 

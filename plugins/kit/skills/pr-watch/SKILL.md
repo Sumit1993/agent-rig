@@ -134,7 +134,8 @@ PR#N CODERABBIT RETRY ARMED — will re-trigger at <UTC time>
 PR#N CODERABBIT RETRY RECOVERED — a recorded notice had no retry armed; <window>
 PR#N CODERABBIT RE-TRIGGERED — posted @coderabbitai review (attempt K/MAX)
 PR#N CODERABBIT RE-TRIGGER FAILED — post '@coderabbitai review' by hand
-PR#N CODERABBIT ANSWERED AS CHAT — no review ran; re-trigger with a BARE '@coderabbitai review'
+PR#N CODERABBIT ANSWERED AS CHAT — the latest reply is a chat answer, not a review
+PR#N CODERABBIT ALREADY REVIEWED — trigger refused; this head is already reviewed
 PR#N CODERABBIT AUTO-PAUSED — no review ran; resume with '@coderabbitai resume'
 PR#N CODERABBIT AUTO-PAUSE CLEARED — reviews resumed
 PR#N CODERABBIT RESUMED — rate-limit notice cleared, review ran
@@ -143,6 +144,13 @@ PR#N <MERGED|CLOSED> — dropped from watch
 
 `ANSWERED AS CHAT`, `AUTO-PAUSED` and `RE-TRIGGER FAILED` all mean no review ran, same as
 `RATE-LIMITED`. Treat all four as an unreviewed diff.
+
+**`ALREADY REVIEWED` is the opposite and must not be lumped in with them.** It is a refused
+trigger, but the reason is that CodeRabbit considers this head reviewed, so the diff is
+reviewed and no further review is coming. Only `@coderabbitai full review` reruns it, and
+it draws the same budget, so spend it only when you have reason to doubt the first pass.
+`coderabbit-lane` §4 carries the same split. Reading this as "no review ran" inverts the
+truth right where it matters, at a merge decision.
 
 **The monitor emits pointers, not payloads.** The body is already saved at the `payload` path. Route that path. Never fetch
 a body into the session that owns the Monitor.
