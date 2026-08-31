@@ -130,6 +130,8 @@ PR#N NEW claude <thread|reply-in-ID> — id N — path — payload <state-file> 
 PR#N CLAUDE LIVENESS — <verdict text>
 PR#N CI FAIL — <check>
 PR#N CODERABBIT RATE-LIMITED — no review ran; <window>
+PR#N CODERABBIT RETRY ARMED — will re-trigger at <UTC time>
+PR#N CODERABBIT RETRY RECOVERED — a recorded notice had no retry armed; <window>
 PR#N CODERABBIT RE-TRIGGERED — posted @coderabbitai review (attempt K/MAX)
 PR#N CODERABBIT RE-TRIGGER FAILED — post '@coderabbitai review' by hand
 PR#N CODERABBIT ANSWERED AS CHAT — no review ran; re-trigger with a BARE '@coderabbitai review'
@@ -201,6 +203,13 @@ delta prompt, judgment goes to the resumed Claude seat.
   because the notice's figure is per-PR and reads below the org-wide cooldown
   (`coderabbit-lane` §3). **Do not sit idle.** The rate-limit check passes by design, so
   merge is never actually blocked. Low-risk diff: merge on CI plus the re-trigger.
+  **`RETRY ARMED` is the positive signal, so read it.** It names the UTC time the
+  re-trigger will fire. Without it the only success line is `RE-TRIGGERED`, which by
+  definition never arrives when the arming was lost, and a lost arming is silent.
+  **`RETRY RECOVERED`** means this watcher found a recorded notice with nothing armed and
+  armed it: normal after re-arming a watcher that first ran with `CR_WATCH_AUTORETRY=0`.
+  The retry is anchored to the notice, not to when the watcher started, so a window that
+  has already passed fires at once.
   Otherwise run the Opus 5 pass now, rather than spending 45 minutes on a tier that would
   have found less. On `auto-retry budget spent`, the model pass *is* the review.
 - **`CODERABBIT AUTO-PAUSED`.** No review ran, so the diff is unreviewed, not clean. The

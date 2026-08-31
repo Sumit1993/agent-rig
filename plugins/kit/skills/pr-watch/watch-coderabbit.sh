@@ -113,6 +113,10 @@ retry_seconds() {
   RETRY_SECS=$RETRY_NOTICE
 }
 
+# PRs whose rate-limit state this process has already evaluated once (see the recovery
+# block below). Per process, not per poll.
+rl_seen=""
+
 while [ ${#PRS[@]} -gt 0 ]; do
   next=()
   for pr in "${PRS[@]}"; do
@@ -188,7 +192,22 @@ while [ ${#PRS[@]} -gt 0 ]; do
         fi
       else
         rl_ts=${rl%%$'\t'*}; rl_body=${rl#*$'\t'}
-        if [ "$rl_ts" != "$prev_ts" ]; then
+        # Edge-triggering on updated_at alone silently drops the retry when a watcher is
+        # re-armed after the notice was already recorded: the new process reads the same
+        # timestamp, skips the arming path, and leaves retry_at at 0 forever. Silence then
+        # looks exactly like an armed wait. So a process also arms on its FIRST sight of a
+        # PR that has a recorded notice and nothing armed. Once per process, never per
+        # poll, or a spent retry would immediately re-arm itself off the stale notice.
+        # Story: claude-kit#28, 29 minutes lost on gh-workflows#98.
+        rl_first=0
+        case " $rl_seen " in *" $pr "*) ;; *) rl_first=1; rl_seen="$rl_seen $pr";; esac
+        # used=0 is the whole test for "arming was lost": a spent retry means a trigger
+        # was already posted for THIS notice, so nothing was lost and re-firing would
+        # spend another one. A refusal of that trigger arrives as a new notice anyway.
+        recover=0
+        [ "$rl_first" = "1" ] && [ "$rl_ts" = "$prev_ts" ] && [ "$retry_at" = "0" ] \
+          && [ "$used" = "0" ] && [ "$AUTORETRY" = "1" ] && recover=1
+        if [ "$rl_ts" != "$prev_ts" ] || [ "$recover" = "1" ]; then
           retry_seconds "$rl_body"; secs=$RETRY_SECS
           if [ "$AUTORETRY" != "1" ]; then
             armed="window $((secs / 60))m; auto-retry OFF (CR_WATCH_AUTORETRY=0) — re-trigger by hand or run the model review pass"
@@ -196,13 +215,27 @@ while [ ${#PRS[@]} -gt 0 ]; do
           elif [ "$used" -lt "$MAX_RETRIES" ]; then
             claimed="notice unparsed, using the ${COOLDOWN_SECONDS}s fallback"
             [ -n "$RETRY_NOTICE" ] && claimed="the notice's own figure"
-            armed="auto-retry armed in $((secs / 60))m ($claimed) (attempt $((used + 1))/$MAX_RETRIES)"
-            retry_at=$(( $(date +%s) + secs + 60 ))   # +60s slack: never re-trigger a beat early
+            armed="auto-retry armed ($claimed) (attempt $((used + 1))/$MAX_RETRIES)"
+            # Anchored to the notice, not to now. The notice's figure counts from when it
+            # was posted, so a watcher armed late must not restart the clock.
+            notice_epoch=$(date -u -d "$rl_ts" +%s 2>/dev/null) || notice_epoch=""
+            case "$notice_epoch" in ''|*[!0-9]*) notice_epoch=$(date +%s);; esac
+            retry_at=$(( notice_epoch + secs + 60 ))   # +60s slack: never re-trigger a beat early
           else
             armed="auto-retry budget spent ($MAX_RETRIES) — run the model review pass instead of waiting"
             retry_at=0
           fi
-          echo "PR#$pr CODERABBIT RATE-LIMITED — no review ran; $armed"
+          if [ "$recover" = "1" ]; then
+            echo "PR#$pr CODERABBIT RETRY RECOVERED — a recorded notice had no retry armed; $armed"
+          else
+            echo "PR#$pr CODERABBIT RATE-LIMITED — no review ran; $armed"
+          fi
+          # The only positive signal used to be RE-TRIGGERED, which by definition never
+          # arrives when the arming was lost. Say when the retry will fire, in UTC.
+          if [ "$retry_at" -gt 0 ]; then
+            at=$(date -u -d "@$retry_at" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "unknown")
+            echo "PR#$pr CODERABBIT RETRY ARMED — will re-trigger at $at"
+          fi
           printf '%s\t%s\t%s\n' "$rl_ts" "$retry_at" "$used" > "$rl_state"
           prev_ts="$rl_ts"
         fi
