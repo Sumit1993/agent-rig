@@ -2,7 +2,7 @@
 name: agy-delegate
 description: "Load BEFORE any Agent tool call, to decide whether the work belongs on agy at all rather than on a Claude subagent. agy (Antigravity CLI: Gemini 3.7 Flash / Gemini 3.1 Pro / Opus 4.6 / Sonnet 4.6) draws a separate abundant quota. Applies whenever the work is expressible as a written procedure with verify commands: implementing to a spec, rebases, evidence collection, log or CI triage, smoke runs, repetitive per-item procedure, research, doc review, bulk reading. Dispatch is one step: write the task prompt to a file and spawn `subagent_type: "agy-runner"` with the path. Also load when an agy run returns empty or truncated output, or when a handler needs to kill, salvage or resume one."
 metadata:
-  version: "3.2.0"
+  version: "3.3.0"
 ---
 
 # Delegating to Antigravity CLI (agy)
@@ -78,7 +78,7 @@ only at the end, so a healthy long run looks frozen if you watch it instead.
 | Parseable JSON, but the work is half done | Ran out of turns or timeout before finishing | **Resume**, don't re-prompt. See below |
 | Complete report printed, process never exits | **Hang-after-report**, common on long runs | Artifacts exist + log ends with a full report + log stale ~3 min → kill by PID now, don't wait for the timeout |
 | Non-zero exit **with a populated worktree** (e.g. `Error: timeout waiting for response` after real edits) | Died mid-run having done work it never committed | **Read `git status` and `git diff` before anything else.** Never relaunch from scratch onto uncommitted work; salvage or resume instead |
-| **rc=137**, empty, dead within seconds | SIGKILL from outside. Usually another session's `pkill -f agy`/`pkill -x agy`, or a watchdog reaping the wrong run. Not quota, not OOM unless `dmesg` says so | Relaunch. It never started, so it does not spend the retry budget. If it recurs, find whose kill pattern is too broad |
+| Empty log, **non-zero** exit, dead within seconds (rc=137 or a bare death) | Killed from outside. agy is machine-global, so the usual cause is another session's name-wide `pkill`, or a watchdog reaping the wrong run. Not quota, and not agy infrastructure, unless something else says so | Relaunch. It never started, so it does not spend the retry budget. If it recurs, find whose kill pattern is too broad |
 
 Since 1.1.20 a non-zero exit means a cascade-level failure. Benign tool errors and denied
 permissions no longer poison the exit code, so the code is worth reading again.
@@ -117,10 +117,20 @@ file's path. The name matches only the wrappers: the launching shell, whose comm
 still holds the unexpanded `$(cat …)`, and `run-agy-watchdog.sh`, which takes the path as
 an argument. Killing on it reaps a wrapper and leaves agy running.
 
-**Never use the generic `pgrep -f "agy [-]-model"`, `pkill -x agy` or `killall agy`** when
-more than one run may be alive. They kill them all, and the runs you did not mean to touch
-die as rc=137 with empty output, which reads as silent quota death in someone else's
-session. The `pre:bash:no-broad-agy-kill` hook blocks these; if it fires, you wanted a PID.
+**agy processes are machine-global. A kill in one repo reaches every other.** They carry no
+session, repo or task identity, so `pkill -x agy`, `pkill -f agy`, `killall agy` and
+`pgrep -f "agy [-]-model"` are never acceptable. Not "avoid when several of your own runs
+are alive" — never. This is not hypothetical: a kill issued in claude-kit destroyed a
+prismalens run mid-implementation on a release blocker, and it surfaced there as rc=137
+with an empty log, which reads as silent quota death. That handler then spent its retry
+budget relaunching into a lane it believed was broken.
+
+**Resolve a PID you can prove is yours, or kill nothing.** Ownership means
+`readlink /proc/<pid>/cwd` matching the worktree you own, or a `$!` you captured yourself.
+If you cannot establish that, reporting "cannot identify my run, not killing" is the
+correct outcome: a hung run of yours costs you a timeout, while the wrong kill costs
+someone else unattended work. The `pre:bash:no-broad-agy-kill` hook blocks the name-wide
+forms; if it fires, you wanted a PID.
 
 A runtime-generated `$SLUG` also solves the exit-144 self-kill, and more reliably than the
 bracket trick. The slug did not exist when your ancestor shells were created, so it cannot

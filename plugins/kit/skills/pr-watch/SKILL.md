@@ -245,6 +245,11 @@ git refuses because the tree is locked.
   polls `/issues/N/comments` for the `rate limited by coderabbit.ai` marker, deduped on
   `updated_at` because CodeRabbit edits one summary comment in place.
 - `~/ai-context/state/cr-watch/` is durable across sessions. Re-arming is always safe.
+- **A `git checkout` under a running watcher kills it.** Bash reads a script incrementally,
+  so switching branches rewrites `watch-coderabbit.sh` beneath the running shell and it
+  dies, usually exit 144, with no event to say the PR is now unwatched. Watching a PR in
+  the repo whose branches you are switching is the exposed case. Re-arm after any branch
+  change, or run the watcher from a path that is not moving.
 - **A watcher dies with its task, not with the session.** TaskStop it the moment its PR is
   merged, closed, or handed off. One left running past its lane kept acting on a PR that
   had been repurposed, and spent a scarce CodeRabbit review on it unprompted. The plugin's

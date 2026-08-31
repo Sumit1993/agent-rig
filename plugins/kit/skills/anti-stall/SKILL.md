@@ -2,7 +2,7 @@
 name: anti-stall
 description: "Doctrine for waiting on long-running work without dozing: sentinel-first launches, evidence-keyed waits held in the background by a main session and in the foreground by a handler subagent, batch scripts over agent-per-step, and killing a run without reaping your own shell. Load BEFORE launching any delegation, build, campaign, CI run, or command expected to outlive one turn, whenever a wait has gone quiet longer than expected, and before any pgrep/pkill against a job you launched."
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # Anti-stall: waiting on long work
@@ -109,6 +109,12 @@ Two things that actually hold:
 kill -9 "$PID"                      # preferred
 kill -9 $(pgrep -f "$SLUG")         # fallback, marker generated this run
 ```
+
+**A shared binary's processes are machine-global.** `pkill -x <name>` reaches every session
+on the host, not just yours, and the runs you did not mean to touch die as an empty
+non-zero exit that reads as an internal failure wherever they were being watched. If you
+cannot resolve a PID you can prove is yours, by a `$!` you captured or a
+`readlink /proc/<pid>/cwd` you recognise, kill nothing and say so.
 
 **Match a pattern that is really on the target's argv.** A shell expands `$(cat file)`
 before exec, so a prompt file's *name* never reaches the process it launched; it stays on
