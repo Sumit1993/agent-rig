@@ -42,20 +42,17 @@ Current repo metadata: !`"${CLAUDE_PLUGIN_ROOT}/scripts/kit-meta.sh" current`
 
 ## Phase 0: the merge contract (nothing runs pre-push)
 
-On mage-memory, prismalens and sreforge the contract is three facts. Each of those repos
-carries exactly one active ruleset. **`gh-workflows` is the exception and enforces
-nothing**: `gh api repos/prismalens/gh-workflows/rulesets` returns `[]`. No required check,
-no thread gate, nothing to bypass and nothing to protect you. Holding the PR until you have
-read the review is the only gate that exists there, which matters more than usual because
-it is the canon repo the other three pull their lane logic from.
+**Whether anything is enforced is a per-repo fact, so read it, never assume it.**
+`kit-meta.sh get <owner/repo> enforced` answers without a network call. `false` and "no
+such key" are different answers: the first means we checked and nothing is enforced, the
+second means we have never looked. On a `false`, no required check blocks a merge and no
+gate stops unresolved threads, so holding the PR for the operator is the only gate there
+is. The repo's own AGENTS.md says why it is set up that way.
 
-The registry carries this as `enforced`, so `kit-meta.sh get <owner/repo> enforced` answers
-it without a network call. `false` and "no such key" are different answers: the first means
-we checked and nothing is enforced, the second means we have never looked.
+Read enforcement off `rulesets`. A 404 from `branches/<b>/protection` proves nothing on its
+own, because a repo using rulesets returns 404 there whether or not it is protected.
 
-Read enforcement off `rulesets`, never off `branches/<b>/protection`. All four repos return
-404 on the legacy endpoint because they use rulesets, so that 404 says nothing about
-whether a repo is protected.
+Where a repo does enforce, the contract is three facts.
 
 **Two required checks, `CI gate` and `Validate PR title (conventional commits)`. Nothing
 else.** No review check, no evidence artifact, no marker job, no SHA-pinning, no
@@ -75,8 +72,8 @@ for review a cheaper layer already covers.
 
 | Tier | When | What |
 |---|---|---|
-| Claude review (`claude[bot]`) | Every same-repo PR, automatic, **but not every round and not every author** | The default. Posts findings as inline comments. Advisory, so it blocks nothing itself, but every thread it opens does. See `claude-review-lane` |
-| CodeRabbit (`coderabbitai[bot]`) | **Manual admission only** (`coderabbit_review` label or `@coderabbitai review`), automatic on `gh-workflows` | The independent lane, and a scarce org-wide counter of about one review per 40 minutes. See `coderabbit-lane` |
+| Claude review (`claude[bot]`) | Where the repo runs the lane (`kit-meta.sh get <repo> claude_lane`): every same-repo PR, automatic, **but not every round and not every author** | The default. Posts findings as inline comments. Advisory, so it blocks nothing itself, but every thread it opens does. See `claude-review-lane` |
+| CodeRabbit (`coderabbitai[bot]`) | Admission is per-repo: manual by `coderabbit_review` label or `@coderabbitai review`, or automatic where the repo enables `auto_review`. `kit-meta.sh get <repo> coderabbit_auto_review` | The independent lane, drawing a scarce org-wide counter. See `coderabbit-lane` |
 | One Opus 5 pass | Non-trivial PRs | The layer neither bot can do: spec and ADR conformance, since design truth often lives in a hub they cannot see |
 | `/code-review ultra` | Rare | Engine core, security boundary, contract or schema changes |
 
@@ -84,12 +81,13 @@ Never bypass the ruleset. **Batch every fix before you PUSH**, not merely before
 a reviewer. A CodeRabbit slot spent on a commit you are about to amend is spent for nothing.
 
 Batching-before-summon only applies where admission is manual. **On an auto-review repo the
-push is the request**, so there is no separate summon step to hold back. `gh-workflows` runs
-`auto_review.enabled: true`, and telling a lane "don't trigger CodeRabbit, I'll do it once
-this lands" is an instruction it cannot obey by pushing. The slot spends itself. What limits
-the damage is `auto_pause_after_reviewed_commits: 1`: only the first push spends a slot, and
-later pushes auto-pause instead, surfacing as `CODERABBIT AUTO-PAUSED`. See `coderabbit-lane`
-§1 and §3.
+push is the request**, so there is no separate summon step to hold back, and telling a lane
+"don't trigger CodeRabbit, I'll do it once this lands" is an instruction it cannot obey by
+pushing. The slot spends itself. What limits the damage is
+`auto_pause_after_reviewed_commits: 1`: only the first push spends a slot, and later pushes
+auto-pause instead, surfacing as `CODERABBIT AUTO-PAUSED`. Check
+`kit-meta.sh get <repo> coderabbit_auto_review` before assuming you have a summon step. See
+`coderabbit-lane` §1 and §3.
 
 ## Phase 1: arm the watcher, right after `gh pr create`
 
@@ -207,7 +205,7 @@ delta prompt, judgment goes to the resumed Claude seat.
 
 Check `kit-meta.sh get <owner/repo> merge_queue` first.
 
-**Queue repos (prismalens, sreforge).** `gh pr merge <n> --squash` enqueues, and the queue
+**Queue repos (`merge_queue` true).** `gh pr merge <n> --squash` enqueues, and the queue
 tests a speculative merge onto main before landing it. No BEHIND cascade, no update-branch
 babysitting, no `merge-cascade.sh`. That script describes pre-queue mechanics and must not
 be used here. One timing rule survives: **do not enqueue before the liveness comment shows
@@ -215,7 +213,7 @@ posted review output.** The queue gates on checks and threads, not on whether a 
 spoke, so enqueueing into silence merges an unreviewed head. Three of the four verdicts in
 `claude-review-lane` §2 do not count as posted output.
 
-**Classic repos (mage-memory, a personal account with no queue).** Merge by hand once the
+**Classic repos (`merge_queue` false).** Merge by hand once the
 round's threads are resolved: `gh pr merge <n> --squash`. BEHIND still applies, so
 update-branch and re-green before merging the next.
 
