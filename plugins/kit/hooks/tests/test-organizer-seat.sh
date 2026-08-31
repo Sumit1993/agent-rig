@@ -7,7 +7,10 @@ HOOK="$(cd "$(dirname "$0")/.." && pwd)/organizer-seat.sh"
 fails=0
 ORGANIZER_SEAT_STATE_DIR=$(mktemp -d); export ORGANIZER_SEAT_STATE_DIR
 FAKEBIN=$(mktemp -d)
-cleanup() { pkill -9 -x agy 2>/dev/null; rm -rf "$ORGANIZER_SEAT_STATE_DIR" "$FAKEBIN"; }
+# Kill only our own staged process. `pkill -x agy` would reap every real agy run on the
+# machine, including other sessions' — the generic-kill antipattern agy-delegate warns about.
+FAKE_PID=""
+cleanup() { [ -n "$FAKE_PID" ] && kill -9 "$FAKE_PID" 2>/dev/null; rm -rf "$ORGANIZER_SEAT_STATE_DIR" "$FAKEBIN"; }
 trap cleanup EXIT
 
 check() { # name expected_rc session
@@ -25,11 +28,16 @@ check() { # name expected_rc session
 printf '#!/bin/bash\nsleep 30\n' > "$FAKEBIN/agy"
 chmod +x "$FAKEBIN/agy"
 
-pkill -9 -x agy 2>/dev/null; sleep 1
-check "silent when no agy run is alive" 0 s0
+# Someone else's agy run makes the quiet case untestable; skip rather than kill theirs.
+if pgrep -x agy >/dev/null 2>&1; then
+  echo "SKIP: silent when no agy run is alive (a real agy run is active)"
+else
+  check "silent when no agy run is alive" 0 s0
+fi
 
 # stdio detached: a background child holding the pipe open hangs the whole suite
 "$FAKEBIN/agy" >/dev/null 2>&1 &
+FAKE_PID=$!
 sleep 1
 pgrep -x agy >/dev/null || { echo "FAIL: could not stage a fake agy run"; exit 1; }
 
@@ -37,8 +45,12 @@ check "fires on the first edit while a run is live" 2 s1
 check "stays quiet for the rest of that session"    0 s1
 check "a different session gets its own nudge"      2 s2
 
-pkill -9 -x agy 2>/dev/null; sleep 1
-check "silent again once the run ends" 0 s3
+kill -9 "$FAKE_PID" 2>/dev/null; FAKE_PID=""; sleep 1
+if pgrep -x agy >/dev/null 2>&1; then
+  echo "SKIP: silent again once the run ends (a real agy run is active)"
+else
+  check "silent again once the run ends" 0 s3
+fi
 
 [ "$fails" -eq 0 ] && echo && echo "all organizer-seat hook tests passed"
 exit "$fails"

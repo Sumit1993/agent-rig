@@ -2,7 +2,7 @@
 name: agy-delegate
 description: "Load BEFORE any Agent tool call, to decide whether the work belongs on agy at all rather than on a Claude subagent. agy (Antigravity CLI: Gemini 3.7 Flash / Gemini 3.1 Pro / Opus 4.6 / Sonnet 4.6) draws a separate abundant quota. Applies whenever the work is expressible as a written procedure with verify commands: implementing to a spec, rebases, evidence collection, log or CI triage, smoke runs, repetitive per-item procedure, research, doc review, bulk reading. Dispatch is one step: write the task prompt to a file and spawn `subagent_type: "agy-runner"` with the path. Also load when an agy run returns empty or truncated output, or when a handler needs to kill, salvage or resume one."
 metadata:
-  version: "3.1.0"
+  version: "3.2.0"
 ---
 
 # Delegating to Antigravity CLI (agy)
@@ -77,6 +77,8 @@ only at the end, so a healthy long run looks frozen if you watch it instead.
 | Output is **not parseable JSON** | Hit `--print-timeout` mid-write, so the envelope never closed | Truncation is now a parse failure, not a judgement call. Salvage by resume, below |
 | Parseable JSON, but the work is half done | Ran out of turns or timeout before finishing | **Resume**, don't re-prompt. See below |
 | Complete report printed, process never exits | **Hang-after-report**, common on long runs | Artifacts exist + log ends with a full report + log stale ~3 min → kill by PID now, don't wait for the timeout |
+| Non-zero exit **with a populated worktree** (e.g. `Error: timeout waiting for response` after real edits) | Died mid-run having done work it never committed | **Read `git status` and `git diff` before anything else.** Never relaunch from scratch onto uncommitted work; salvage or resume instead |
+| **rc=137**, empty, dead within seconds | SIGKILL from outside. Usually another session's `pkill -f agy`/`pkill -x agy`, or a watchdog reaping the wrong run. Not quota, not OOM unless `dmesg` says so | Relaunch. It never started, so it does not spend the retry budget. If it recurs, find whose kill pattern is too broad |
 
 Since 1.1.20 a non-zero exit means a cascade-level failure. Benign tool errors and denied
 permissions no longer poison the exit code, so the code is worth reading again.
@@ -161,8 +163,20 @@ A handler owns its run end-to-end: launch, watch, kill-on-hang, salvage, retry. 
 3. **Kill on hang-after-report** per the failure table. Kill by PID.
 4. **On empty output**: check the worktree before assuming failure (`git status`, expected files). Landed + passes its own verification ⇒ success, note the silent death.
 5. **Verify before reporting**: run the prompt's verification commands yourself. Report facts and evidence, not agy's claims.
-6. **Retry budget: 2 relaunches max.** Prefer a resume over a relaunch when a
+6. **A failed launch is not a failed attempt.** A run that produces no output and dies
+   within ~30 seconds never started. Relaunch it without charging the budget. Three of
+   those in a row is an agy-side problem, not a prompt problem: change model rather than
+   repeating.
+7. **Probe the other lane before declaring a run dead.** Gemini exhausted is not agy
+   exhausted. `agy --model claude-sonnet-4-6 -p "say ok"`, and `claude-opus-4-6-thinking`,
+   answer in seconds. Only report dead when every lane is dry. Handlers have burned a whole
+   budget on Gemini and reported dead while agy-Claude was answering on the first try.
+8. **Retry budget: 2 real relaunches max.** Prefer a resume over a relaunch when a
    `conversation_id` survived; it does not spend the budget, because it is the same run.
+9. **Preserve work before reporting.** If agy died leaving a change that passes the
+   prompt's own verification, **commit it** on the lane's branch so it cannot be lost, and
+   say so in the report. Stop there: no push, no PR, no merge. Committing is recoverable
+   and prevents a stranded fix; anything outward-facing is the operator's call.
 
 ### What a handler is allowed to return
 Exactly three terminal reports:

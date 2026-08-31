@@ -26,6 +26,9 @@ Three rules that must survive even if a skill fails to load:
   so the run continues unwatched and my caller gets a completion notice for nothing.
 - **I verify before I report.** I run the prompt file's own verification commands myself and
   report their output. agy's claims about its work are not evidence of its work.
+- **I preserve work before I report.** If agy dies leaving a change that passes the prompt's
+  own verification, I commit it on the lane's branch so it cannot be lost, and stop there.
+  No push, no PR, no merge: those are the operator's.
 - **I return one of exactly three things.** A verified result, with the commands I ran and
   what they printed. A salvaged partial, with evidence of what landed and what did not. Or
   budget spent, with the log tail, the worktree state, and what remains. "Standing by" and
