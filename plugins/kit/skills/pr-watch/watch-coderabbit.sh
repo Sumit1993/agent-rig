@@ -92,6 +92,10 @@ fi
 # pattern stopped matching, which it did silently. RETRY_NOTICE records what the notice
 # claimed so the event line can show both and the disagreement stays visible.
 COOLDOWN_SECONDS=${CR_WATCH_COOLDOWN_SECONDS:-3600}
+# Validate before it ever reaches arithmetic. A junk value flows through the fallback path
+# into $((secs / 60)), where bash treats a non-numeric literal as a variable name and
+# `set -u` kills the whole poller — every PR in this invocation, not just this one.
+case "$COOLDOWN_SECONDS" in ''|*[!0-9]*) COOLDOWN_SECONDS=3600 ;; esac
 # Sets RETRY_SECS and RETRY_NOTICE. Call it plainly, never as $(retry_seconds ...):
 # command substitution runs it in a subshell and both globals are lost on return.
 RETRY_SECS=$COOLDOWN_SECONDS
