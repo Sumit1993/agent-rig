@@ -22,6 +22,7 @@
 # Env: CR_WATCH_AUTORETRY=0 disables posting `@coderabbitai review` (detect-only).
 #      CR_WATCH_MAX_RETRIES=N caps auto re-triggers per PR (default 2).
 #      CR_WATCH_ASSUME_CODERABBIT=1|0 skips the probe (force present/absent).
+#      CR_WATCH_COOLDOWN_SECONDS=N floors the auto-retry delay (default 3600).
 set -u
 if [ "${1:-}" = "--repo" ]; then REPO="$2"; shift 2; else
   REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null) || { echo "watch-coderabbit: cannot resolve repo (pass --repo owner/name)"; exit 1; }
@@ -79,14 +80,37 @@ else
   echo "CODERABBIT ABSENT on $REPO — watching CI + merge state ONLY. No review will arrive, so silence here is NOT a clean review: get line-level coverage from a model review pass."
 fi
 
-# Minutes until the next review window, parsed from the rate-limit notice
-# ("Next review available in: **47 minutes**" / "**1 hour**"). Falls back to 60.
+# Seconds until the next review window, parsed from the rate-limit notice.
+# CodeRabbit has used at least three wordings, so match on "review …available in <n> <unit>"
+# rather than any one phrasing:
+#   "Next review available in: **47 minutes**"                  (older, colon)
+#   "**Next included review available in 30 minutes.**"         (no colon, "included")
+#   "Your next included review will be available in 23 minutes."
+# The notice's figure is per-PR and runs below the org-wide cooldown, so it is reported
+# and not obeyed: the armed delay is floored at CR_WATCH_COOLDOWN_SECONDS. That floor is
+# what the watcher has effectively used since the wording changed and the old colon-only
+# pattern stopped matching, which it did silently. RETRY_NOTICE records what the notice
+# claimed so the event line can show both and the disagreement stays visible.
+COOLDOWN_SECONDS=${CR_WATCH_COOLDOWN_SECONDS:-3600}
+# Validate before it ever reaches arithmetic. A junk value flows through the fallback path
+# into $((secs / 60)), where bash treats a non-numeric literal as a variable name and
+# `set -u` kills the whole poller — every PR in this invocation, not just this one.
+case "$COOLDOWN_SECONDS" in ''|*[!0-9]*) COOLDOWN_SECONDS=3600 ;; esac
+# Sets RETRY_SECS and RETRY_NOTICE. Call it plainly, never as $(retry_seconds ...):
+# command substitution runs it in a subshell and both globals are lost on return.
+RETRY_SECS=$COOLDOWN_SECONDS
+RETRY_NOTICE=""
 retry_seconds() {
   local parsed num unit
-  parsed=$(printf '%s\n' "$1" | sed -n 's/.*[Nn]ext review available in:[^0-9]*\([0-9][0-9]*\)[^a-zA-Z]*\([a-zA-Z]*\).*/\1 \2/p' | head -1)
+  RETRY_NOTICE=""; RETRY_SECS=$COOLDOWN_SECONDS
+  parsed=$(printf '%s\n' "$1" \
+    | sed -n 's/.*review[^0-9]*available in[^0-9]*\([0-9][0-9]*\)[^a-zA-Z]*\([a-zA-Z]*\).*/\1 \2/p' \
+    | head -1)
   num=${parsed%% *}; unit=${parsed#* }
-  case "$num" in ''|*[!0-9]*) echo 3600; return;; esac
-  case "$unit" in hour*|Hour*) echo $((num * 3600));; *) echo $((num * 60));; esac
+  case "$num" in ''|*[!0-9]*) return;; esac
+  case "$unit" in hour*|Hour*) RETRY_NOTICE=$((num * 3600));; *) RETRY_NOTICE=$((num * 60));; esac
+  RETRY_SECS=$RETRY_NOTICE
+  [ "$RETRY_SECS" -lt "$COOLDOWN_SECONDS" ] && RETRY_SECS=$COOLDOWN_SECONDS
 }
 
 while [ ${#PRS[@]} -gt 0 ]; do
@@ -165,12 +189,14 @@ while [ ${#PRS[@]} -gt 0 ]; do
       else
         rl_ts=${rl%%$'\t'*}; rl_body=${rl#*$'\t'}
         if [ "$rl_ts" != "$prev_ts" ]; then
-          secs=$(retry_seconds "$rl_body")
+          retry_seconds "$rl_body"; secs=$RETRY_SECS
           if [ "$AUTORETRY" != "1" ]; then
             armed="window $((secs / 60))m; auto-retry OFF (CR_WATCH_AUTORETRY=0) — re-trigger by hand or run the model review pass"
             retry_at=0
           elif [ "$used" -lt "$MAX_RETRIES" ]; then
-            armed="auto-retry armed in $((secs / 60))m (attempt $((used + 1))/$MAX_RETRIES)"
+            claimed="notice unparsed"
+            [ -n "$RETRY_NOTICE" ] && claimed="notice says $((RETRY_NOTICE / 60))m"
+            armed="auto-retry armed in $((secs / 60))m ($claimed; org cooldown floor) (attempt $((used + 1))/$MAX_RETRIES)"
             retry_at=$(( $(date +%s) + secs + 60 ))   # +60s slack: never re-trigger a beat early
           else
             armed="auto-retry budget spent ($MAX_RETRIES) — run the model review pass instead of waiting"

@@ -2,7 +2,7 @@
 name: coderabbit-lane
 description: "CodeRabbit review lane (`coderabbitai[bot]`) mechanics: managing the shared org-wide cooldown counter (~1 review per 40 min), manual admission via `coderabbit_review` label, per-repo admission read from the registry, when spending a slot is warranted (.coderabbit.yaml invariants or unshared model check), bare `@coderabbitai review` trigger syntax, the in-thread reply protocol with `cr-reply.sh`, and thread resolution rules. Load when deciding to request CodeRabbit review, handling its feedback threads or rate limits, or replying to `coderabbitai[bot]` comments."
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # The CodeRabbit review lane
@@ -40,7 +40,12 @@ The review lane operates on the Free/OSS plan, where seat assignment is disabled
 - **Org-wide counter:** The counter is shared across all repositories, sessions, and subagents, not per-branch or per-session. A successful review incurs an org-wide cooldown of roughly 40 minutes (budget ≥45 minutes). Run at most one review at a time across the whole organization. Parallel runs serialize and delay all lanes.
 - **Every run spends a slot:** Initial reviews, automatic incremental reviews after a push, and manual `@coderabbitai review` comments all spend one slot. To prevent rapid budget exhaustion, enabled repositories set `auto_pause_after_reviewed_commits: 1` in `.coderabbit.yaml`: one review per PR, then batch fixes before re-requesting.
 - **Batch fixes before requesting:** Never spend a slot on a commit you are about to amend.
-- **Remaining capacity is not readable:** Querying `@coderabbitai rate limit` yields documentation links, never remaining counts. The `waitTime` in rate-limit error messages is the only signal.
+- **Remaining capacity is not readable:** Querying `@coderabbitai rate limit` yields documentation links, never remaining counts.
+- **The notice's stated wait is a per-PR figure and is below the org-wide cooldown.** Report it, do not wait on it. `watch-coderabbit.sh` floors the armed retry at `CR_WATCH_COOLDOWN_SECONDS` (default 3600) and prints both numbers, so a disagreement is visible instead of silent. CodeRabbit has used at least three wordings for it, and the watcher's pattern once matched only the first, so every rate limit quietly armed the fallback:
+  - `Next review available in: **47 minutes**`
+  - `**Next included review available in 30 minutes.**`
+  - `Your next included review will be available in 23 minutes.`
+- **The cooldown figures below have no recorded provenance.** "Roughly 40 minutes", "37 rejected", "45 or more succeeds": nobody wrote down when these were measured or on which plan, and they disagree with both the watcher's 60-minute floor and with longer waits observed since. Do not build arithmetic on them the way a session recently did, reaching a confident wrong conclusion from numbers that were never evidence. Treat them as folklore until someone measures and dates them.
 - **Cooldown retries:** Retrying 37 minutes after a review is rejected outright without wait times; retries at ≥45 minutes succeed. Budget ≥45 minutes and confirm acceptance.
 - **`review full` is NOT a way past the limit.** Both trigger forms draw the same included-review budget, so `review full` does not get past a rate-limit refusal. An apparent success shortly after a refusal is the limit window rolling over, not the command; do not read it as a bypass. Use `review full` when the incremental form refuses because it "does not re-review already reviewed commits", which is a different refusal; use the clock for the limit.
 - **CodeRabbit edits its reply in place, so a first read can show the opposite of the settled outcome.** Read the comment's `updated_at`, wait for it to stop changing, and classify on the settled body.
