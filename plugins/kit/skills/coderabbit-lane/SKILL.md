@@ -2,7 +2,7 @@
 name: coderabbit-lane
 description: "CodeRabbit review lane (`coderabbitai[bot]`) mechanics: managing the shared org-wide cooldown counter (~1 review per 40 min), manual admission via `coderabbit_review` label, per-repo admission read from the registry, when spending a slot is warranted (.coderabbit.yaml invariants or unshared model check), bare `@coderabbitai review` trigger syntax, the in-thread reply protocol with `cr-reply.sh`, and thread resolution rules. Load when deciding to request CodeRabbit review, handling its feedback threads or rate limits, or replying to `coderabbitai[bot]` comments."
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # The CodeRabbit review lane
