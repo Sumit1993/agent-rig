@@ -35,14 +35,21 @@ urls=$(jq -r '.tool_response | tostring' <<<"$in" 2>/dev/null \
 # Seed both seen-state files so the first watcher poll does not replay every existing
 # comment as NEW. Best-effort: a failure here costs replayed events, never a missed PR.
 seed_seen() {
-  local url=$1 repo pr cw key body
+  local url=$1 repo pr cw key body origin
   repo=${url#https://github.com/}; repo=${repo%%/pull/*}
   pr=${url##*/}
+  # Only seed a PR in the repo we are standing in. The URL match is deliberately loose, so
+  # any file content mentioning a PR link reaches here; seeding on that spent a real API
+  # call and wrote real state for repos nobody was watching. Reminding is still free and
+  # still happens — seeding is the part with side effects, so it needs to be sure.
+  origin=$(git remote get-url origin 2>/dev/null) || return 0
+  origin=$(printf '%s' "$origin" | sed -E 's#.*github\.com[:/]##; s#\.git$##')
+  [ "$origin" = "$repo" ] || return 1
   cw=${CR_WATCH_STATE_DIR:-$HOME/ai-context/state/cr-watch}
-  mkdir -p "$cw" 2>/dev/null || return 0
+  mkdir -p "$cw" 2>/dev/null || return 1
   key=$(printf '%s' "$repo" | tr '/' '-')
-  body=$(gh api "repos/$repo/pulls/$pr/comments?per_page=100" 2>/dev/null) || return 0
-  jq -e 'type == "array"' >/dev/null 2>&1 <<<"$body" || return 0
+  body=$(gh api "repos/$repo/pulls/$pr/comments?per_page=100" 2>/dev/null) || return 1
+  jq -e 'type == "array"' >/dev/null 2>&1 <<<"$body" || return 1
   jq -r '.[] | select(.user.login|test("coderabbit";"i")) | .id' <<<"$body" \
     > "$cw/$key-pr$pr.seen" 2>/dev/null
   jq -r '.[] | select(.user.login|test("claude";"i")) | .id' <<<"$body" \
@@ -55,20 +62,23 @@ state_dir=${PR_WATCH_STATE_DIR:-$HOME/ai-context/state/pr-seen}
 mkdir -p "$state_dir" 2>/dev/null || exit 0
 
 # every new PR in this output, not just the first: a batch script can raise several
-fresh=""
+fresh=""; seeded=0
 while read -r url; do
   [ -z "$url" ] && continue
   key=$(printf '%s' "${url#https://github.com/}" | tr '/' '-')
   [ -e "$state_dir/$key" ] && continue
   : > "$state_dir/$key" 2>/dev/null || continue
-  seed_seen "$url"
+  if seed_seen "$url"; then seeded=1; fi
   fresh="${fresh}PR #${url##*/} ($url); "
 done <<< "$urls"
 [ -z "$fresh" ] && exit 0
 
-jq -n --arg fresh "${fresh%; }" \
+seed_note="seed the seen-state first (Phase 1) so existing comments are not replayed, then arm"
+[ "$seeded" = "1" ] && seed_note="seen-state is already seeded, so just arm"
+
+jq -n --arg fresh "${fresh%; }" --arg seed "$seed_note" \
   '{hookSpecificOutput:{hookEventName:"PostToolUse",additionalContext:(
       "\($fresh) — in play in this session with no watcher armed. "
-      + "If you raised it or are driving its review round, arm the pr-watch monitor NOW: seen-state is already seeded, so invoke the pr-watch skill and arm the Monitor with watch-coderabbit.sh, and review and CI feedback arrives as notifications instead of the user relaying it. "
+      + "If you raised it or are driving its review round, arm the pr-watch monitor NOW: invoke the pr-watch skill, \($seed) the Monitor with watch-coderabbit.sh, so review and CI feedback arrives as notifications instead of the user relaying it. "
       + "If it is merged, closed, or someone else'"'"'s round, ignore this."
    )}}'
