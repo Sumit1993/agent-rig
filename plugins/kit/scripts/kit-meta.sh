@@ -23,7 +23,10 @@ resolve_repo() {
 
 case "${1:-}" in
   get)
-    v=$(merged | jq -r --arg r "${2:?owner/repo}" --arg k "${3:?key}" '.[$r][$k] // empty')
+    # `// empty` swallows a literal false, so a false-valued key read as unset.
+    # has() separates "set to false" from "absent"; `enforced` depends on the difference.
+    v=$(merged | jq -r --arg r "${2:?owner/repo}" --arg k "${3:?key}" \
+          '(.[$r] // {}) | if has($k) and .[$k] != null then .[$k] else empty end')
     [ -n "$v" ] || exit 1
     echo "$v";;
   current)

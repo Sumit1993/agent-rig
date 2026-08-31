@@ -2,7 +2,7 @@
 name: pr-watch
 description: "Watch a PR raised in THIS session until its review round completes: seed the seen-state, arm the deterministic reviewer/CI Monitor, route each event as a pointer to the seat holding the diff, then merge (queue-enabled repos enqueue; no cascade). Also carries the merge contract. Trigger AFTER any `gh pr create`, when a PostToolUse hook reports a PR was raised, or when the user asks to watch or merge a PR. Claude lane behavior is `claude-review-lane`; CodeRabbit mechanics live in `coderabbit-lane`."
 metadata:
-  version: "3.1.0"
+  version: "3.2.0"
 ---
 
 # PR watch: the session-scoped review round
@@ -42,7 +42,20 @@ Current repo metadata: !`"${CLAUDE_PLUGIN_ROOT}/scripts/kit-meta.sh" current`
 
 ## Phase 0: the merge contract (nothing runs pre-push)
 
-On mage-memory, prismalens and sreforge the contract is three facts.
+On mage-memory, prismalens and sreforge the contract is three facts. Each of those repos
+carries exactly one active ruleset. **`gh-workflows` is the exception and enforces
+nothing**: `gh api repos/prismalens/gh-workflows/rulesets` returns `[]`. No required check,
+no thread gate, nothing to bypass and nothing to protect you. Holding the PR until you have
+read the review is the only gate that exists there, which matters more than usual because
+it is the canon repo the other three pull their lane logic from.
+
+The registry carries this as `enforced`, so `kit-meta.sh get <owner/repo> enforced` answers
+it without a network call. `false` and "no such key" are different answers: the first means
+we checked and nothing is enforced, the second means we have never looked.
+
+Read enforcement off `rulesets`, never off `branches/<b>/protection`. All four repos return
+404 on the legacy endpoint because they use rulesets, so that 404 says nothing about
+whether a repo is protected.
 
 **Two required checks, `CI gate` and `Validate PR title (conventional commits)`. Nothing
 else.** No review check, no evidence artifact, no marker job, no SHA-pinning, no
@@ -67,8 +80,16 @@ for review a cheaper layer already covers.
 | One Opus 5 pass | Non-trivial PRs | The layer neither bot can do: spec and ADR conformance, since design truth often lives in a hub they cannot see |
 | `/code-review ultra` | Rare | Engine core, security boundary, contract or schema changes |
 
-Never bypass the ruleset. **Batch every fix before requesting any review.** A CodeRabbit
-slot spent on a commit you are about to amend is spent for nothing.
+Never bypass the ruleset. **Batch every fix before you PUSH**, not merely before you summon
+a reviewer. A CodeRabbit slot spent on a commit you are about to amend is spent for nothing.
+
+Batching-before-summon only applies where admission is manual. **On an auto-review repo the
+push is the request**, so there is no separate summon step to hold back. `gh-workflows` runs
+`auto_review.enabled: true`, and telling a lane "don't trigger CodeRabbit, I'll do it once
+this lands" is an instruction it cannot obey by pushing. The slot spends itself. What limits
+the damage is `auto_pause_after_reviewed_commits: 1`: only the first push spends a slot, and
+later pushes auto-pause instead, surfacing as `CODERABBIT AUTO-PAUSED`. See `coderabbit-lane`
+§1 and §3.
 
 ## Phase 1: arm the watcher, right after `gh pr create`
 
@@ -77,10 +98,11 @@ Seed the seen-state first, so existing comments are never replayed:
 ```bash
 mkdir -p ~/ai-context/state/cr-watch
 REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner); KEY=${REPO//\//-}
-gh api "repos/$REPO/pulls/<pr>/comments?per_page=100" > /tmp/c.json
-jq -r '.[] | select(.user.login|test("coderabbit")) | .id' /tmp/c.json \
+C=$(mktemp); trap 'rm -f "$C"' EXIT
+gh api "repos/$REPO/pulls/<pr>/comments?per_page=100" > "$C"
+jq -r '.[] | select(.user.login|test("coderabbit")) | .id' "$C" \
   > ~/ai-context/state/cr-watch/$KEY-pr<pr>.seen
-jq -r '.[] | select(.user.login|test("claude";"i")) | .id' /tmp/c.json \
+jq -r '.[] | select(.user.login|test("claude";"i")) | .id' "$C" \
   > ~/ai-context/state/cr-watch/$KEY-pr<pr>-claude.seen
 ```
 

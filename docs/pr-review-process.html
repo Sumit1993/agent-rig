@@ -52,7 +52,8 @@
 <code>prismalens/prismalens</code>, <code>prismalens/sreforge</code> and <code>Sumit1993/mage-memory</code>.
 Living doc. Any change to a <code>claude-*.yml</code> workflow, a ruleset, or the resolution protocol updates this page in the same session.
 Last rewritten 2026-08-30, after gh-workflows#53 (per-repo config, org defaults, model escalation) and gh-workflows#37
-(dropped the dead GitHub App path from the docs).</p>
+(dropped the dead GitHub App path from the docs). Updated 2026-08-31: gh-workflows enforces no ruleset, and on that repo
+the push is the CodeRabbit request.</p>
 
 <h2><span class="n">1</span>The cast</h2>
 <p>Ten parties touch a PR. The thing worth holding in your head is which of them has a model inside it,
@@ -862,6 +863,17 @@ again on every push. Batch the fixes, push, reply with SHAs, then re-request exp
 "resolve" in a reply to CodeRabbit</strong>: it parses as a command and no-ops the reply.</p>
 <p><code>gh-workflows</code> is the exception and reviews automatically, because it is the one repo the Claude lane refuses
 to review. Everywhere else, <em>"Review skipped: excluded by label configuration"</em> is the valve working.</p>
+<p><strong>On <code>gh-workflows</code> the push is the request.</strong> There is no separate summon step to hold back, so
+"don't trigger CodeRabbit, I'll do it once this lands" is an instruction a lane cannot obey by pushing: the first push
+spends the slot on its own. Batch before you <em>push</em> there, not before you summon. Later pushes are covered by
+<code>auto_pause_after_reviewed_commits: 1</code> and surface as <code>CODERABBIT AUTO-PAUSED</code> rather than spending
+again. Batching-before-summon is advice for the label-gated repos only.</p>
+<p><strong><code>gh-workflows</code> enforces nothing at merge.</strong> <code>gh api repos/prismalens/gh-workflows/rulesets</code>
+returns <code>[]</code>: no required check, no thread-resolution gate. The other three repos each carry one active ruleset with
+<code>CI gate</code>, <code>Validate PR title (conventional commits)</code> and <code>required_review_thread_resolution</code>.
+Holding the PR until the review has been read is the only gate the canon repo has. Read enforcement off <code>rulesets</code>;
+all four repos 404 on <code>branches/&lt;b&gt;/protection</code> because none of them use classic branch protection, so that 404
+distinguishes nothing.</p>
 
 <h2><span class="n">8</span>Who resolves this thread</h2>
 <figure>

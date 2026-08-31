@@ -2,7 +2,7 @@
 name: coderabbit-lane
 description: "CodeRabbit review lane (`coderabbitai[bot]`) mechanics: managing the shared org-wide cooldown counter (~1 review per 40 min), manual admission via `coderabbit_review` label, automatic review on `gh-workflows`, when spending a slot is warranted (.coderabbit.yaml invariants or unshared model check), bare `@coderabbitai review` trigger syntax, the in-thread reply protocol with `cr-reply.sh`, and thread resolution rules. Load when deciding to request CodeRabbit review, handling its feedback threads or rate limits, or replying to `coderabbitai[bot]` comments."
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # The CodeRabbit review lane
@@ -14,7 +14,7 @@ Boundaries: `AGENTS.md` decides reviewer routing; this skill never repeats that 
 ## 1. Admission and enablement
 
 - **Consumer repos (`prismalens`, `sreforge`, `mage-memory`):** Manual admission only. Apply the `coderabbit_review` label by hand or post a bare `@coderabbitai review` comment. Without the label, CodeRabbit outputs `Review skipped: excluded by label configuration`, which is expected behavior, not an error.
-- **`gh-workflows`:** Configured with `auto_review.enabled: true` in its `.coderabbit.yaml`. It is reviewed automatically on every PR, being the one repository our Claude review lane cannot review due to workflow-validation self-skips.
+- **`gh-workflows`:** Configured with `auto_review.enabled: true` in its `.coderabbit.yaml`. It is reviewed automatically on every PR, being the one repository our Claude review lane cannot review due to workflow-validation self-skips. **Here the push is the request.** There is no summon step to withhold, so batch before pushing, not before triggering, and never instruct a lane to hold off triggering when pushing is what triggers it.
 
 ## 2. When spending a slot is warranted
 
