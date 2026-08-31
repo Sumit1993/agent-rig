@@ -24,6 +24,30 @@
         ],
         "description": "Block Agent calls with model=haiku (routing doctrine)",
         "id": "pre:agent:no-haiku"
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/delegate-check.sh\"",
+            "timeout": 5
+          }
+        ],
+        "description": "Block a generic Claude subagent on delegable work unless agy was considered (AGENTS.md Delegation)",
+        "id": "pre:agent:delegate-check"
+      },
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/organizer-seat.sh\"",
+            "timeout": 5
+          }
+        ],
+        "description": "Nudge once per session when the organizer edits files while an agy run is live",
+        "id": "pre:edit:organizer-seat"
       }
     ],
     "SessionEnd": [
