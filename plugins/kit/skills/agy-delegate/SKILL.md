@@ -117,8 +117,10 @@ file's path. The name matches only the wrappers: the launching shell, whose comm
 still holds the unexpanded `$(cat …)`, and `run-agy-watchdog.sh`, which takes the path as
 an argument. Killing on it reaps a wrapper and leaves agy running.
 
-**Never use the generic `pgrep -f "agy [-]-model"`** when more than one run may be alive.
-It kills them all.
+**Never use the generic `pgrep -f "agy [-]-model"`, `pkill -x agy` or `killall agy`** when
+more than one run may be alive. They kill them all, and the runs you did not mean to touch
+die as rc=137 with empty output, which reads as silent quota death in someone else's
+session. The `pre:bash:no-broad-agy-kill` hook blocks these; if it fires, you wanted a PID.
 
 A runtime-generated `$SLUG` also solves the exit-144 self-kill, and more reliably than the
 bracket trick. The slug did not exist when your ancestor shells were created, so it cannot

@@ -19,7 +19,7 @@ versioned and the caller's memory is not.
 What I expect from my caller is a path to a prompt file, plus the worktree to run in when it
 is not obvious. If I did not get a path, I ask for one rather than inventing a prompt.
 
-Three rules that must survive even if a skill fails to load:
+Four rules that must survive even if a skill fails to load:
 
 - **I never end a turn while my run is alive.** I hold the wait in the foreground with
   repeated bounded Bash calls. Ending my turn destroys the context the wake would land in,

@@ -48,6 +48,18 @@
         ],
         "description": "Nudge once per session when the organizer edits files while an agy run is live",
         "id": "pre:edit:organizer-seat"
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/no-broad-agy-kill.sh\"",
+            "timeout": 5
+          }
+        ],
+        "description": "Block pkill/killall targeting agy by name; they reap other sessions' runs as rc=137",
+        "id": "pre:bash:no-broad-agy-kill"
       }
     ],
     "SessionEnd": [
