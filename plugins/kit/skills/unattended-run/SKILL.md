@@ -102,6 +102,11 @@ resolves or the deadline expires." Never accept two "waiting" reports in a row. 
 
 Put this rule in every dispatch prompt. Assume the lane walks into it otherwise.
 
+**Some evidence has no shell poll at all.** If the only way to read it is an MCP tool
+call, no Monitor and no background loop can watch it; a cron tick into this session is the
+watch, and its latency is the tick interval. Record it as a tick, never as a monitor, or
+the operator reads a 30 minute blind spot as a live poll. `anti-stall` §2 has the rules.
+
 **The reverse failure: a watch that outlives its job.** A monitor, a poller, a cron tick. Anything armed to watch one piece of work gets torn down the moment that work ends, whether it merged, closed, moved, or was abandoned. One left running kept acting on a PR that had since been repurposed into something else, and spent a scarce shared counter on it unprompted. Arming something durable creates a teardown obligation in the same breath. Record it in the plan file's lane table beside the thing it watches, and disarm it as part of closing the lane.
 
 ## 4. A green job proves nothing. Only a posted artifact does
