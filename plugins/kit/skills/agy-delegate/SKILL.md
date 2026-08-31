@@ -1,8 +1,8 @@
 ---
 name: agy-delegate
-description: "Load BEFORE any Agent tool call, to decide whether the work belongs on agy at all rather than on a Claude subagent. agy (Antigravity CLI: Gemini 3.7 Flash / Gemini 3.1 Pro / Opus 4.6 / Sonnet 4.6) draws a separate abundant quota. Applies whenever the work is expressible as a written procedure with verify commands: implementing to a spec, rebases, evidence collection, log or CI triage, smoke runs, repetitive per-item procedure, research, doc review, bulk reading. Also load when an agy run returns empty or truncated output, or when a handler needs to kill, salvage or resume one."
+description: "Load BEFORE any Agent tool call, to decide whether the work belongs on agy at all rather than on a Claude subagent. agy (Antigravity CLI: Gemini 3.7 Flash / Gemini 3.1 Pro / Opus 4.6 / Sonnet 4.6) draws a separate abundant quota. Applies whenever the work is expressible as a written procedure with verify commands: implementing to a spec, rebases, evidence collection, log or CI triage, smoke runs, repetitive per-item procedure, research, doc review, bulk reading. Dispatch is one step: write the task prompt to a file and spawn `subagent_type: "agy-runner"` with the path. Also load when an agy run returns empty or truncated output, or when a handler needs to kill, salvage or resume one."
 metadata:
-  version: "3.0.0"
+  version: "3.1.0"
 ---
 
 # Delegating to Antigravity CLI (agy)
@@ -123,18 +123,29 @@ bracket trick. The slug did not exist when your ancestor shells were created, so
 appear in their command lines. Bracketing is still worth doing, but it is not sufficient on
 its own; see `anti-stall` for why.
 
-## Wrapper pattern: the prompt goes in a FILE
-Putting the full task prompt in the wrapper subagent's prompt pays for it twice (main agent's output tokens + subagent's input tokens). Hand over a path instead; agy reads it at shell level, so the big prompt never enters any model's context.
+## Dispatching a run: write the prompt to a FILE, hand over the path
 
-1. Main agent `Write`s the complete self-contained prompt to `~/ai-context/agy-prompts/<task>.md` (or the repo, never `/tmp`).
-2. Wrapper gets a tiny prompt: the file path + the command to run.
-3. Wrapper runs agy and returns its final report as response text.
+Write the complete, self-contained task prompt to `~/ai-context/agy-prompts/<task>.md` (or
+the repo, never `/tmp`), then spawn `subagent_type: "agy-runner"` with the path. That is the
+whole dispatch. Putting the task prompt in the subagent's prompt pays for it twice, in your
+output tokens and its input tokens; agy reads the file at shell level, so it never enters
+any model's context.
 
-**In Workflows.** `agent(pathOnlyPrompt, {model: 'sonnet', effort: 'low', schema: …, label: 'antigravity-gemini-3.6:<task>'})`. The `antigravity-<model>` label prefix is required: the UI shows the wrapper's Claude model, so the label is the only sign of who's really working.
+**Do not brief the runner on how to run agy.** The launch command, model slugs, kill and
+resume mechanics and the babysit loop below are its job, and it loads this skill to get
+them. A dispatch that inlines them is longer, goes stale the moment this file changes, and
+competes with the versioned copy. Path in, verified report out.
 
-**Standalone (Agent tool).** No effort/schema/label options, only `model`. Put the `antigravity-<model>` marker in the description and ask for a plain-text report in a fixed format.
+**In Workflows**, where `subagent_type` is not available:
+`agent(pathOnlyPrompt, {model: 'sonnet', effort: 'low', label: 'antigravity-gemini-3.7:<task>'})`,
+and the prompt says to load `agy-delegate` and `anti-stall` first. The `antigravity-<model>`
+label prefix is required: the UI shows the wrapper's Claude model, so the label is the only
+sign of who is really working.
 
 ## Handler babysit loop
+**This section is the runner's, not the dispatcher's.** It is what `agy-runner` follows once
+it loads this skill; nobody needs to relay it.
+
 A handler owns its run end-to-end: launch, watch, kill-on-hang, salvage, retry. Never return "agy didn't respond" without having run this.
 
 1. **Launch** via background Bash with an exit sentinel. See `anti-stall` §1:
