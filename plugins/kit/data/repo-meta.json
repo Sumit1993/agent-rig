@@ -1,9 +1,20 @@
 {
+  "prismalens/gh-workflows": {
+    "coderabbit": true,
+    "coderabbit_auto_review": true,
+    "claude_lane": false,
+    "fixer_lane": false,
+    "merge_queue": false,
+    "enforced": false,
+    "canon": null
+  },
   "Sumit1993/mage-memory": {
     "coderabbit": true,
+    "coderabbit_auto_review": false,
     "claude_lane": true,
     "fixer_lane": false,
     "merge_queue": false,
+    "enforced": true,
     "canon": "prismalens/gh-workflows",
     "docs": {
       "site": "docs/src/content/docs",
@@ -17,14 +28,18 @@
         "skills/*/SKILL.md",
         "package.json (description)"
       ],
-      "code_globs": ["src/**"]
+      "code_globs": [
+        "src/**"
+      ]
     }
   },
   "prismalens/sreforge": {
     "coderabbit": true,
+    "coderabbit_auto_review": false,
     "claude_lane": true,
     "fixer_lane": false,
     "merge_queue": true,
+    "enforced": true,
     "canon": "prismalens/gh-workflows",
     "docs": {
       "site": "docs/src/content/docs",
@@ -37,14 +52,21 @@
         "use-cases/** (Taskfile desc lines)",
         "CLI usage strings"
       ],
-      "code_globs": ["tools/**", "use-cases/**", "infra/**", "core/src/**"]
+      "code_globs": [
+        "tools/**",
+        "use-cases/**",
+        "infra/**",
+        "core/src/**"
+      ]
     }
   },
   "prismalens/prismalens": {
     "coderabbit": true,
+    "coderabbit_auto_review": false,
     "claude_lane": true,
     "fixer_lane": false,
     "merge_queue": true,
+    "enforced": true,
     "canon": "prismalens/gh-workflows",
     "docs": {
       "surfaces": [
@@ -56,7 +78,10 @@
         "ROADMAP.md",
         "CONTRIBUTING.md"
       ],
-      "code_globs": ["packages/*/src/**", "packages/@prismalens/*/src/**"]
+      "code_globs": [
+        "packages/*/src/**",
+        "packages/@prismalens/*/src/**"
+      ]
     }
   }
 }

@@ -1,0 +1,41 @@
+#!/bin/bash
+# PreToolUse(Bash) hook: block a kill that targets agy BY NAME rather than by run.
+# `pkill -x agy` / `pkill -f "agy --model"` / `killall agy` reap every agy process on the
+# machine, including other sessions' live runs, which surface there as rc=137 and read as
+# quota death. agy-delegate says kill by PID, or by this run's --log-file slug.
+set -u
+in=$(cat)
+cmd=$(jq -r '.tool_input.command // ""' <<<"$in" 2>/dev/null) || exit 0
+
+grep -qE '\b(pkill|killall)\b' <<<"$cmd" || exit 0
+
+# Each pkill/killall invocation, up to the next shell separator.
+while IFS= read -r inv; do
+  [ -z "$inv" ] && continue
+  # Drop the verb and every flag; what remains is the pattern, quotes stripped.
+  pat=$(sed -E 's/^[[:space:]]*(pkill|killall)[[:space:]]*//' <<<"$inv" \
+        | tr -d '"'"'"'' \
+        | sed -E 's/(^|[[:space:]])-[A-Za-z0-9]+//g; s/^[[:space:]]+//; s/[[:space:]]+$//')
+  [ -z "$pat" ] && continue
+  # Safe: a pattern carrying a run-specific marker, e.g. the agy-<task>-<epoch> log slug.
+  # Unsafe: bare `agy`, or agy followed only by flag-ish noise (`agy --model`, `agy [-]-model`).
+  if [[ "$pat" == "agy" ]] || [[ "$pat" =~ ^agy[^A-Za-z0-9_-] ]]; then
+    cat >&2 <<MSG
+Blocked: \`$pat\` matches every agy process on this machine, not just yours.
+
+Other sessions' runs die as rc=137 with empty output, which reads as silent quota death and
+costs them their retry budget chasing a cause that was you. This repo's own test suite did
+exactly that today.
+
+Kill by PID instead (\`kill -9 "\$AGY_PID"\`, captured as \$! at launch, or the pid
+run-agy-watchdog.sh prints). If the PID is lost, match this run's --log-file slug:
+\`kill -9 \$(pgrep -f "\$SLUG")\`. See agy-delegate, "Killing a run".
+
+To see what you would have hit: \`pgrep -a agy\`, then \`readlink /proc/<pid>/cwd\` to tell
+the runs apart by worktree.
+MSG
+    exit 2
+  fi
+done < <(grep -oE '\b(pkill|killall)\b[^;&|)]*' <<<"$cmd")
+
+exit 0
