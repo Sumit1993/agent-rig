@@ -2,7 +2,7 @@
 name: pr-watch
 description: "Watch a PR raised in THIS session until its review round completes: seed the seen-state, arm the deterministic reviewer/CI Monitor, route each event as a pointer to the seat holding the diff, then merge (queue-enabled repos enqueue; no cascade). Also carries the merge contract. Trigger AFTER any `gh pr create`, when a PostToolUse hook reports a PR was raised, or when the user asks to watch or merge a PR. Claude lane behavior is `claude-review-lane`; CodeRabbit mechanics live in `coderabbit-lane`."
 metadata:
-  version: "3.2.0"
+  version: "3.3.0"
 ---
 
 # PR watch: the session-scoped review round
@@ -89,7 +89,11 @@ auto-pause instead, surfacing as `CODERABBIT AUTO-PAUSED`. Check
 `kit-meta.sh get <repo> coderabbit_auto_review` before assuming you have a summon step. See
 `coderabbit-lane` §1 and §3.
 
-## Phase 1: arm the watcher, right after `gh pr create`
+## Phase 1: arm the watcher, as soon as a PR this session caused exists
+
+"Right after `gh pr create`" is too narrow. A delegated lane, an agy run or a subagent in
+its own worktree can open the PR, and none of those is a moment in this session. The
+trigger is a PR existing that this session caused, whoever typed the command.
 
 Seed the seen-state first, so existing comments are never replayed:
 
@@ -246,7 +250,14 @@ git refuses because the tree is locked.
   had been repurposed, and spent a scarce CodeRabbit review on it unprompted. The plugin's
   SessionEnd hook also kills watchers, and SessionStart reaps orphans from crashed
   sessions. Re-arming after either is free.
-- `hooks/pr-created.sh` injects a reminder line whenever a `gh pr create` succeeds. Answer
-  it by running Phase 1. Nothing local gates the merge, and the hook posts nothing else.
+- `hooks/pr-created.sh` injects a reminder whenever a PR URL appears in a Bash or Agent
+  tool result, and seeds the seen-state. Answer it by running Phase 1. Nothing local gates
+  the merge, and the hook posts nothing else.
+- **It is a net, not a guarantee.** It sees PR URLs in tool output. An agy lane redirects
+  its output to a file, so the URL reaches no Bash result at all; it arrives later in the
+  handler's report, which is why the hook also runs on `Agent`. If a lane opens a PR and
+  nobody ever prints the URL, nothing fires. When you dispatch work that ends in a PR,
+  expect the URL back in the handler's report (`agy-delegate` babysit step 9) and arm on
+  it rather than waiting to be reminded.
 - Phase 3's cascade is a background Bash with a single completion, not a Monitor. The
   `anti-stall` skill says why waits key on evidence rather than liveness.

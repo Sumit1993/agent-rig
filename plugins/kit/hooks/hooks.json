@@ -100,6 +100,18 @@
         ],
         "description": "After a successful `gh pr create`, inject a reminder to arm the pr-watch monitor",
         "id": "post:bash:pr-created"
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/pr-created.sh\"",
+            "timeout": 30
+          }
+        ],
+        "description": "A delegated lane's PR surfaces in the handler's report, not in this session's Bash output; nudge the main session, which is the only seat that can hold a watcher",
+        "id": "post:agent:pr-created"
       }
     ]
   }

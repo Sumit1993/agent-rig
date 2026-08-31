@@ -9,6 +9,12 @@
 # command, so the old text match saw nothing and no watcher was ever armed.
 # Any path that surfaces a PR is a path that needs a watcher. Story: prismalens#495.
 #
+# Registered on Bash AND Agent. An agy lane redirects its output to a file, so the URL
+# never reaches a Bash tool_response and this hook cannot see it; it arrives later in the
+# handler subagent's report, which is an Agent tool_response. That firing point also
+# matters: a subagent cannot hold a Monitor (it dies with its turn), so the nudge has to
+# land in the main session. Story: gh-workflows#69, reviewed and unwatched.
+#
 # Reviews are advisory and posted by CI; no required check waits on one, and
 # nothing local has to run for a required check to go green. So this hook seeds the
 # watcher's seen-state (mechanical, and the step most often skipped) and reminds the

@@ -175,7 +175,13 @@ A handler owns its run end-to-end: launch, watch, kill-on-hang, salvage, retry. 
    budget on Gemini and reported dead while agy-Claude was answering on the first try.
 8. **Retry budget: 2 real relaunches max.** Prefer a resume over a relaunch when a
    `conversation_id` survived; it does not spend the budget, because it is the same run.
-9. **Preserve work before reporting.** If agy died leaving a change that passes the
+9. **Name any PR the lane opened, in the report.** Delegable work often ends in a pull
+   request, and a PR nobody is watching collects review findings nobody reads. Check
+   (`gh pr list --head <branch> --json number,url`) and put the URL in your terminal
+   report. **Do not arm a watcher yourself**: a subagent cannot hold one, because the
+   Monitor dies with your turn. Surfacing the URL is the whole job; the main session arms
+   `pr-watch` Phase 1 on it. Story: gh-workflows#69, auto-reviewed and unwatched.
+10. **Preserve work before reporting.** If agy died leaving a change that passes the
    prompt's own verification, **commit it** on the lane's branch so it cannot be lost, and
    say so in the report. Stop there: no push, no PR, no merge. Committing is recoverable
    and prevents a stranded fix; anything outward-facing is the operator's call.

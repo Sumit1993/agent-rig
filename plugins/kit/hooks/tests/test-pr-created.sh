@@ -81,6 +81,20 @@ second=$(run "gh pr view 12" "$URL" "$shared")
 [ -n "$first" ] && [ -z "$second" ] && pass "deduped: same PR reminds once" \
   || fail "dedupe broken (first=${first:0:40} second=${second:0:40})"
 
+# --- Agent tool results: how a delegated lane's PR actually surfaces ---------
+# An agy lane redirects output to a file, so the URL never reaches a Bash result;
+# it arrives in the handler subagent's report. Story: gh-workflows#69.
+agent_dir=$(mktemp -d)
+quiet=$(run 'agy --model gemini-3.7-flash-high -p "$(cat p.md)" > "$OUT" 2> "$OUT.err"' "" "$agent_dir")
+[ -z "$quiet" ] && pass "a redirected agy launch surfaces no URL, so nothing fires" \
+  || fail "fired on a launch that printed no URL: ${quiet:0:60}"
+
+report=$(run "" "Verified 3 checks. Lane opened $URL" "$agent_dir")
+case "$report" in
+  *"$URL"*) pass "the handler's report is what triggers the nudge" ;;
+  *) fail "handler report did not trigger: ${report:0:60}" ;;
+esac
+
 echo
 [ "$FAILURES" -eq 0 ] && { echo "all pr-created hook tests passed"; exit 0; }
 echo "$FAILURES failure(s)"; exit 1
