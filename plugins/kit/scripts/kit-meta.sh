@@ -35,7 +35,9 @@ case "${1:-}" in
     merged | jq -c --arg r "$repo" '{repo: $r} + (.[$r] // {})';;
   observe)
     repo="${2:?owner/repo}"; key="${3:?key}"; val="${4:?value}"
-    jq -e . >/dev/null 2>&1 <<<"$val" || val=$(jq -Rn --arg v "$val" '$v')
+    # Plain `jq .`, never `jq -e .`: -e exits 1 on false and null, so an observed
+    # `false` got stored as the string "false" while curated data holds a boolean.
+    jq . >/dev/null 2>&1 <<<"$val" || val=$(jq -Rn --arg v "$val" '$v')
     mkdir -p "$STATE_DIR"
     tmp=$(mktemp "$STATE_DIR/.observed.XXXXXX")
     (cat "$OBSERVED" 2>/dev/null || echo '{}') \
