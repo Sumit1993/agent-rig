@@ -7,6 +7,15 @@
 #
 # Usage: bash test-pr-created.sh   (exits 0 on pass, 1 on any failure)
 set -u
+
+# seed_seen() in the hook does a real `gh api` call and writes CR_WATCH_STATE_DIR. Without
+# both of these the suite hit github.com with the user's credentials on every run and wrote
+# to real state. Stub gh and redirect the dir: this suite is meant to be offline.
+SANDBOX=$(mktemp -d)
+trap 'rm -rf "$SANDBOX"' EXIT
+export CR_WATCH_STATE_DIR="$SANDBOX/cr-watch"
+printf '#!/bin/bash\nexit 1\n' > "$SANDBOX/gh"; chmod +x "$SANDBOX/gh"
+export PATH="$SANDBOX:$PATH"
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOOK="$SELF_DIR/../pr-created.sh"
 FAILURES=0
@@ -80,6 +89,39 @@ first=$(run "$CREATE_CMD" "$URL" "$shared")
 second=$(run "gh pr view 12" "$URL" "$shared")
 [ -n "$first" ] && [ -z "$second" ] && pass "deduped: same PR reminds once" \
   || fail "dedupe broken (first=${first:0:40} second=${second:0:40})"
+
+# --- Agent tool results: how a delegated lane's PR actually surfaces ---------
+# An agy lane redirects output to a file, so the URL never reaches a Bash result;
+# it arrives in the handler subagent's report. Story: gh-workflows#69.
+agent_dir=$(mktemp -d)
+quiet=$(run 'agy --model gemini-3.7-flash-high -p "$(cat p.md)" > "$OUT" 2> "$OUT.err"' "" "$agent_dir")
+[ -z "$quiet" ] && pass "a redirected agy launch surfaces no URL, so nothing fires" \
+  || fail "fired on a launch that printed no URL: ${quiet:0:60}"
+
+report=$(run "" "Verified 3 checks. Lane opened $URL" "$agent_dir")
+case "$report" in
+  *"$URL"*) pass "the handler's report is what triggers the nudge" ;;
+  *) fail "handler report did not trigger: ${report:0:60}" ;;
+esac
+
+# --- Seeding has side effects, so it only runs for THIS repo -----------------
+# The URL match is deliberately loose, so any file content mentioning a PR link reaches
+# the hook. Seeding on that spent a real `gh api` call and wrote real state for repos
+# nobody was watching; a routine `cat` of this very file did it. Reminder yes, seed no.
+side=$(mktemp -d)
+out=$(run "cat notes.txt" "see https://github.com/octocat/Hello-World/pull/1" "$side/p1")
+case "$out" in
+  *"octocat/Hello-World/pull/1"*) pass "an unrelated repo's PR still reminds" ;;
+  *) fail "unrelated PR did not remind: ${out:0:60}" ;;
+esac
+case "$out" in
+  *"seed the seen-state first"*) pass "and says the seen-state is NOT seeded" ;;
+  *) fail "reminder overclaims seeding for another repo: ${out:0:80}" ;;
+esac
+[ -z "$(ls "$CR_WATCH_STATE_DIR" 2>/dev/null)" ] \
+  && pass "an unrelated repo's PR writes no cr-watch state" \
+  || fail "seeded cr-watch state for a repo we are not in: $(ls "$CR_WATCH_STATE_DIR")"
+rm -rf "$side"
 
 echo
 [ "$FAILURES" -eq 0 ] && { echo "all pr-created hook tests passed"; exit 0; }

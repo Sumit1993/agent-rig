@@ -2,7 +2,7 @@
 name: pr-watch
 description: "Watch a PR raised in THIS session until its review round completes: seed the seen-state, arm the deterministic reviewer/CI Monitor, route each event as a pointer to the seat holding the diff, then merge (queue-enabled repos enqueue; no cascade). Also carries the merge contract. Trigger AFTER any `gh pr create`, when a PostToolUse hook reports a PR was raised, or when the user asks to watch or merge a PR. Claude lane behavior is `claude-review-lane`; CodeRabbit mechanics live in `coderabbit-lane`."
 metadata:
-  version: "3.1.0"
+  version: "3.3.0"
 ---
 
 # PR watch: the session-scoped review round
@@ -42,7 +42,17 @@ Current repo metadata: !`"${CLAUDE_PLUGIN_ROOT}/scripts/kit-meta.sh" current`
 
 ## Phase 0: the merge contract (nothing runs pre-push)
 
-On mage-memory, prismalens and sreforge the contract is three facts.
+**Whether anything is enforced is a per-repo fact, so read it, never assume it.**
+`kit-meta.sh get <owner/repo> enforced` answers without a network call. `false` and "no
+such key" are different answers: the first means we checked and nothing is enforced, the
+second means we have never looked. On a `false`, no required check blocks a merge and no
+gate stops unresolved threads, so holding the PR for the operator is the only gate there
+is. The repo's own AGENTS.md says why it is set up that way.
+
+Read enforcement off `rulesets`. A 404 from `branches/<b>/protection` proves nothing on its
+own, because a repo using rulesets returns 404 there whether or not it is protected.
+
+Where a repo does enforce, the contract is three facts.
 
 **Two required checks, `CI gate` and `Validate PR title (conventional commits)`. Nothing
 else.** No review check, no evidence artifact, no marker job, no SHA-pinning, no
@@ -62,25 +72,39 @@ for review a cheaper layer already covers.
 
 | Tier | When | What |
 |---|---|---|
-| Claude review (`claude[bot]`) | Every same-repo PR, automatic, **but not every round and not every author** | The default. Posts findings as inline comments. Advisory, so it blocks nothing itself, but every thread it opens does. See `claude-review-lane` |
-| CodeRabbit (`coderabbitai[bot]`) | **Manual admission only** (`coderabbit_review` label or `@coderabbitai review`), automatic on `gh-workflows` | The independent lane, and a scarce org-wide counter of about one review per 40 minutes. See `coderabbit-lane` |
+| Claude review (`claude[bot]`) | Where the repo runs the lane (`kit-meta.sh get <repo> claude_lane`): every same-repo PR, automatic, **but not every round and not every author** | The default. Posts findings as inline comments. Advisory, so it blocks nothing itself, but every thread it opens does. See `claude-review-lane` |
+| CodeRabbit (`coderabbitai[bot]`) | Admission is per-repo: manual by `coderabbit_review` label or `@coderabbitai review`, or automatic where the repo enables `auto_review`. `kit-meta.sh get <repo> coderabbit_auto_review` | The independent lane, drawing a scarce org-wide counter. See `coderabbit-lane` |
 | One Opus 5 pass | Non-trivial PRs | The layer neither bot can do: spec and ADR conformance, since design truth often lives in a hub they cannot see |
 | `/code-review ultra` | Rare | Engine core, security boundary, contract or schema changes |
 
-Never bypass the ruleset. **Batch every fix before requesting any review.** A CodeRabbit
-slot spent on a commit you are about to amend is spent for nothing.
+Never bypass the ruleset. **Batch every fix before you PUSH**, not merely before you summon
+a reviewer. A CodeRabbit slot spent on a commit you are about to amend is spent for nothing.
 
-## Phase 1: arm the watcher, right after `gh pr create`
+Batching-before-summon only applies where admission is manual. **On an auto-review repo the
+push is the request**, so there is no separate summon step to hold back, and telling a lane
+"don't trigger CodeRabbit, I'll do it once this lands" is an instruction it cannot obey by
+pushing. The slot spends itself. What limits the damage is
+`auto_pause_after_reviewed_commits: 1`: only the first push spends a slot, and later pushes
+auto-pause instead, surfacing as `CODERABBIT AUTO-PAUSED`. Check
+`kit-meta.sh get <repo> coderabbit_auto_review` before assuming you have a summon step. See
+`coderabbit-lane` §1 and §3.
+
+## Phase 1: arm the watcher, as soon as a PR this session caused exists
+
+"Right after `gh pr create`" is too narrow. A delegated lane, an agy run or a subagent in
+its own worktree can open the PR, and none of those is a moment in this session. The
+trigger is a PR existing that this session caused, whoever typed the command.
 
 Seed the seen-state first, so existing comments are never replayed:
 
 ```bash
 mkdir -p ~/ai-context/state/cr-watch
 REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner); KEY=${REPO//\//-}
-gh api "repos/$REPO/pulls/<pr>/comments?per_page=100" > /tmp/c.json
-jq -r '.[] | select(.user.login|test("coderabbit")) | .id' /tmp/c.json \
+C=$(mktemp); trap 'rm -f "$C"' EXIT
+gh api "repos/$REPO/pulls/<pr>/comments?per_page=100" > "$C"
+jq -r '.[] | select(.user.login|test("coderabbit")) | .id' "$C" \
   > ~/ai-context/state/cr-watch/$KEY-pr<pr>.seen
-jq -r '.[] | select(.user.login|test("claude";"i")) | .id' /tmp/c.json \
+jq -r '.[] | select(.user.login|test("claude";"i")) | .id' "$C" \
   > ~/ai-context/state/cr-watch/$KEY-pr<pr>-claude.seen
 ```
 
@@ -188,7 +212,7 @@ delta prompt, judgment goes to the resumed Claude seat.
 
 Check `kit-meta.sh get <owner/repo> merge_queue` first.
 
-**Queue repos (prismalens, sreforge).** `gh pr merge <n> --squash` enqueues, and the queue
+**Queue repos (`merge_queue` true).** `gh pr merge <n> --squash` enqueues, and the queue
 tests a speculative merge onto main before landing it. No BEHIND cascade, no update-branch
 babysitting, no `merge-cascade.sh`. That script describes pre-queue mechanics and must not
 be used here. One timing rule survives: **do not enqueue before the liveness comment shows
@@ -196,7 +220,7 @@ posted review output.** The queue gates on checks and threads, not on whether a 
 spoke, so enqueueing into silence merges an unreviewed head. Three of the four verdicts in
 `claude-review-lane` §2 do not count as posted output.
 
-**Classic repos (mage-memory, a personal account with no queue).** Merge by hand once the
+**Classic repos (`merge_queue` false).** Merge by hand once the
 round's threads are resolved: `gh pr merge <n> --squash`. BEHIND still applies, so
 update-branch and re-green before merging the next.
 
@@ -224,12 +248,24 @@ git refuses because the tree is locked.
   polls `/issues/N/comments` for the `rate limited by coderabbit.ai` marker, deduped on
   `updated_at` because CodeRabbit edits one summary comment in place.
 - `~/ai-context/state/cr-watch/` is durable across sessions. Re-arming is always safe.
+- **A `git checkout` under a running watcher kills it.** Bash reads a script incrementally,
+  so switching branches rewrites `watch-coderabbit.sh` beneath the running shell and it
+  dies, usually exit 144, with no event to say the PR is now unwatched. Watching a PR in
+  the repo whose branches you are switching is the exposed case. Re-arm after any branch
+  change, or run the watcher from a path that is not moving.
 - **A watcher dies with its task, not with the session.** TaskStop it the moment its PR is
   merged, closed, or handed off. One left running past its lane kept acting on a PR that
   had been repurposed, and spent a scarce CodeRabbit review on it unprompted. The plugin's
   SessionEnd hook also kills watchers, and SessionStart reaps orphans from crashed
   sessions. Re-arming after either is free.
-- `hooks/pr-created.sh` injects a reminder line whenever a `gh pr create` succeeds. Answer
-  it by running Phase 1. Nothing local gates the merge, and the hook posts nothing else.
+- `hooks/pr-created.sh` injects a reminder whenever a PR URL appears in a Bash or Agent
+  tool result, and seeds the seen-state. Answer it by running Phase 1. Nothing local gates
+  the merge, and the hook posts nothing else.
+- **It is a net, not a guarantee.** It sees PR URLs in tool output. An agy lane redirects
+  its output to a file, so the URL reaches no Bash result at all; it arrives later in the
+  handler's report, which is why the hook also runs on `Agent`. If a lane opens a PR and
+  nobody ever prints the URL, nothing fires. When you dispatch work that ends in a PR,
+  expect the URL back in the handler's report (`agy-delegate` babysit step 9) and arm on
+  it rather than waiting to be reminded.
 - Phase 3's cascade is a background Bash with a single completion, not a Monitor. The
   `anti-stall` skill says why waits key on evidence rather than liveness.

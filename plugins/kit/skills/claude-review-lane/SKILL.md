@@ -2,7 +2,7 @@
 name: claude-review-lane
 description: "How our Claude review lane (`claude[bot]`) behaves on any PR of any age: reading the liveness comment's four verdicts, the ways the lane stays quiet (skipped author, auto-pause, fork head, self-skip), the summon grammar (`@claude review`, `@claude full review`, the per-run `--model` override), verification rounds, and who may resolve a `claude[bot]` thread. Load when a `claude[bot]` thread or a liveness comment is in front of you, when the lane has gone quiet or a review is missing, when deciding whether to summon or re-summon, and when judging whether a head has actually been reviewed before it merges. Arming a watcher on a PR this session raised is `pr-watch` instead."
 metadata:
-  version: "1.0.0"
+  version: "1.0.1"
 ---
 
 # The Claude review lane
@@ -115,7 +115,7 @@ body, which the review reads anyway.
 | Comment | Effect |
 |---|---|
 | `@claude review` | Incremental. The lane decides its own mode: a verify round when unresolved `claude[bot]` threads exist, otherwise a normal review. The only resume for an auto-paused PR |
-| `@claude full review` | From scratch, with dedup disabled for that run. The fix for a round that finished green having published nothing, which is what dedup silently causes (prismalens/prismalens#410) |
+| `@claude full review` | From scratch, with dedup disabled for that run. The fix for a round that finished green having published nothing, which is what dedup silently causes (prismalens/prismalens#410). **Also the only way past a verify round**: it short-circuits ahead of the unresolved-thread check, so it is what to send when you want a review and the row above would give you verdicts instead |
 | `@claude review --model opus` | Incremental on `claude-opus-5` for that run only. `--model sonnet` picks `claude-sonnet-5` back |
 
 `default_model` is `claude-sonnet-5` on purpose: review is the highest-volume Claude spend across

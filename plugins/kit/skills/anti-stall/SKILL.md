@@ -1,8 +1,8 @@
 ---
 name: anti-stall
-description: "Doctrine for waiting on long-running work without dozing — sentinel-first launches, evidence-keyed background waits, batch scripts over agent-per-step. Load BEFORE launching any delegation, build, campaign, CI run, or command expected to outlive one turn, and whenever a wait has gone quiet longer than expected."
+description: "Doctrine for waiting on long-running work without dozing: sentinel-first launches, evidence-keyed waits held in the background by a main session and in the foreground by a handler subagent, batch scripts over agent-per-step, and killing a run without reaping your own shell. Load BEFORE launching any delegation, build, campaign, CI run, or command expected to outlive one turn, whenever a wait has gone quiet longer than expected, and before any pgrep/pkill against a job you launched."
 metadata:
-  version: "1.0.0"
+  version: "1.2.0"
 ---
 
 # Anti-stall: waiting on long work
@@ -18,14 +18,24 @@ Every long command logs to a file and appends its own exit fact:
 
 Without a sentinel the completion signal is transient and a missed wake loses it. With one, the fact is still in the log on the next check.
 
-## 2. Wait = background until-loop on evidence
-Right after launch, start a **background Bash** that blocks on the durable fact. Its completion fires exactly one notification. That is the wake signal.
+## 2. Wait = until-loop on evidence, foreground or background by who is waiting
+Block on the durable fact, never on liveness or a timer:
 
 ```bash
 for i in $(seq 1 N); do grep -q DONE "$LOG" && exit 0; sleep 15; done; echo WATCH_TIMEOUT
 ```
 
 Size `N` as the deadline: `expected_minutes * 4 + 40`. The loop length **is** the timeout. `WATCH_TIMEOUT` in the log means stop waiting and go salvage.
+
+**Where the loop runs depends on whether your context outlives it.**
+
+- **Main session: background.** Start it right after launch. Its completion fires exactly
+  one notification, and the session is still there to receive it. That is the wake signal.
+- **Handler subagent: foreground.** Hold the wait with repeated bounded Bash calls instead.
+  A subagent that arms a background loop and then ends its turn destroys the context the
+  wake would have landed in. The run continues unwatched, and the parent gets a completion
+  notice for a handler that did nothing. **A handler never ends a turn while its run is
+  alive.** §5 is the cure for this after the fact; the rule here is the prevention.
 
 **The Monitor tool is banned for this.** A Monitor gated on `pgrep`/timers can sleep through wake after wake without ever firing. Monitor is fine for genuinely open-ended watching (new PR comments, a file that may change), never for "did this finish".
 
@@ -73,10 +83,45 @@ echo BATCH_COMPLETE >> "$LOG"
 Wake once, at the end. Agent-per-step is where dozing lives; a script cannot doze.
 
 ## Killing safely
-Any `pgrep -f` / `pkill -f` whose pattern appears in your own shell's command line kills **your own shell** (exit 144). Always use a self-unmatchable bracket pattern, and make it specific enough to hit only your run:
+Any `pgrep -f` / `pkill -f` whose pattern appears in your own shell's command line kills
+**your own shell** (exit 144).
+
+**Kill by PID.** Capture it at launch (`PID=$!`) and keep it. Everything below is for when
+the PID is genuinely lost.
+
+**The bracket trick is necessary and not sufficient.** `"issue39[-]rca"` hides the pattern
+from its own literal, and that is all it does. Under the Claude Code Bash tool every call
+runs as `bash -c 'eval <your whole command>'`, so your shell's command line holds the
+entire command. If the unbracketed string appears anywhere else in it, an `echo`, a
+`printf`, a filename you just created, the bracket protects nothing and the kill reaps your
+shell. This is easy to hit while testing a kill pattern, which is exactly when you are
+least expecting it.
+
+Two things that actually hold:
+
+- **Generate the marker at runtime.** `SLUG="run-$(date +%s)"` cannot appear in any
+  ancestor's command line, because it did not exist when they were created. Self-unmatchable
+  by construction rather than by escaping.
+- **Never build the pattern in the same Bash call that mentions the string.** Put the kill
+  in its own call.
 
 ```bash
-kill -9 $(pgrep -f "issue39[-]rca")
+kill -9 "$PID"                      # preferred
+kill -9 $(pgrep -f "$SLUG")         # fallback, marker generated this run
 ```
 
-Self-test at arm time: run the pattern once. It must match exactly one live PID.
+**A shared binary's processes are machine-global.** `pkill -x <name>` reaches every session
+on the host, not just yours, and the runs you did not mean to touch die as an empty
+non-zero exit that reads as an internal failure wherever they were being watched. If you
+cannot resolve a PID you can prove is yours, by a `$!` you captured or a
+`readlink /proc/<pid>/cwd` you recognise, kill nothing and say so.
+
+**Match a pattern that is really on the target's argv.** A shell expands `$(cat file)`
+before exec, so a prompt file's *name* never reaches the process it launched; it stays on
+the launching shell instead. Killing on it reaps the wrapper and leaves the real job
+running. Verify with `pgrep -a <pattern>` and confirm the match is the process you mean,
+not merely that exactly one thing matched. `agy-delegate` carries the worked example.
+
+Self-test at arm time: run `pgrep -a "<pattern>"` once and read what came back. It must
+match the process you intend to kill. "Exactly one PID matched" is not the test, because a
+wrapper alone satisfies it while the real job goes untouched.
