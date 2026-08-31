@@ -8,7 +8,7 @@
     {
       "name": "kit",
       "source": "./plugins/kit",
-      "description": "Sumit's personal working-style kit: pr-watch (post-PR CodeRabbit/CI monitoring + merge cascade), agy-delegate (Antigravity CLI delegation mechanics), no-comments/blast-radius/show-me-your-work (vendored from pstack, patched), patched CodeRabbit autofix/code-review skills, and the pr-created hook."
+      "description": "Personal working-style kit: anti-stall waiting doctrine, post-PR watching, agy delegation with the agy-runner wrapper agent, comment-budget enforcement, blast-radius proof, decision trails, patched CodeRabbit skills, and hooks that enforce delegation routing, the organizer seat, safe agy kills and PR-watch arming."
     }
   ]
 }
