@@ -14,7 +14,20 @@ set -u
 SANDBOX=$(mktemp -d)
 trap 'rm -rf "$SANDBOX"' EXIT
 export CR_WATCH_STATE_DIR="$SANDBOX/cr-watch"
-printf '#!/bin/bash\nexit 1\n' > "$SANDBOX/gh"; chmod +x "$SANDBOX/gh"
+# The stub also stands in for the existence check the hook now does. Default: exit 1 with
+# no message, which the hook reads as "could not tell" and still reminds. GH_STUB_404 makes
+# it answer a definite 404 for URLs containing that string; GH_STUB_OK makes it succeed.
+cat > "$SANDBOX/gh" <<'STUB'
+#!/bin/bash
+if [ -n "${GH_STUB_404-}" ]; then
+  case "$*" in *"${GH_STUB_404}"*) echo "gh: Not Found (HTTP 404)" >&2; exit 1 ;; esac
+fi
+if [ -n "${GH_STUB_OK-}" ]; then
+  case "$*" in *"${GH_STUB_OK}"*) echo 12; exit 0 ;; esac
+fi
+exit 1
+STUB
+chmod +x "$SANDBOX/gh"
 export PATH="$SANDBOX:$PATH"
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOOK="$SELF_DIR/../pr-created.sh"
@@ -122,6 +135,38 @@ esac
   && pass "an unrelated repo's PR writes no cr-watch state" \
   || fail "seeded cr-watch state for a repo we are not in: $(ls "$CR_WATCH_STATE_DIR")"
 rm -rf "$side"
+
+# --- A PR URL that is a fixture, not a PR -----------------------------------
+# An agy lane seeded a mock DB row holding github.com/prismalens/gh-workflows/pull/42.
+# The string reached a tool result and the hook urged a handler to arm a watcher on a PR
+# that returns 404. Test output and a real PR nobody printed look identical, so the hook
+# asks GitHub. Story: gh-workflows unattended run, fictional pull/42.
+GHOST="https://github.com/acme/widget/pull/42"
+ghost_dir=$(mktemp -d)
+out=$(GH_STUB_404="pulls/42" run "cat fixtures.sql" "insert ... '$GHOST'" "$ghost_dir")
+[ -z "$out" ] && pass "a 404 PR URL emits nothing" || fail "fired on a nonexistent PR: $out"
+[ -z "$(ls "$ghost_dir" 2>/dev/null)" ] \
+  && pass "and writes no dedupe marker, so a real #42 later still fires" \
+  || fail "marked a nonexistent PR seen, suppressing the real one forever: $(ls "$ghost_dir")"
+real=$(GH_STUB_OK="pulls/42" run "$CREATE_CMD" "$GHOST" "$ghost_dir" | ctx)
+case "$real" in
+  *"PR #42"*"confirmed to exist"*) pass "the same number, once real, fires and says it was checked" ;;
+  *) fail "a real PR at a previously-404 number did not fire: ${real:0:80}" ;;
+esac
+rm -rf "$ghost_dir"
+
+# --- An existence check that itself fails must not suppress ------------------
+# No auth, no network, rate limit: unknown is not absent. A missed real PR costs more
+# than a nudge that turns out to be a fixture, so the hook reminds and says it is unsure.
+c=$(run "$CREATE_CMD" "https://github.com/acme/widget/pull/77" | ctx)
+case "$c" in
+  *"PR #77"*"UNVERIFIED"*) pass "an unresolvable check still reminds, marked UNVERIFIED" ;;
+  *) fail "an unresolvable check suppressed or overclaimed: ${c:0:100}" ;;
+esac
+case "$c" in
+  *"gh pr view"*) pass "and tells the session how to check it" ;;
+  *) fail "UNVERIFIED reminder gives no way to check: ${c:0:120}" ;;
+esac
 
 echo
 [ "$FAILURES" -eq 0 ] && { echo "all pr-created hook tests passed"; exit 0; }
