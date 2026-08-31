@@ -81,18 +81,12 @@ fi
 
 # Minutes until the next review window, parsed from the rate-limit notice
 # ("Next review available in: **47 minutes**" / "**1 hour**"). Falls back to 60.
-# Floored at 45m: the notice reads low because the org-wide cooldown runs from the last
-# successful review on ANY PR, which a per-PR notice cannot see. Retrying late is free,
-# a blocked push spends no quota; retrying early spends one of MAX_RETRIES. gh-workflows#86.
-RETRY_FLOOR_SECONDS=2700
 retry_seconds() {
-  local parsed num unit secs
+  local parsed num unit
   parsed=$(printf '%s\n' "$1" | sed -n 's/.*[Nn]ext review available in:[^0-9]*\([0-9][0-9]*\)[^a-zA-Z]*\([a-zA-Z]*\).*/\1 \2/p' | head -1)
   num=${parsed%% *}; unit=${parsed#* }
   case "$num" in ''|*[!0-9]*) echo 3600; return;; esac
-  case "$unit" in hour*|Hour*) secs=$((num * 3600));; *) secs=$((num * 60));; esac
-  [ "$secs" -lt "$RETRY_FLOOR_SECONDS" ] && secs=$RETRY_FLOOR_SECONDS
-  echo "$secs"
+  case "$unit" in hour*|Hour*) echo $((num * 3600));; *) echo $((num * 60));; esac
 }
 
 while [ ${#PRS[@]} -gt 0 ]; do

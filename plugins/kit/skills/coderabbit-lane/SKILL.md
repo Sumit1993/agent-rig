@@ -2,7 +2,7 @@
 name: coderabbit-lane
 description: "CodeRabbit review lane (`coderabbitai[bot]`) mechanics: managing the shared org-wide cooldown counter (~1 review per 40 min), manual admission via `coderabbit_review` label, automatic review on `gh-workflows`, when spending a slot is warranted (.coderabbit.yaml invariants or unshared model check), bare `@coderabbitai review` trigger syntax, the in-thread reply protocol with `cr-reply.sh`, and thread resolution rules. Load when deciding to request CodeRabbit review, handling its feedback threads or rate limits, or replying to `coderabbitai[bot]` comments."
 metadata:
-  version: "1.1.0"
+  version: "1.0.0"
 ---
 
 # The CodeRabbit review lane
@@ -38,8 +38,7 @@ The review lane operates on the Free/OSS plan, where seat assignment is disabled
 - **Org-wide counter:** The counter is shared across all repositories, sessions, and subagents, not per-branch or per-session. A successful review incurs an org-wide cooldown of roughly 40 minutes (budget ≥45 minutes). Run at most one review at a time across the whole organization. Parallel runs serialize and delay all lanes.
 - **Every run spends a slot:** Initial reviews, automatic incremental reviews after a push, and manual `@coderabbitai review` comments all spend one slot. To prevent rapid budget exhaustion, enabled repositories set `auto_pause_after_reviewed_commits: 1` in `.coderabbit.yaml`: one review per PR, then batch fixes before re-requesting.
 - **Batch fixes before requesting:** Never spend a slot on a commit you are about to amend.
-- **Remaining capacity is not readable:** Querying `@coderabbitai rate limit` yields documentation links, never remaining counts.
-- **The notice's own wait time reads low, and is not the clock to wait on.** The binding constraint is ≥45 minutes from the moment the last successful review *anywhere in the org* finished. A notice posted on one PR cannot know when a review on a different PR ended, so its stated wait measures something narrower than the limit that actually applies. Time a retry off the last successful review you can find, not off the notice. Measured on `gh-workflows`#86: a review on #83 ended 14:56Z, the notice on #86 at 15:13Z implied a window at about 15:23Z, and the review did not run until about 15:45Z, 49 minutes after 14:56Z. Waiting on the stated time cost half an hour.
+- **Remaining capacity is not readable:** Querying `@coderabbitai rate limit` yields documentation links, never remaining counts. The `waitTime` in rate-limit error messages is the only signal.
 - **Cooldown retries:** Retrying 37 minutes after a review is rejected outright without wait times; retries at ≥45 minutes succeed. Budget ≥45 minutes and confirm acceptance.
 - **`review full` is NOT a way past the limit.** Both trigger forms draw the same included-review budget, so `review full` does not get past a rate-limit refusal. An apparent success shortly after a refusal is the limit window rolling over, not the command; do not read it as a bypass. Use `review full` when the incremental form refuses because it "does not re-review already reviewed commits", which is a different refusal; use the clock for the limit.
 - **CodeRabbit edits its reply in place, so a first read can show the opposite of the settled outcome.** Read the comment's `updated_at`, wait for it to stop changing, and classify on the settled body.

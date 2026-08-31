@@ -2,7 +2,7 @@
 name: pr-watch
 description: "Watch a PR raised in THIS session until its review round completes: seed the seen-state, arm the deterministic reviewer/CI Monitor, route each event as a pointer to the seat holding the diff, then merge (queue-enabled repos enqueue; no cascade). Also carries the merge contract. Trigger AFTER any `gh pr create`, when a PostToolUse hook reports a PR was raised, or when the user asks to watch or merge a PR. Claude lane behavior is `claude-review-lane`; CodeRabbit mechanics live in `coderabbit-lane`."
 metadata:
-  version: "3.2.0"
+  version: "3.1.0"
 ---
 
 # PR watch: the session-scoped review round
@@ -172,10 +172,7 @@ delta prompt, judgment goes to the resumed Claude seat.
 - **`CODERABBIT RATE-LIMITED`.** No review ran, so the diff is unreviewed, not clean. The
   watcher arms an auto re-trigger for when the window elapses, which is free because a
   blocked push consumes no quota. It emits `RE-TRIGGERED` when that fires and `RESUMED`
-  when a real review lands. **The armed delay is floored at 45 minutes even when the notice
-  claims less**, because the notice reads low: the org-wide cooldown runs from the last
-  successful review on any PR, which a per-PR notice cannot see. Do not shorten the wait to
-  match the notice; that spends a retry on a refusal (`coderabbit-lane` §3). **Do not sit idle.** The rate-limit check passes by design, so
+  when a real review lands. **Do not sit idle.** The rate-limit check passes by design, so
   merge is never actually blocked. Low-risk diff: merge on CI plus the re-trigger.
   Otherwise run the Opus 5 pass now, rather than spending 45 minutes on a tier that would
   have found less. On `auto-retry budget spent`, the model pass *is* the review.
