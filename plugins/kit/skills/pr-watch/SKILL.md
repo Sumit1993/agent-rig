@@ -206,7 +206,9 @@ delta prompt, judgment goes to the resumed Claude seat.
 - **`CODERABBIT AUTO-PAUSED`.** No review ran, so the diff is unreviewed, not clean. The
   watcher deliberately does not auto-resume: resuming immediately spends a slot from the
   shared org-wide counter. The operator resumes with a bare `@coderabbitai resume` when
-  they want the review.
+  they want the review. **The pause is not terminal.** Resuming produces a real review of
+  the final head, `Review completed` and all, so a PR paused by its own fix commits can
+  still meet a merge condition that requires one (`coderabbit-lane` §3).
 
 ## Phase 3: merge, once the user says so or under an explicit standing grant
 

@@ -22,7 +22,8 @@
 # Env: CR_WATCH_AUTORETRY=0 disables posting `@coderabbitai review` (detect-only).
 #      CR_WATCH_MAX_RETRIES=N caps auto re-triggers per PR (default 2).
 #      CR_WATCH_ASSUME_CODERABBIT=1|0 skips the probe (force present/absent).
-#      CR_WATCH_COOLDOWN_SECONDS=N floors the auto-retry delay (default 3600).
+#      CR_WATCH_COOLDOWN_SECONDS=N auto-retry delay used ONLY when the notice's own
+#      figure cannot be parsed (default 3600).
 set -u
 if [ "${1:-}" = "--repo" ]; then REPO="$2"; shift 2; else
   REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null) || { echo "watch-coderabbit: cannot resolve repo (pass --repo owner/name)"; exit 1; }
@@ -86,11 +87,11 @@ fi
 #   "Next review available in: **47 minutes**"                  (older, colon)
 #   "**Next included review available in 30 minutes.**"         (no colon, "included")
 #   "Your next included review will be available in 23 minutes."
-# The notice's figure is per-PR and runs below the org-wide cooldown, so it is reported
-# and not obeyed: the armed delay is floored at CR_WATCH_COOLDOWN_SECONDS. That floor is
-# what the watcher has effectively used since the wording changed and the old colon-only
-# pattern stopped matching, which it did silently. RETRY_NOTICE records what the notice
-# claimed so the event line can show both and the disagreement stays visible.
+# The notice's figure is obeyed, not floored: it is the org-wide window anchored to the
+# last accepted review and measures exact to within fifteen seconds. A flat 3600s counts
+# from the REFUSAL instead, landing ~21 minutes late. The fallback covers only a notice
+# with no figure in it. RETRY_NOTICE records the claim so the event line names its source.
+# Measurements: claude-kit#28.
 COOLDOWN_SECONDS=${CR_WATCH_COOLDOWN_SECONDS:-3600}
 # Validate before it ever reaches arithmetic. A junk value flows through the fallback path
 # into $((secs / 60)), where bash treats a non-numeric literal as a variable name and
@@ -110,7 +111,6 @@ retry_seconds() {
   case "$num" in ''|*[!0-9]*) return;; esac
   case "$unit" in hour*|Hour*) RETRY_NOTICE=$((num * 3600));; *) RETRY_NOTICE=$((num * 60));; esac
   RETRY_SECS=$RETRY_NOTICE
-  [ "$RETRY_SECS" -lt "$COOLDOWN_SECONDS" ] && RETRY_SECS=$COOLDOWN_SECONDS
 }
 
 while [ ${#PRS[@]} -gt 0 ]; do
@@ -194,9 +194,9 @@ while [ ${#PRS[@]} -gt 0 ]; do
             armed="window $((secs / 60))m; auto-retry OFF (CR_WATCH_AUTORETRY=0) — re-trigger by hand or run the model review pass"
             retry_at=0
           elif [ "$used" -lt "$MAX_RETRIES" ]; then
-            claimed="notice unparsed"
-            [ -n "$RETRY_NOTICE" ] && claimed="notice says $((RETRY_NOTICE / 60))m"
-            armed="auto-retry armed in $((secs / 60))m ($claimed; org cooldown floor) (attempt $((used + 1))/$MAX_RETRIES)"
+            claimed="notice unparsed, using the ${COOLDOWN_SECONDS}s fallback"
+            [ -n "$RETRY_NOTICE" ] && claimed="the notice's own figure"
+            armed="auto-retry armed in $((secs / 60))m ($claimed) (attempt $((used + 1))/$MAX_RETRIES)"
             retry_at=$(( $(date +%s) + secs + 60 ))   # +60s slack: never re-trigger a beat early
           else
             armed="auto-retry budget spent ($MAX_RETRIES) — run the model review pass instead of waiting"
