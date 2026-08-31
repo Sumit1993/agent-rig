@@ -172,7 +172,10 @@ delta prompt, judgment goes to the resumed Claude seat.
 - **`CODERABBIT RATE-LIMITED`.** No review ran, so the diff is unreviewed, not clean. The
   watcher arms an auto re-trigger for when the window elapses, which is free because a
   blocked push consumes no quota. It emits `RE-TRIGGERED` when that fires and `RESUMED`
-  when a real review lands. **Do not sit idle.** The rate-limit check passes by design, so
+  when a real review lands. The armed delay is floored at `CR_WATCH_COOLDOWN_SECONDS`
+  (default 60m) and the event line shows what the notice claimed beside what was armed,
+  because the notice's figure is per-PR and reads below the org-wide cooldown
+  (`coderabbit-lane` §3). **Do not sit idle.** The rate-limit check passes by design, so
   merge is never actually blocked. Low-risk diff: merge on CI plus the re-trigger.
   Otherwise run the Opus 5 pass now, rather than spending 45 minutes on a tier that would
   have found less. On `auto-retry budget spent`, the model pass *is* the review.
