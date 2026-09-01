@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.2](https://github.com/Sumit1993/claude-kit/compare/kit-v0.5.1...kit-v0.5.2) (2026-09-01)
+
+
+### Bug Fixes
+
+* **coderabbit-lane:** admission is a judgement call, and the counter is per developer ([#32](https://github.com/Sumit1993/claude-kit/issues/32)) ([e056e0e](https://github.com/Sumit1993/claude-kit/commit/e056e0e217fd522a5a3d367a501b1fc2129f9410))
+
 ## [0.5.1](https://github.com/Sumit1993/claude-kit/compare/kit-v0.5.0...kit-v0.5.1) (2026-09-01)
 
 
