@@ -1,0 +1,21 @@
+name: release
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      # Every commit type is a visible changelog section on purpose. plugin.json's
+      # version is the plugin cache key (~/.claude/plugins/cache/<mkt>/kit/<version>),
+      # so a docs-only edit to a shipped SKILL.md is inert on every install until the
+      # version moves. Hiding docs/chore would let those merge without a release.
+      - uses: googleapis/release-please-action@v5
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
