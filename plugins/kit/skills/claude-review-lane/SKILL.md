@@ -159,6 +159,19 @@ liveness comment reports a successful review, and the thread stays open with the
 blocked. It is deliberate: a push is a claim about code, a reply is a claim about a specific
 finding, and only the second names which threads to re-check.
 
+### The five modes
+
+One run resolves to exactly one mode, and the run log names it. A `pull_request` event can only
+reach the first three; `verify` and `review-full` need a reply or a summon.
+
+| Mode | Reached by | What it does |
+|---|---|---|
+| `skip` | any trigger | Nothing is reviewed. The reason is one of `no-token`, `skipped-author`, `paused`, `no-new-commits` |
+| `review` | any trigger | Full review from scratch. Also the fallback when an incremental range cannot be trusted: `no-baseline`, `baseline-gone`, `diverged`, `range-too-large`, `identical-summon` |
+| `incremental` | push, or `@claude review` | Reviews only the `baseline..head` range read off the liveness marker |
+| `review-full` | `@claude full review` only | From scratch with dedup disabled |
+| `verify` | non-bot in-thread reply, or `@claude review` on a PR holding unresolved threads | Re-judges those threads instead of reviewing |
+
 Three differences that change how you read a verify round:
 
 - **Per-thread verdicts, and there are three.** Each unresolved thread gets exactly one of
