@@ -130,9 +130,12 @@ PR#N NEW claude <thread|reply-in-ID> — id N — path — payload <state-file> 
 PR#N CLAUDE LIVENESS — <verdict text>
 PR#N CI FAIL — <check>
 PR#N CODERABBIT RATE-LIMITED — no review ran; <window>
+PR#N CODERABBIT RETRY ARMED — will re-trigger at <UTC time>
+PR#N CODERABBIT RETRY RECOVERED — a recorded notice had no retry armed; <window>
 PR#N CODERABBIT RE-TRIGGERED — posted @coderabbitai review (attempt K/MAX)
 PR#N CODERABBIT RE-TRIGGER FAILED — post '@coderabbitai review' by hand
-PR#N CODERABBIT ANSWERED AS CHAT — no review ran; re-trigger with a BARE '@coderabbitai review'
+PR#N CODERABBIT ANSWERED AS CHAT — the latest reply is a chat answer, not a review
+PR#N CODERABBIT ALREADY REVIEWED — trigger refused; this head is already reviewed
 PR#N CODERABBIT AUTO-PAUSED — no review ran; resume with '@coderabbitai resume'
 PR#N CODERABBIT AUTO-PAUSE CLEARED — reviews resumed
 PR#N CODERABBIT RESUMED — rate-limit notice cleared, review ran
@@ -141,6 +144,13 @@ PR#N <MERGED|CLOSED> — dropped from watch
 
 `ANSWERED AS CHAT`, `AUTO-PAUSED` and `RE-TRIGGER FAILED` all mean no review ran, same as
 `RATE-LIMITED`. Treat all four as an unreviewed diff.
+
+**`ALREADY REVIEWED` is the opposite and must not be lumped in with them.** It is a refused
+trigger, but the reason is that CodeRabbit considers this head reviewed, so the diff is
+reviewed and no further review is coming. Only `@coderabbitai full review` reruns it, and
+it draws the same budget, so spend it only when you have reason to doubt the first pass.
+`coderabbit-lane` §4 carries the same split. Reading this as "no review ran" inverts the
+truth right where it matters, at a merge decision.
 
 **The monitor emits pointers, not payloads.** The body is already saved at the `payload` path. Route that path. Never fetch
 a body into the session that owns the Monitor.
@@ -201,12 +211,21 @@ delta prompt, judgment goes to the resumed Claude seat.
   because the notice's figure is per-PR and reads below the org-wide cooldown
   (`coderabbit-lane` §3). **Do not sit idle.** The rate-limit check passes by design, so
   merge is never actually blocked. Low-risk diff: merge on CI plus the re-trigger.
+  **`RETRY ARMED` is the positive signal, so read it.** It names the UTC time the
+  re-trigger will fire. Without it the only success line is `RE-TRIGGERED`, which by
+  definition never arrives when the arming was lost, and a lost arming is silent.
+  **`RETRY RECOVERED`** means this watcher found a recorded notice with nothing armed and
+  armed it: normal after re-arming a watcher that first ran with `CR_WATCH_AUTORETRY=0`.
+  The retry is anchored to the notice, not to when the watcher started, so a window that
+  has already passed fires at once.
   Otherwise run the Opus 5 pass now, rather than spending 45 minutes on a tier that would
   have found less. On `auto-retry budget spent`, the model pass *is* the review.
 - **`CODERABBIT AUTO-PAUSED`.** No review ran, so the diff is unreviewed, not clean. The
   watcher deliberately does not auto-resume: resuming immediately spends a slot from the
   shared org-wide counter. The operator resumes with a bare `@coderabbitai resume` when
-  they want the review.
+  they want the review. **The pause is not terminal.** Resuming produces a real review of
+  the final head, `Review completed` and all, so a PR paused by its own fix commits can
+  still meet a merge condition that requires one (`coderabbit-lane` §3).
 
 ## Phase 3: merge, once the user says so or under an explicit standing grant
 

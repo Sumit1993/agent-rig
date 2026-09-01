@@ -32,6 +32,20 @@ urls=$(jq -r '.tool_response | tostring' <<<"$in" 2>/dev/null \
   | grep -oE 'https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/pull/[0-9]+' | sort -u)
 [ -z "$urls" ] && exit 0
 
+# Confirm the PR is real before spending a reminder on it. The URL match is deliberately
+# loose, so a fixture URL sitting in test data or a mock fixture reaches here and reads
+# exactly like a PR nobody printed. Only a definite 404 suppresses; any other failure
+# (no auth, no network, rate limit) is unknown and still reminds, marked unverified,
+# because a missed real PR costs more than a checked-and-wrong nudge.
+# Story: gh-workflows, fictional pull/42 in a seeded usage_records row.
+# 0 = exists, 1 = definitely absent, 2 = could not tell.
+pr_exists() {
+  local repo=$1 pr=$2 err
+  err=$(gh api "repos/$repo/pulls/$pr" --jq .number 2>&1 >/dev/null) && return 0
+  case "$err" in *"HTTP 404"*|*"Not Found"*) return 1 ;; esac
+  return 2
+}
+
 # Seed both seen-state files so the first watcher poll does not replay every existing
 # comment as NEW. Best-effort: a failure here costs replayed events, never a missed PR.
 seed_seen() {
@@ -62,23 +76,42 @@ state_dir=${PR_WATCH_STATE_DIR:-$HOME/ai-context/state/pr-seen}
 mkdir -p "$state_dir" 2>/dev/null || exit 0
 
 # every new PR in this output, not just the first: a batch script can raise several
-fresh=""; seeded=0
+# One API call per unseen URL, so a page listing many PR links is bounded: past the cap
+# the rest are reported unverified rather than making the hook sit on the network.
+checks_left=10
+
+fresh=""; seeded=0; unverified=0
 while read -r url; do
   [ -z "$url" ] && continue
+  repo=${url#https://github.com/}; repo=${repo%%/pull/*}
+  num=${url##*/}
   key=$(printf '%s' "${url#https://github.com/}" | tr '/' '-')
   [ -e "$state_dir/$key" ] && continue
+  # Existence is checked BEFORE the dedupe marker is written. A 404 today can be a real
+  # PR tomorrow at the same number, and a marker written now would suppress it forever.
+  if [ "$checks_left" -gt 0 ]; then
+    checks_left=$((checks_left - 1))
+    pr_exists "$repo" "$num"; seen=$?
+  else
+    seen=2
+  fi
+  [ "$seen" = "1" ] && continue
   : > "$state_dir/$key" 2>/dev/null || continue
   if seed_seen "$url"; then seeded=1; fi
-  fresh="${fresh}PR #${url##*/} ($url); "
+  if [ "$seen" = "2" ]; then unverified=1; note=", UNVERIFIED"; else note=""; fi
+  fresh="${fresh}PR #${num} ($url$note); "
 done <<< "$urls"
 [ -z "$fresh" ] && exit 0
 
 seed_note="seed the seen-state first (Phase 1) so existing comments are not replayed, then arm"
 [ "$seeded" = "1" ] && seed_note="seen-state is already seeded, so just arm"
 
-jq -n --arg fresh "${fresh%; }" --arg seed "$seed_note" \
+check_note="Each PR above was confirmed to exist through the GitHub API before this fired."
+[ "$unverified" = "1" ] && check_note="Each PR above was confirmed to exist through the GitHub API, except any marked UNVERIFIED: that check itself failed, so the URL could be a fixture from test data. Run gh pr view on it before arming."
+
+jq -n --arg fresh "${fresh%; }" --arg seed "$seed_note" --arg check "$check_note" \
   '{hookSpecificOutput:{hookEventName:"PostToolUse",additionalContext:(
-      "\($fresh) — in play in this session with no watcher armed. "
+      "\($fresh) — in play in this session with no watcher armed. \($check) "
       + "If you raised it or are driving its review round, arm the pr-watch monitor NOW: invoke the pr-watch skill, \($seed) the Monitor with watch-coderabbit.sh, so review and CI feedback arrives as notifications instead of the user relaying it. "
       + "If it is merged, closed, or someone else'"'"'s round, ignore this."
    )}}'

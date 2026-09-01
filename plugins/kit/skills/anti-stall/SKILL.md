@@ -2,7 +2,7 @@
 name: anti-stall
 description: "Doctrine for waiting on long-running work without dozing: sentinel-first launches, evidence-keyed waits held in the background by a main session and in the foreground by a handler subagent, batch scripts over agent-per-step, and killing a run without reaping your own shell. Load BEFORE launching any delegation, build, campaign, CI run, or command expected to outlive one turn, whenever a wait has gone quiet longer than expected, and before any pgrep/pkill against a job you launched."
 metadata:
-  version: "1.2.0"
+  version: "1.3.0"
 ---
 
 # Anti-stall: waiting on long work
@@ -38,6 +38,31 @@ Size `N` as the deadline: `expected_minutes * 4 + 40`. The loop length **is** th
   alive.** §5 is the cure for this after the fact; the rule here is the prevention.
 
 **The Monitor tool is banned for this.** A Monitor gated on `pgrep`/timers can sleep through wake after wake without ever firing. Monitor is fine for genuinely open-ended watching (new PR comments, a file that may change), never for "did this finish".
+
+### Evidence reachable only through an MCP tool: the tick is the watch
+
+Both patterns above assume a shell can read the evidence. Sometimes nothing can. A
+Cloudflare D1 row reachable only through the Cloudflare MCP server, with no
+`CLOUDFLARE_API_TOKEN` on the box because it lives as a repo secret, cannot be polled by
+an `until` loop or a Monitor. Only the model, inside a turn, can call that tool.
+
+The one poll left is a cron tick firing back into the session so the model makes the call
+itself (`unattended-run` §0).
+
+- **Do not call it a monitor.** Write it in the plan file as "cron tick every N min, calls
+  <tool>". An operator who reads "a poll is armed" assumes seconds of latency. The real
+  latency is the full tick interval, and nothing fires between ticks.
+- Set N from how fast the watched thing actually moves, and put that number beside the
+  watch wherever it is recorded. A 30 minute tick on a row that lands in 90 seconds is a
+  30 minute blind spot.
+- Look for a shell path once before settling for this. A missing credential is the usual
+  reason there is none, and a secret that lives in CI can sometimes be granted to the box.
+  Then it is an ordinary evidence loop again and this whole section is moot.
+- A tick is durable, so it carries the same teardown obligation as any other watch
+  (`unattended-run` §3): kill the cron when the thing it watches resolves.
+
+Story: gh-workflows unattended run, D1 `usage_records` watched through the Cloudflare MCP
+server on a box with no token.
 
 ## 3. Never wait on a condition the event itself prevents
 Before arming any loop, ask whether the thing you are waiting to hear about could *stop*
