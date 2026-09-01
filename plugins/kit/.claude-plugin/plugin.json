@@ -1,6 +1,6 @@
 {
   "name": "kit",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "Personal working-style kit: anti-stall waiting doctrine, post-PR watching, agy delegation with the agy-runner wrapper agent, comment-budget enforcement, blast-radius proof, decision trails, patched CodeRabbit skills, and hooks that enforce delegation routing, the organizer seat, safe agy kills and PR-watch arming.",
   "author": {
     "name": "Sumit Patel",
