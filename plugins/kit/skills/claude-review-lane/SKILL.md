@@ -2,7 +2,7 @@
 name: claude-review-lane
 description: "How our Claude review lane (`claude[bot]`) behaves on any PR of any age: reading the liveness comment's four verdicts, the ways the lane stays quiet (skipped author, auto-pause, fork head, self-skip), the summon grammar (`@claude review`, `@claude full review`, the per-run `--model` override), verification rounds, and who may resolve a `claude[bot]` thread. Load when a `claude[bot]` thread or a liveness comment is in front of you, when the lane has gone quiet or a review is missing, when deciding whether to summon or re-summon, and when judging whether a head has actually been reviewed before it merges. Arming a watcher on a PR this session raised is `pr-watch` instead."
 metadata:
-  version: "1.0.1"
+  version: "2.0.0"
 ---
 
 # The Claude review lane
@@ -106,6 +106,19 @@ Five ways a PR gets no review. The first four produce no liveness comment either
    posts review output. A green summon that posted nothing leaves the count untouched.
    Story: prismalens/gh-workflows#28.
 
+### Telling a refusal from a cancellation
+
+A run that concluded `cancelled` with **zero jobs** executed nothing and says nothing about
+admission. It was evicted from its concurrency group before any `if:` was evaluated. A run that
+concluded `skipped` reached the gate and was refused. Only the second is evidence about
+admission, and confusing the two once cost a full session.
+
+The lane used to evict its own verify rounds. Every round ends by posting a top-level verdict
+comment, which fires `issue_comment` into the PR's concurrency group and took the single pending
+seat from any queued in-thread reply. A reply posted while a round was running was dropped,
+deterministically. Bot-authored comments now route to a per-run throwaway group. A `cancelled`
+review-comment run with zero jobs means that repo's stub predates the fix.
+
 ## 4. Summon grammar
 
 Bare PR comments, org members only. The comment body is read only by workflow `contains()`
@@ -137,11 +150,22 @@ supersedes anything queued, summons included.
 
 ## 5. Verification rounds
 
-A push to a PR that still has unresolved `claude[bot]` threads gets a verify round instead of a
-stock re-review. Three differences that change how you read it:
+A verify round re-judges the unresolved `claude[bot]` threads on a PR instead of running a stock
+re-review. **A push never produces one.** A push lands on incremental or review. Only a non-bot
+reply in a thread, or a summon on a PR holding unresolved threads, asks the lane to re-check.
 
-- **Per-thread verdicts.** Each unresolved thread gets exactly one of `verified fixed in <8-char
-  sha>` or `not addressed: <reason>`, judged against the code as it now stands.
+This is the fact that explains most "why is this still blocked" confusion. You push the fix, the
+liveness comment reports a successful review, and the thread stays open with the merge still
+blocked. It is deliberate: a push is a claim about code, a reply is a claim about a specific
+finding, and only the second names which threads to re-check.
+
+Three differences that change how you read a verify round:
+
+- **Per-thread verdicts, and there are three.** Each unresolved thread gets exactly one of
+  `fixed`, `still_applies` or `cannot_verify`, carrying the sha and a one-sentence evidence
+  string. `fixed` resolves the thread. The other two post a templated reply citing sha and
+  evidence, and leave it open. The verdict judges the code at current head, not what the reply
+  claimed.
 - **Delta-only review.** New findings are posted as inline comments as usual, but a finding an
   existing thread already covers is not re-posted.
 - **A mandatory summary comment.** Its first line is exactly
@@ -151,8 +175,8 @@ stock re-review. Three differences that change how you read it:
 
 ## 6. Who resolves a `claude[bot]` thread
 
-The reviewer resolves threads it can verify as fixed. A human rules on anything disputed,
-declined, or deferred:
+The reviewer resolves what it verifies as fixed. A human rules on anything disputed, declined,
+or deferred:
 
 1. **Reviewer posts finding:** opened as an inline review thread.
 2. **Non-bot replies in-thread:** asserting the finding is fixed in a commit or disputing the
@@ -160,9 +184,15 @@ declined, or deferred:
    on a push alone. The lane excludes GitHub App identities so its own reply cannot retrigger it,
    so an agent replying through a member's credential is admitted.
 3. **Reviewer re-evaluates:** checks the finding against current PR head.
-4. **Verified fixed:** the reviewer resolves the thread directly, citing the commit SHA and what
-   it checked.
-5. **Not verified:** the reviewer leaves the thread open and explains why.
+4. **`fixed`:** the thread is resolved, citing the commit SHA and what was checked.
+5. **`still_applies` or `cannot_verify`:** a templated reply cites the SHA and the evidence, and
+   the thread stays open.
+
+**The model never writes to GitHub.** The verify job holds a read-only `GITHUB_TOKEN` and no
+`id-token: write`, so it cannot resolve, reply, comment, submit a review or merge. It emits
+schema-validated verdicts and nothing else. A separate `mutate` job does every post from its own
+templates, and re-fetches the live threads rather than trusting the verdict artifact. Resolution
+costs no App credential: `GITHUB_TOKEN` at `contents: write` carries it.
 
 **Disputed, declined, or deferred findings are resolved by a human and by nobody else.** If you
 decline or defer a finding, post the disposition in-thread first, then resolve the thread manually
