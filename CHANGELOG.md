@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.3](https://github.com/Sumit1993/claude-kit/compare/kit-v0.5.2...kit-v0.5.3) (2026-09-01)
+
+
+### Bug Fixes
+
+* **claude-review-lane:** a push never verifies, and the verdict has three states ([#34](https://github.com/Sumit1993/claude-kit/issues/34)) ([03a949f](https://github.com/Sumit1993/claude-kit/commit/03a949f089b4fe14deea7475d15cdc7311519bc1))
+
 ## [0.5.2](https://github.com/Sumit1993/claude-kit/compare/kit-v0.5.1...kit-v0.5.2) (2026-09-01)
 
 
