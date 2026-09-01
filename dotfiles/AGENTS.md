@@ -54,8 +54,8 @@ Claude models run via the Agent/Workflow `model` parameter (`fable`, `opus`, `so
 # Routing: which reviewer gets which PR
 
 - **The Claude lane (`claude[bot]`) is the default.** Every same-repo PR in the consumer repos, automatically. Subscription-billed, plentiful.
-- **CodeRabbit is the only escalation.** Automatic on `gh-workflows`, the one repo the Claude lane cannot review. On the consumer repos it is admitted by hand with the `coderabbit_review` label. One shared org-wide counter, roughly one review per 40 minutes, so a slot is spent deliberately.
-- **Spend one when the PR touches paths carrying invariants in that repo's `.coderabbit.yaml` path instructions.** Those instructions are the only channel that carries a repo invariant into a review, and the Claude lane cannot see them. Also spend one when a Claude finding wants a check from a reviewer sharing no model or failure mode.
+- **CodeRabbit is the only escalation.** Automatic on `gh-workflows`, the one repo the Claude lane cannot review. On the consumer repos it is admitted by hand with the `coderabbit_review` label. The counter is per developer, not per repo, so `prismalens`, `sreforge` and `mage-memory` all draw one pool and a review costs a cooldown across all three. A slot is spent deliberately.
+- **Spend one when a PR earns an independent second opinion.** That is a judgement call, not a path test. One case is a sensitive surface: the CI and workflow surface itself, credential and crypto handling, the engine core, contract or schema changes. The other is a Claude review whose findings want a check from a reviewer sharing no model, prompt or failure mode. prismalens#415 retired the automatic path match that used to apply the label, so the hand-applied label is now the whole mechanism.
 - Procedure lives in `claude-review-lane` and `pr-watch`.
 
 # Delegation

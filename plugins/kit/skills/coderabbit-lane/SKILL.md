@@ -1,8 +1,8 @@
 ---
 name: coderabbit-lane
-description: "CodeRabbit review lane (`coderabbitai[bot]`) mechanics: managing the shared org-wide cooldown counter (~1 review per 40 min), manual admission via `coderabbit_review` label, per-repo admission read from the registry, when spending a slot is warranted (.coderabbit.yaml invariants or unshared model check), bare `@coderabbitai review` trigger syntax, the in-thread reply protocol with `cr-reply.sh`, and thread resolution rules. Load when deciding to request CodeRabbit review, handling its feedback threads or rate limits, or replying to `coderabbitai[bot]` comments."
+description: "CodeRabbit review lane (`coderabbitai[bot]`) mechanics: managing the per-developer cooldown counter shared across every repo you touch, manual admission via `coderabbit_review` label, per-repo admission read from the registry, when spending a slot is warranted (a sensitive surface, or a check from an unshared model), bare `@coderabbitai review` trigger syntax, the in-thread reply protocol with `cr-reply.sh`, and thread resolution rules. Load when deciding to request CodeRabbit review, handling its feedback threads or rate limits, or replying to `coderabbitai[bot]` comments."
 metadata:
-  version: "1.2.0"
+  version: "2.0.0"
 ---
 
 # The CodeRabbit review lane
@@ -22,12 +22,16 @@ Admission is a per-repo setting, so read it rather than assuming: `kit-meta.sh g
 
 CodeRabbit review slots are scarce. Spending one is a deliberate budget decision, never a routine step. Spending a slot is warranted in two situations:
 
-1. **Repository invariants:** When the pull request touches paths carrying invariants in that repository's `.coderabbit.yaml` path instructions. Those path instructions are the only channel carrying repository invariants and design decisions into a review, and the Claude lane cannot see them.
-2. **Independent validation:** When a Claude finding or a high-risk change wants a check from an independent reviewer sharing no model or failure mode.
+1. **A sensitive surface:** the CI and workflow surface itself, credential and crypto handling, the engine core, or contract and schema changes.
+2. **Independent validation:** when a Claude finding wants a check from a reviewer sharing no model, prompt or failure mode.
 
-Tame reviewer noise with `profile: chill` in `.coderabbit.yaml` and distill key repository constraints into path instructions.
+**This is a judgement call, not a path test.** Admission used to be automatic. `review-admit.yml` applied the label on a path match against `.github/high-risk-paths.txt`, and a `review-evidence` gate held such PRs red until `coderabbitai[bot]` evidence existed. prismalens#415 retired both, and neither file is on `main`. Do not propose finishing them. The hand-applied label is the whole mechanism.
 
-## 3. Shared org-wide cooldown-gated counter
+Hand admission exists because traffic outruns the counter. Measured over 180 merges: 7.5 PRs/day, worst hour 8 opens, and at one review per hour 61% of PRs arrived with the counter already empty. Reviewing everything automatically spends the budget where PRs happen to fall rather than where a second opinion is worth having.
+
+`.coderabbit.yaml` path instructions still shape review quality, and the Claude lane cannot see them, so they remain worth writing. They are not what decides admission. Tame reviewer noise with `profile: chill`.
+
+## 3. Per-developer cooldown-gated counter
 
 The review lane operates on the Free/OSS plan, where seat assignment is disabled:
 
@@ -37,12 +41,12 @@ The review lane operates on the Free/OSS plan, where seat assignment is disabled
 | Pro | 5 | 150 |
 | Pro+ | 10 | 300 |
 
-- **Org-wide counter:** The counter is shared across all repositories, sessions, and subagents, not per-branch or per-session. A successful review incurs an org-wide cooldown of roughly 40 minutes (budget ≥45 minutes). Run at most one review at a time across the whole organization. Parallel runs serialize and delay all lanes.
-- **Every run spends a slot:** Initial reviews, automatic incremental reviews after a push, and manual `@coderabbitai review` comments all spend one slot. To prevent rapid budget exhaustion, enabled repositories set `auto_pause_after_reviewed_commits: 1` in `.coderabbit.yaml`: one review per PR, then batch fixes before re-requesting.
+- **The counter is per developer, not per repo.** `prismalens`, `sreforge` and `mage-memory` all draw one pool, so a review spent on any of them is a review the others cannot have. It is not per-branch, per-session or per-subagent either. Run at most one review at a time across every repo you touch; parallel runs serialize and delay all lanes.
+- **Every run spends a slot:** Initial reviews, automatic incremental reviews after a push, and manual `@coderabbitai review` comments all spend one slot. The `coderabbit_review` label gates automatic review only. A manual summon runs on an unlabelled PR and still spends the counter, which is what makes it the escape hatch when the Claude lane is down. To prevent rapid budget exhaustion, enabled repositories set `auto_pause_after_reviewed_commits: 1` in `.coderabbit.yaml`: one review per PR, then batch fixes before re-requesting.
 - **Auto-pause is recoverable, not terminal.** A push past `auto_pause_after_reviewed_commits` pauses the lane on that PR: no review runs, and none arrives on its own. A bare `@coderabbitai resume` restarts it, and what follows is a real review of the final head that posts `Review completed` there. So a PR whose own fix commits paused the lane can still satisfy a merge condition requiring a completed review. Reading the pause as terminal wrongly makes such a condition look unsatisfiable. Resume deliberately, since it spends a slot from the shared counter, so batch the fixes first.
 - **Batch fixes before requesting:** Never spend a slot on a commit you are about to amend.
 - **Remaining capacity is not readable:** Querying `@coderabbitai rate limit` yields documentation links, never remaining counts.
-- **The notice's stated wait is accurate. Obey it.** It is the org-wide window anchored to the last accepted review, not a per-PR figure running below the real cooldown, and it has measured exact to within fifteen seconds. Waiting a flat 60 minutes from the *refusal* instead has the right magnitude and the wrong anchor: it lands about 21 minutes late, and because nothing re-reads the notice afterwards the error stays invisible. `watch-coderabbit.sh` arms on the parsed figure and falls back to `CR_WATCH_COOLDOWN_SECONDS` (default 3600) only when nothing parses; the event line names which it used. Measurements: claude-kit#28. CodeRabbit has used at least three wordings, and the watcher's pattern once matched only the first, so every rate limit quietly armed the fallback:
+- **The notice's stated wait is accurate. Obey it.** It is the per-developer window anchored to the last accepted review, not a per-PR figure running below the real cooldown, and it has measured exact to within fifteen seconds. Waiting a flat 60 minutes from the *refusal* instead has the right magnitude and the wrong anchor: it lands about 21 minutes late, and because nothing re-reads the notice afterwards the error stays invisible. `watch-coderabbit.sh` arms on the parsed figure and falls back to `CR_WATCH_COOLDOWN_SECONDS` (default 3600) only when nothing parses; the event line names which it used. Measurements: claude-kit#28. CodeRabbit has used at least three wordings, and the watcher's pattern once matched only the first, so every rate limit quietly armed the fallback:
   - `Next review available in: **47 minutes**`
   - `**Next included review available in 30 minutes.**`
   - `Your next included review will be available in 23 minutes.`
