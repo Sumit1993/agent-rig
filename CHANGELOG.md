@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/Sumit1993/claude-kit/compare/kit-v0.5.0...kit-v0.5.1) (2026-09-01)
+
+
+### Bug Fixes
+
+* **kit:** misses reported by other sessions ([#28](https://github.com/Sumit1993/claude-kit/issues/28)) ([a7e1f25](https://github.com/Sumit1993/claude-kit/commit/a7e1f25d9dba95f4cf2e4e42fd8d879bbdff069d))
+
 ## [0.5.0](https://github.com/Sumit1993/claude-kit/compare/kit-v0.4.0...kit-v0.5.0) (2026-09-01)
 
 
