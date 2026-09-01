@@ -2,7 +2,7 @@
 name: pr-watch
 description: "Watch a PR raised in THIS session until its review round completes: seed the seen-state, arm the deterministic reviewer/CI Monitor, route each event as a pointer to the seat holding the diff, then merge (queue-enabled repos enqueue; no cascade). Also carries the merge contract. Trigger AFTER any `gh pr create`, when a PostToolUse hook reports a PR was raised, or when the user asks to watch or merge a PR. Claude lane behavior is `claude-review-lane`; CodeRabbit mechanics live in `coderabbit-lane`."
 metadata:
-  version: "3.4.0"
+  version: "3.5.0"
 ---
 
 # PR watch: the session-scoped review round
@@ -17,7 +17,7 @@ moments, verify-then-resolve and enqueue.
 **Reviewer behavior lives elsewhere and is not repeated here.** `claude-review-lane` owns
 `claude[bot]`: liveness verdicts, quiet modes, summon grammar, verification rounds, and
 how the reviewer resolves its own threads. `coderabbit-lane` owns `coderabbitai[bot]`:
-admission, the org-wide cooldown quota, trigger syntax, in-thread replies, resolution.
+admission, the per-developer cooldown quota, trigger syntax, in-thread replies, resolution.
 Those two load on a PR of any age. This one loads on a PR this session raised.
 
 **Load the owning skill before you act on that reviewer, not just before you read about it.** The trigger syntax and the `cr-reply.sh` path appear below because a router needs to recognise them, and that is enough to look sufficient. It is not: the preconditions live only in the owning skill, which carries the cooldown arithmetic, the budget rule, and the mandatory post-trigger poll. Acting on the fragments alone produces confidently wrong reports.
@@ -73,7 +73,7 @@ for review a cheaper layer already covers.
 | Tier | When | What |
 |---|---|---|
 | Claude review (`claude[bot]`) | Where the repo runs the lane (`kit-meta.sh get <repo> claude_lane`): every same-repo PR, automatic, **but not every round and not every author** | The default. Posts findings as inline comments. Advisory, so it blocks nothing itself, but every thread it opens does. See `claude-review-lane` |
-| CodeRabbit (`coderabbitai[bot]`) | Admission is per-repo: manual by `coderabbit_review` label or `@coderabbitai review`, or automatic where the repo enables `auto_review`. `kit-meta.sh get <repo> coderabbit_auto_review` | The independent lane, drawing a scarce org-wide counter. See `coderabbit-lane` |
+| CodeRabbit (`coderabbitai[bot]`) | Admission is per-repo: manual by `coderabbit_review` label or `@coderabbitai review`, or automatic where the repo enables `auto_review`. `kit-meta.sh get <repo> coderabbit_auto_review` | The independent lane, drawing a scarce per-developer counter. See `coderabbit-lane` |
 | One Opus 5 pass | Non-trivial PRs | The layer neither bot can do: spec and ADR conformance, since design truth often lives in a hub they cannot see |
 | `/code-review ultra` | Rare | Engine core, security boundary, contract or schema changes |
 
@@ -208,7 +208,7 @@ delta prompt, judgment goes to the resumed Claude seat.
   blocked push consumes no quota. It emits `RE-TRIGGERED` when that fires and `RESUMED`
   when a real review lands. The armed delay is floored at `CR_WATCH_COOLDOWN_SECONDS`
   (default 60m) and the event line shows what the notice claimed beside what was armed,
-  because the notice's figure is per-PR and reads below the org-wide cooldown
+  because the notice's figure is per-PR and reads below the per-developer cooldown
   (`coderabbit-lane` §3). **Do not sit idle.** The rate-limit check passes by design, so
   merge is never actually blocked. Low-risk diff: merge on CI plus the re-trigger.
   **`RETRY ARMED` is the positive signal, so read it.** It names the UTC time the
@@ -222,7 +222,7 @@ delta prompt, judgment goes to the resumed Claude seat.
   have found less. On `auto-retry budget spent`, the model pass *is* the review.
 - **`CODERABBIT AUTO-PAUSED`.** No review ran, so the diff is unreviewed, not clean. The
   watcher deliberately does not auto-resume: resuming immediately spends a slot from the
-  shared org-wide counter. The operator resumes with a bare `@coderabbitai resume` when
+  shared per-developer counter. The operator resumes with a bare `@coderabbitai resume` when
   they want the review. **The pause is not terminal.** Resuming produces a real review of
   the final head, `Review completed` and all, so a PR paused by its own fix commits can
   still meet a merge condition that requires one (`coderabbit-lane` §3).

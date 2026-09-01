@@ -4,7 +4,7 @@
 # The parser once matched only the colon wording and silently fell back to 60m for a
 # month while notices said 6 to 30 minutes; these hold it to the wordings in the wild.
 # The figure is now obeyed rather than floored: it measures within 15 seconds of the real
-# org-wide window. The fallback covers only a notice with no figure in it. See claude-kit#28.
+# per-developer window. The fallback covers only a notice with no figure in it. See claude-kit#28.
 set -u
 SRC="$(cd "$(dirname "$0")/../../skills/pr-watch" && pwd)/watch-coderabbit.sh"
 fails=0

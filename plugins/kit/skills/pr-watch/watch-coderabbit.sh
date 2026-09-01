@@ -87,7 +87,7 @@ fi
 #   "Next review available in: **47 minutes**"                  (older, colon)
 #   "**Next included review available in 30 minutes.**"         (no colon, "included")
 #   "Your next included review will be available in 23 minutes."
-# The notice's figure is obeyed, not floored: it is the org-wide window anchored to the
+# The notice's figure is obeyed, not floored: it is the per-developer window anchored to the
 # last accepted review and measures exact to within fifteen seconds. A flat 3600s counts
 # from the REFUSAL instead, landing ~21 minutes late. The fallback covers only a notice
 # with no figure in it. RETRY_NOTICE records the claim so the event line names its source.
