@@ -13,3 +13,11 @@ A test suite in claude-kit ran a name-wide kill against agy. It reaped a prismal
 ## gh-workflows-69-unwatched-pr
 
 An agy lane opened gh-workflows PR #69. The review lane reviewed it automatically and nobody was watching, so the findings sat unread. A handler cannot hold a Monitor past its turn, so the fix is for the handler to put the PR URL in its report and for the main session to arm `pr-watch`.
+
+## gh-workflows-d1-cron-tick
+
+On a gh-workflows unattended run the evidence was a Cloudflare D1 `usage_records` row, reachable only through the Cloudflare MCP server. The box had no `CLOUDFLARE_API_TOKEN`, it lived as a repo secret, so no shell loop and no Monitor could poll it. The only working poll was a cron tick firing back into the session so the model made the MCP call itself.
+
+## prismalens-495-blocked-forever
+
+On prismalens PR #495 a wait loop polled `mergeStateStatus` until it read `CLEAN`. An unresolved review thread pins that field at `BLOCKED`, so the one event worth waking for, a posted finding, was the event that kept the loop from ever exiting. It spun to timeout looking like slow progress.
