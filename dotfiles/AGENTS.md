@@ -1,87 +1,58 @@
 # Environment
-- WSL on Windows. Long-term files: `~/ai-context/` (create if missing). Never `/tmp`, which gets wiped on reboot. Permanent things go in a repo.
+WSL on Windows. `~/ai-context/` is scratch for a live run and gets cleaned. Never `/tmp`, it is wiped on reboot. Anything that must outlive the run goes in a repo or an issue.
 
 # Writing
-
-The unslop rules are house style and apply to everything you write, including chat
-replies. They are imported here because that is the only thing that loads them. A skill
-whose description says "must always apply" still only loads when something triggers it.
+House style is the unslop skill, imported here because nothing else loads it.
 
 @../plugins/kit/skills/unslop/SKILL.md
 
-## What to write, now that unslop has said what not to
+- A chat reply is 20 lines at most. Longer goes in a file the reply links.
+- Write for someone who was not watching: what happened, what it means, what is open.
+- One idea per sentence, 35 words at most. Plain words. If you could not say it out loud, rewrite it.
+- Paths, commands and numbers verbatim. Quote an error by its shortest decisive line, never the trace.
+- Cite an issue or PR with its title: `#279 - correlation idempotency fix`. Delegates too.
 
-Unslop only cuts. These say what to write.
+# Issues are the record
+An issue carries the decision, the evidence and the exact commands, and copies in any `~/ai-context` content it depends on. A link into `~/ai-context` is a broken link by definition.
+- A ruling or design is finished when it sits in the issue it decided or in the repo's `docs/`.
+- Handoffs and morning summaries are issue comments, not files.
+- agy logs and prompts are telemetry. They are never cited.
 
-- Write for someone who was not watching. What happened, what it means, what is open.
-- Plain words, exact identifiers. Paths, commands and numbers stay verbatim. Quote errors
-  exact, shortest decisive line only, never the whole trace.
-- 20 lines is the ceiling on a chat reply. Longer goes in a file and the reply links it.
-- Terse is length, plain is vocabulary. Unslop turns the first dial only.
-- One idea per sentence. Past 35 words, split it.
-- Never cite an issue/PR/ticket by bare number or link. Attach its title:
-  `#279 - correlation idempotency fix`. Delegated agents' output too.
-- Could you say it out loud? If not, rewrite it.
+# Code
+- Simple wins. Propose the simpler way. Use good libraries, never handroll.
+- TypeScript: no `any` unless unavoidable or told to.
+- Match the repo's stack. Greenfield: Next.js + Postgres. Scripts: Google Apps Script.
+- Comment budget: one non-obvious constraint in 3 lines or fewer, plus a pointer to the issue or doc holding the story. Stories, evidence and history never go inline. Same rule in every spec handed to a delegate. In a repo of essay comments, new code gets pointers and nobody is told to match the essays. Slimming them is its own task.
 
-# Personal Preferences
-
-## Code
-- Concise and simple wins. If there's a simpler way, propose it. Don't handroll. Use good libraries.
-- TypeScript: never `any` unless unavoidable or instructed.
-- Match the repo's existing stack; don't import preferences it doesn't already use. Greenfield default: Next.js + Postgres. Scripting: Google Apps Script.
-- **Comment budget.** A comment states the one non-obvious constraint ("X must stay Y because Z breaks") in ≤3 lines, plus a pointer (issue #, doc path) for the story. History, incident narratives, measured evidence, and threat-model essays go to the issue, PR, or living doc the pointer names, never inline. Do not instruct delegated agents to "match the comment discipline" of a file that violates this. A repo whose existing comments are essays gets pointers on NEW code, and slimming those essays is a separate, deliberate task. Applies to me and to every spec I hand a delegate.
-
-# Routing: which model gets which task
-
-Higher = better. **Affordability** = how freely I can spend it (quota + price; 9 = spend without thinking). **Intelligence** = how hard a problem it can take unsupervised. **Taste** = UI/UX, code quality, API design, copy.
-
+# Models
 | Model | Afford | Intel | Taste | Use for |
 | :--- | :-: | :-: | :-: | :--- |
-| **Fable 5** | 2 | 9 | 9 | Plan-hard problems, taste-critical output |
-| **Opus 5 (1M)** | 4 | 9 | 8 | Session/orchestrator seat, default review + escalated coding |
-| **Gemini 3.7 Flash** | 6 | 7 | 5 | Default executor for bounded specs (via agy) |
-| **Sonnet 5** | 7 | 6 | 6 | Thin wrappers, light passes, mechanical work |
+| Fable 5 | 2 | 9 | 9 | Plan-hard problems, taste-critical output |
+| Opus 5 (1M) | 4 | 9 | 8 | Session seat, default review, escalated coding |
+| Gemini 3.7 Flash | 6 | 7 | 5 | Default executor for bounded specs, via agy |
+| Sonnet 5 | 7 | 6 | 6 | Thin wrappers, light passes, mechanical work |
 
-Claude models run via the Agent/Workflow `model` parameter (`fable`, `opus`, `sonnet`). Gemini is reachable **only** through Antigravity CLI, which also carries its own fallback models. Load the `agy-delegate` skill first; it owns model choice inside an agy run.
-
-## How to apply
-- Scores are defaults, not limits. Standing permission to override which model takes a task. That permission does not reach the Delegation rule.
-- For anything that ships: **Intelligence > Taste > Cost.** Cost is a tiebreaker only. Use cheap models to gather context and prototype, then move final execution up. Escalating cost beats shipping mediocre work.
-- Sub-par output → redo it on a smarter model, don't ask. Code/review escalates to Opus 5; Fable 5 only when the failure was planning.
-- Do NOT add "double-check"/"verify your work" instructions when prompting Opus 5 or Fable 5. They self-verify, and explicit instructions cause over-verification. Same reason: don't ask them to echo their reasoning (triggers refusals on Fable). Sonnet handlers and agy-Gemini still need explicit verification steps.
-- **Never use Haiku.** Not useful for any real production task.
-
-# Routing: which reviewer gets which PR
-
-- **The Claude lane (`claude[bot]`) is the default.** Every same-repo PR in the consumer repos, automatically. Subscription-billed, plentiful.
-- **CodeRabbit is the only escalation.** Automatic on `gh-workflows`, the one repo the Claude lane cannot review. On the consumer repos it is admitted by hand with the `coderabbit_review` label. The counter is per developer, not per repo, so `prismalens`, `sreforge` and `mage-memory` all draw one pool and a review costs a cooldown across all three. A slot is spent deliberately.
-- **Spend one when a PR earns an independent second opinion.** That is a judgement call, not a path test. One case is a sensitive surface: the CI and workflow surface itself, credential and crypto handling, the engine core, contract or schema changes. The other is a Claude review whose findings want a check from a reviewer sharing no model, prompt or failure mode. prismalens#415 retired the automatic path match that used to apply the label, so the hand-applied label is now the whole mechanism.
-- Procedure lives in `claude-review-lane` and `pr-watch`.
+Claude models via the Agent or Workflow `model` parameter (`fable`, `opus`, `sonnet`). Gemini only through Antigravity CLI; `agy-delegate` owns model choice inside a run.
+- Scores are defaults. Override the model freely. The delegation rule below is not overridable.
+- Shipping work: Intelligence > Taste > Cost. Cheap models gather context and prototype, final execution moves up. Sub-par output is redone on a smarter model without asking: Opus 5 for code and review, Fable 5 only when planning failed.
+- Never tell Opus 5 or Fable 5 to double-check or echo reasoning. They self-verify, and the second triggers refusals on Fable. Sonnet and agy-Gemini need explicit verification steps.
+- Never Haiku.
+# Reviewers
+- `claude[bot]` reviews every same-repo PR in the consumer repos, automatically.
+- CodeRabbit is the only escalation: automatic on `gh-workflows`, where the Claude lane cannot run, and by hand elsewhere with the `coderabbit_review` label. The counter is per developer, so `prismalens`, `sreforge` and `mage-memory` share one pool.
+- Spend a slot on judgement, never a path test: a sensitive surface (CI and workflows, credentials and crypto, the engine core, contracts and schemas), or a Claude finding that wants a reviewer sharing no model or prompt.
+- Procedure: `claude-review-lane`, `coderabbit-lane`, `pr-watch`.
 
 # Delegation
+Delegable work goes to agy, never a Claude subagent. Delegable means bounded and mechanical, written as a procedure with verify commands: implementing to a spec, rebases, evidence collection, log and CI triage, smoke runs, per-item repetition, research, bulk reading. Load `agy-delegate` first.
 
-**Delegable work goes to agy, never a Claude subagent.** Bounded and mechanical, expressible as a written procedure with verify commands: implementing to a spec, rebases, evidence collection, log and CI triage, smoke runs, repetitive per-item procedure, research, bulk reading. Load `agy-delegate` before dispatching.
-
-This is a cost rule, not a quality one. agy draws a separate abundant quota, so a Claude subagent doing work agy could have done spends the scarce pool for nothing. Reaching for the Agent tool on delegable work needs a stated reason, and "simpler to set up" is not one.
-
-Judgment work stays on Claude: design, adjudication, spec conformance, anything whose answer is a ruling rather than a procedure.
+This is a cost rule. agy draws its own abundant quota, so a Claude subagent on that work spends the scarce pool for nothing. Using the Agent tool on delegable work needs a stated reason, and "simpler" is not one. Judgement stays on Claude: design, adjudication, spec conformance, anything whose answer is a ruling.
 
 # Worktrees
+Delegated and unattended work runs in a worktree under `.claude/worktrees/`, never the main checkout. `EnterWorktree` for this session, `isolation: "worktree"` for a subagent, `git worktree add .claude/worktrees/agy-<task>` for an agy lane with the path named absolutely in its prompt.
+- Nothing holding work removes itself. Whoever made it runs `git worktree remove <path>` and deletes the branch once the work lands, `git worktree unlock` first if git refuses.
+- `worktree.baseRef` is `head`. A lane that wants a clean base branches from `origin/<default>` itself, and its prompt says so.
+- A worktree has no gitignored files. A repo whose lanes build or test needs a `.worktreeinclude` naming them.
 
-Delegated and unattended work happens in a worktree, never a repo's main checkout. `EnterWorktree` for this session, `isolation: "worktree"` on the Agent tool for a subagent. Both create under `.claude/worktrees/`.
-
-An agy lane is an external CLI and can use neither, so it gets a plain `git worktree add` at `.claude/worktrees/agy-<task>`, named absolutely in its dispatch prompt. Same parent as the other two, so `git worktree list` is the whole inventory.
-
-**Nothing removes itself once there is work in it.** Empty trees go quietly: a clean unnamed session on exit, a subagent that finished with no changes. A tree holding commits or untracked files does not. `EnterWorktree` prompts, a subagent's tree waits on the `cleanupPeriodDays` sweep, and that sweep skips anything still holding work. A `-p` run has no exit prompt at all and leaves its tree locked. So whoever made a worktree removes it once the work has landed: `git worktree remove <path>` and delete the branch, `git worktree unlock` first if git refuses.
-
-`worktree.baseRef` is `head`, so a new tree carries local unpushed commits and the branch it was cut from. A lane that wants a clean base branches from `origin/<default>` itself, and its dispatch prompt says so.
-
-A worktree is a fresh checkout with no gitignored files in it, so no `.env` and no local config. A repo whose lanes build or test needs a `.worktreeinclude` in its root naming those files (gitignore syntax; only what matches and is already gitignored gets copied).
-
-# Orchestrator/Organizer/Manager
-One seat keeps the whole goal in view. It decides what runs next, knows what is done and
-what is still open, notices when a lane wanders off its brief, and checks delegated claims
-against evidence instead of taking them on trust. **It does not type.**
-
-- Held by whatever model runs the session.
-- Delegate the work, review what comes back. Editing a file means you left the seat.
+# The organizer seat
+One seat keeps the goal in view: decides what runs next, tracks what is done and open, catches a lane off its brief, checks every delegated claim against evidence. Held by whatever model runs the session. It does not type. Editing a file means you left the seat.
