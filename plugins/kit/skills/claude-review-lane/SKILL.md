@@ -40,11 +40,11 @@ Eight verdicts. Only the first two mean the head was reviewed:
 |---|---|---|
 | `reviewed <sha> and posted N inline / M summary comment(s)` | Yes | Work the threads |
 | `reviewed <sha> (incremental from <base>) and posted N inline / M summary comment(s)` | Yes | Work the threads |
-| `finished on <sha> (job result: ...) but posted **nothing**` | No | Read the run log for tool denials, then `@claude full review` |
+| `finished on <sha> (job result: ...) but posted **nothing**` | No | Read the run log for tool denials, then `@claude full review`. If that also comes back empty, escalate to `coderabbit_review` or a model pass |
 | `re-checked open threads at <sha>: N resolved / M left open` | No, threads only | Not review evidence for this head; `8/8 resolved` is not clean |
 | `ran a verification round on <sha> (mutate result: ...) but posted **nothing**` | No | Same escalation as the silent full review |
-| `auto-paused after N automatic rounds at <sha>` | No | `@claude review`; never wait for the next push |
-| `did not run at <sha>: no CLAUDE_CODE_OAUTH_TOKEN reached this lane` | No | Fix the stub; `secrets: inherit` does not cross owners |
+| `auto-paused after N automatic rounds at <sha>` | No | `@claude review`, or hand the pause back to whoever owns the PR; never wait for the next push |
+| `did not run at <sha>: no CLAUDE_CODE_OAUTH_TOKEN reached this lane` | No | The stub failed to map the secret across the owner boundary. Fix the stub; `secrets: inherit` does not cross owners, so the mapping must be explicit |
 | `no new commits since <sha> was last reviewed; nothing to re-review` | No | Nothing; the prior review stands |
 
 No liveness comment at all is its own signal, and the costliest trap: the comment is upserted only when the review job ran, so a PR the lane never admitted has nothing to read and a watcher waiting for one waits forever.
@@ -59,7 +59,7 @@ Five ways a PR gets no review. The first four leave no liveness comment:
 
 1. Skipped author. An author in `skip_authors` (default `dependabot[bot]`) gets no automatic round: no review, no verify, no liveness comment. Matching is exact-login on a delimiter-wrapped list, so `bot` never collides with `dependabot[bot]`. A summon bypasses the list.
 2. Draft PR. Automatic rounds skip drafts on both the stub and the callee. A summon reaches a draft anyway.
-3. Fork head. Never machine-reviewed: GitHub withholds secrets from fork code and the lane avoids `pull_request_target`. A `fork-notice` job upserts a comment marked `<!-- claude-review-fork-notice -->` pointing at the `coderabbit_review` label. A summon does not override this in v1. When the fork run holds a read-only `GITHUB_TOKEN` (the default unless the repository enables "Send write tokens to workflows from fork pull requests") the comment is denied and the job falls back to a workflow warning annotation, easy to miss.
+3. Fork head. Never machine-reviewed: GitHub withholds secrets from fork code and the lane avoids `pull_request_target`. A `fork-notice` job upserts a comment marked `<!-- claude-review-fork-notice -->` pointing at the `coderabbit_review` label. A summon does not override this in v1. When the fork run holds a read-only `GITHUB_TOKEN` (the default unless the repository enables "Send write tokens to workflows from fork pull requests") the comment is denied and the job falls back to a workflow warning annotation carrying the same text, easy to miss.
 4. Self-skip on the workflow itself. A PR that edits `.github/workflows/claude-code-review.yml` is never reviewed: `claude-code-action` self-skips on workflow-validation mismatch. A security control, and the one case a summon cannot fix; label the PR `coderabbit_review`. A self-skip leaves the action's conclusion empty, identical to a tool denial that aborted midway, except a denial may have posted findings first. The liveness comment says which, the run log says why.
 5. Auto-paused. After `auto_pause_rounds` automatic rounds (default 5) the lane posts the auto-paused verdict instead of reviewing. This one does leave a comment. A paused PR is not reviewed on push, so a wait keyed on the next push has no end (`auto-pause-wait-forever`). A summon resets the counter and resumes the lane, but only when the round posts review output; a green summon that posted nothing leaves the count untouched.
 
@@ -75,12 +75,12 @@ Bare PR comments, org members only. The body is read only by workflow `contains(
 |---|---|
 | `@claude review` | Incremental. The lane picks its mode: a verify round when unresolved `claude[bot]` threads exist, else a normal review. The only resume for an auto-paused PR |
 | `@claude full review` | From scratch, dedup disabled for that run. The fix for a round that finished green having published nothing, which is what dedup silently causes (`dedup-silent-empty-review`). Also the only way past a verify round: it short-circuits ahead of the unresolved-thread check |
-| `@claude review --model opus` | Incremental on `claude-opus-5` for that run only. `--model sonnet` picks `claude-sonnet-5` back |
+| `@claude review --model opus` | Incremental on `claude-opus-5` for that run only. `@claude review --model sonnet` picks `claude-sonnet-5` back |
 
 `default_model` is `claude-sonnet-5` on purpose: review is the highest-volume Claude spend across the consumer repos, so escalation is per run. Which model IDs resolve at all is set by the repo's `CLAUDE_CODE_OAUTH_TOKEN` tier, not the input.
 
 - The override is an allowlist of two fixed phrases, matched whole. `@claude full review --model opus` does not switch models; `@claude review --model opus` is not a substring of it, so the run uses `default_model`. No phrase combines a full review with a model override. Pick one.
-- Anything else after `--model`, `haiku` included, is ignored rather than rejected.
+- Anything else after `--model`, `haiku` included, is ignored rather than rejected, and the run uses `default_model`.
 - One summon per round; each mention is a full agent run. Batch every fix, push, then summon once. A summon never cancels an in-flight automatic round, it queues behind it. A push supersedes anything queued, summons included.
 
 ## 5. Verification rounds
@@ -103,7 +103,7 @@ How to read a verify round:
 
 - Each unresolved thread gets exactly one of `fixed`, `still_applies`, `cannot_verify`, with the sha and a one-sentence evidence string. `fixed` resolves the thread. The other two post a templated reply citing sha and evidence and leave it open. The verdict judges the code at current head, not what the reply claimed.
 - Delta-only review: new findings post as inline comments, a finding an existing thread covers is not re-posted.
-- A mandatory summary comment whose first line is exactly `## Code review — verification round`, with a table of thread URL against verdict. Posted even when everything is fixed; its absence means the round did not complete.
+- A mandatory summary comment whose first line is exactly `## Code review — verification round`, with a table of thread URL against verdict. Posted even when everything is fixed and nothing is new; its absence means the round did not complete.
 
 ## 6. Who resolves a `claude[bot]` thread
 
