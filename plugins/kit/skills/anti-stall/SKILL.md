@@ -43,7 +43,7 @@ Story: `gh-workflows-d1-cron-tick`.
 
 ## 3. Never wait on a condition the event prevents
 
-Before arming a loop, ask whether the event you wait for could stop the exit condition from ever being true. If so the loop is silent forever and looks like slow progress.
+Before arming a loop, ask whether the event you wait for could stop the exit condition from ever being true. If so the loop is silent forever and looks like slow progress. Do not arm it as written.
 
 ```bash
 until [ "$(gh pr view 495 --json mergeStateStatus --jq .mergeStateStatus)" = "CLEAN" ]; do sleep 30; done
