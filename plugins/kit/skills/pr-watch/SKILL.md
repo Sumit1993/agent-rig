@@ -213,10 +213,10 @@ delta prompt, judgment goes to the resumed Claude seat.
   blocked push consumes no quota. It emits `RE-TRIGGERED` when that fires and `RESUMED`
   when a real review lands. The armed delay uses the notice's own figure as-is: it is the
   per-developer window anchored to the last accepted review and measures accurate to
-  within 15 seconds (measured 2026-09-01). `CR_WATCH_COOLDOWN_SECONDS` (default 60m) is
-  only the fallback for a notice whose wording doesn't parse, and the event line names
-  which source it used (`coderabbit-lane` §3). **Do not sit idle.** The rate-limit check
-  passes by design, so
+  within 15 seconds. `CR_WATCH_COOLDOWN_SECONDS` (default 60m) is only the fallback for a
+  notice whose wording doesn't parse, and the event line names which source it used
+  (`coderabbit-lane` §3, which carries the measurement). **Do not sit idle.** The
+  rate-limit check passes by design, so
   merge is never actually blocked. Low-risk diff: merge on CI plus the re-trigger.
   **`RETRY ARMED` is the positive signal, so read it.** It names the UTC time the
   re-trigger will fire. Without it the only success line is `RE-TRIGGERED`, which by
