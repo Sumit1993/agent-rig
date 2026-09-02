@@ -77,3 +77,47 @@ A session built arithmetic on "roughly 40 minutes", "37 rejected", "45 or more s
 ## settled-body-classification-trap
 
 CodeRabbit edits its cooldown reply in place while composing it. A poll that matched `rate limited` once and stopped acted on a draft; the number it needed was in the settled version.
+
+## unsourced-order-refused
+
+An organizer ordered a lane to spend the run's last unit of a scarce counter on an action the lane's own brief had already called a guaranteed waste. The claim behind the order sounded right and had no source. The lane refused, correctly. A brief is overridden only by something that cites what supersedes it.
+
+## invented-button-label
+
+A cheap drafting pass on PR bodies invented a UI button label and credited a screenshot to the wrong route. Both read as plausible and neither was visible in the draft. Checking the component source at the head SHA caught both.
+
+## green-review-posted-nothing
+
+A reviewing lane reported `success` while posting no review for two weeks. Every status-only read of it said the PR had been reviewed. Only the artifact the job was supposed to post counts.
+
+## two-lanes-shared-stale-green
+
+Two separate triage lanes read the same stale green gate, whose description named a retired producer, and both called the PR clean and ready to merge. Agreement between lanes raised no confidence because they shared one stale input.
+
+## body-contradicted-its-diff
+
+A PR body said two scripts would be kept while its own diff deleted them. It merged with the deletions on screen. A body's claims about what a PR does not do get checked against the file list.
+
+## six-prs-through-their-own-gate
+
+Six PRs in one series each had to pass the check they were repairing. A broken gate blocks every PR in the repo, including the fix.
+
+## four-rulings-one-gate
+
+Four rulings on one gate were each locally right and together wrong, because nobody asked whether the gate should exist until all four had landed. Decide per subsystem, not per hole. One hand-built gate in the same series duplicated `required_review_thread_resolution`, which was already switched on in the ruleset.
+
+## unreadable-policy-blocked-repo
+
+A fail-closed policy check hit an unreadable policy file, classified every PR as high risk, and blocked the whole repo. Fail-closed is for security decisions, not plumbing.
+
+## prismalens-388-auto-merge
+
+On prismalens PR #388 auto-merge fired the moment CI went green, before the reviewer had finished. Findings landed on an already merged PR and `required_review_thread_resolution` had nothing left to block on.
+
+## gate-demanded-impossible-evidence
+
+A required check demanded a reviewer artifact the reviewer only emits when it has findings. A correct trivial change could never produce that evidence, so the fix for the gate could not pass the gate. Every catch an independent reviewer made on that track landed in gate-repair territory, including changes the adjudicating model had already approved.
+
+## merge-reported-as-waiting
+
+A lane merged the first PR of an eight hour run, then reported only that it was waiting on a cooldown. The organizer found out about the merge by checking independently. Lead with what landed.
