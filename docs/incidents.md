@@ -21,3 +21,15 @@ On a gh-workflows unattended run the evidence was a Cloudflare D1 `usage_records
 ## prismalens-495-blocked-forever
 
 On prismalens PR #495 a wait loop polled `mergeStateStatus` until it read `CLEAN`. An unresolved review thread pins that field at `BLOCKED`, so the one event worth waking for, a posted finding, was the event that kept the loop from ever exiting. It spun to timeout looking like slow progress.
+
+## merge-queue-scope-narrowing
+
+prismalens #403 rolled out the merge queue. The queue tests a speculative merge onto main before landing, so cascade shepherding (update-branch, BEHIND babysitting, `merge-cascade.sh`) stopped being the watcher's job, and the liveness comment now says on the PR itself whether a reviewer posted. `pr-watch` shrank to one PR, one session, one round.
+
+## auto-merge-outruns-reviewer
+
+On mage-memory PR #133 auto-merge fired between a review landing and its fix commit. The thread gate only blocks once a thread exists, and a reviewer that has not posted yet has no threads, so the PR merged before the finding was addressed. Order the round as review posted, fix, resolve, merge.
+
+## watcher-outlived-repurposed-pr
+
+A watcher left running past its lane kept acting on a PR that had since been repurposed, and spent a scarce CodeRabbit review on it unprompted. A watcher dies with its task, not with the session.
