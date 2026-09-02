@@ -52,7 +52,7 @@ AGY_PID=$!            # agy itself, no subshell in between
 - `gemini-3.7-flash-high` for all delegable work: research, doc and market review, second opinions, plan critique, bounded multi-step tool tasks. Strict template, clear spec. Not open-ended unsupervised coding.
 - `gemini-3.6-flash-high` is the fallback if 3.7 misbehaves.
 - `gemini-3.1-pro-high` is the one tier above Flash and untested here. Try it on a bounded job before giving it a lane, and record what you find.
-- Avoid `gemini-3.5-flash-*` (verbose, weak at code) and `gpt-oss-120b-medium` (not competitive).
+- Avoid `gemini-3.5-flash-*` (verbose, token-hungry, weak at code) and `gpt-oss-120b-medium` (not competitive).
 - agy has its own skills. Matt Pocock's set (grilling, tdd, code-review, domain-modeling) is installed at `~/ai-context/vendor/mattpocock-skills` for agy-side planning and review.
 
 ## Failure modes
@@ -65,8 +65,8 @@ AGY_PID=$!            # agy itself, no subshell in between
 | Output is not parseable JSON | `--print-timeout` hit mid-write | Truncation. Resume, below |
 | Parseable JSON, work half done | Out of turns or time | Resume, never re-prompt |
 | Full report printed, process never exits | Hang-after-report | Artifacts exist, log ends in a full report, log stale about 3 min: kill by PID now |
-| Non-zero exit, populated worktree | Died after real edits, nothing committed | `git status` and `git diff` first. Never relaunch onto uncommitted work; salvage or resume |
-| Empty log, non-zero exit, dead in seconds (rc=137) | Killed from outside, usually another session's name-wide kill | Relaunch; it never started, so no budget spent. If it recurs, find the broad kill pattern |
+| Non-zero exit, populated worktree (e.g. `Error: timeout waiting for response`) | Died after real edits, nothing committed | `git status` and `git diff` first. Never relaunch onto uncommitted work; salvage or resume |
+| Empty log, non-zero exit, dead in seconds (rc=137 or a bare death) | Killed from outside, usually another session's name-wide kill | Relaunch; it never started, so no budget spent. If it recurs, find the broad kill pattern |
 
 Since 1.1.20 a non-zero exit is a cascade-level failure. Benign tool errors and denied permissions no longer poison it, so read it.
 
@@ -119,4 +119,4 @@ The runner's section, not the dispatcher's. A handler owns its run end to end: l
 2. A salvaged partial, with evidence of what landed and what did not.
 3. Budget spent, with the log tail, the worktree state, and what remains.
 
-"Standing by" and every other progress update is not a terminal report. Returning one ends the handler while the work is live.
+"Standing by", "still waiting on the agy run" and every other progress update is not a terminal report. Returning one ends the handler while the work is live.
