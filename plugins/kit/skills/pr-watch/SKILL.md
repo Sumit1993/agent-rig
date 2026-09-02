@@ -136,14 +136,19 @@ PR#N CODERABBIT RE-TRIGGERED — posted @coderabbitai review (attempt K/MAX)
 PR#N CODERABBIT RE-TRIGGER FAILED — post '@coderabbitai review' by hand
 PR#N CODERABBIT ANSWERED AS CHAT — the latest reply is a chat answer, not a review
 PR#N CODERABBIT ALREADY REVIEWED — trigger refused; this head is already reviewed
-PR#N CODERABBIT AUTO-PAUSED — no review ran; resume with '@coderabbitai resume'
+PR#N CODERABBIT AUTO-PAUSED — pause after a completed review; resume with '@coderabbitai resume'
 PR#N CODERABBIT AUTO-PAUSE CLEARED — reviews resumed
 PR#N CODERABBIT RESUMED — rate-limit notice cleared, review ran
 PR#N <MERGED|CLOSED> — dropped from watch
 ```
 
-`ANSWERED AS CHAT`, `AUTO-PAUSED` and `RE-TRIGGER FAILED` all mean no review ran, same as
-`RATE-LIMITED`. Treat all four as an unreviewed diff.
+`ANSWERED AS CHAT` and `RE-TRIGGER FAILED` mean no review ran, same as `RATE-LIMITED`. Treat
+those three as an unreviewed diff.
+
+**`AUTO-PAUSED` is not in that group.** With `auto_pause_after_reviewed_commits: 1` the pause
+follows a completed review, not a refusal, so the head that triggered the pause was already
+reviewed. Read the settled comment body before concluding anything either way; the pause
+blocks the *next* push's review, not the one that already landed.
 
 **`ALREADY REVIEWED` is the opposite and must not be lumped in with them.** It is a refused
 trigger, but the reason is that CodeRabbit considers this head reviewed, so the diff is
@@ -206,10 +211,12 @@ delta prompt, judgment goes to the resumed Claude seat.
 - **`CODERABBIT RATE-LIMITED`.** No review ran, so the diff is unreviewed, not clean. The
   watcher arms an auto re-trigger for when the window elapses, which is free because a
   blocked push consumes no quota. It emits `RE-TRIGGERED` when that fires and `RESUMED`
-  when a real review lands. The armed delay is floored at `CR_WATCH_COOLDOWN_SECONDS`
-  (default 60m) and the event line shows what the notice claimed beside what was armed,
-  because the notice's figure is per-PR and reads below the per-developer cooldown
-  (`coderabbit-lane` §3). **Do not sit idle.** The rate-limit check passes by design, so
+  when a real review lands. The armed delay uses the notice's own figure as-is: it is the
+  per-developer window anchored to the last accepted review and measures accurate to
+  within 15 seconds (measured 2026-09-01). `CR_WATCH_COOLDOWN_SECONDS` (default 60m) is
+  only the fallback for a notice whose wording doesn't parse, and the event line names
+  which source it used (`coderabbit-lane` §3). **Do not sit idle.** The rate-limit check
+  passes by design, so
   merge is never actually blocked. Low-risk diff: merge on CI plus the re-trigger.
   **`RETRY ARMED` is the positive signal, so read it.** It names the UTC time the
   re-trigger will fire. Without it the only success line is `RE-TRIGGERED`, which by
@@ -220,7 +227,8 @@ delta prompt, judgment goes to the resumed Claude seat.
   has already passed fires at once.
   Otherwise run the Opus 5 pass now, rather than spending 45 minutes on a tier that would
   have found less. On `auto-retry budget spent`, the model pass *is* the review.
-- **`CODERABBIT AUTO-PAUSED`.** No review ran, so the diff is unreviewed, not clean. The
+- **`CODERABBIT AUTO-PAUSED`.** A review already ran and landed on this head; the pause
+  only blocks the *next* one. Read the settled comment body to confirm. The
   watcher deliberately does not auto-resume: resuming immediately spends a slot from the
   shared per-developer counter. The operator resumes with a bare `@coderabbitai resume` when
   they want the review. **The pause is not terminal.** Resuming produces a real review of

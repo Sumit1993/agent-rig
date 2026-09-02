@@ -54,14 +54,19 @@ no reviewer read. The field is omitted entirely when there is no baseline, so it
 unambiguous: either nothing has ever posted on this PR, or the marker predates the field. Nothing
 consumes `sha=` yet; it is groundwork for an incremental review range.
 
-Four verdicts, and only the first one means the head was reviewed:
+Eight verdicts, and only the first two (`reviewed`, `reviewed-incremental`) mean the head was
+reviewed:
 
-| Verdict text | What it means | What to do |
+| Verdict text | Reviewed? | What to do |
 |---|---|---|
-| `reviewed <sha> and posted N inline / M summary comment(s)` | The lane read this head and published. This is the only verdict that counts as review evidence | Work the threads |
-| `finished on <sha> (job result: ...) but posted **nothing**` | The run completed and published nothing. This head has no machine review | Read the run log for tool denials, then `@claude full review`. If that also comes back empty, escalate to `coderabbit_review` or a model pass |
-| `auto-paused after N automatic rounds at <sha>` | The lane hit `auto_pause_rounds` and declined to review. Not reviewer output | Summon with `@claude review`, or hand the pause back to whoever owns the PR. Never wait for the next push |
-| `did not run at <sha>: no CLAUDE_CODE_OAUTH_TOKEN reached this lane` | The caller stub failed to map the secret across the owner boundary | Fix the stub. `secrets: inherit` does not cross owners, so the mapping must be explicit |
+| `reviewed <sha> and posted N inline / M summary comment(s)` | **Yes** | Work the threads |
+| `reviewed <sha> (incremental from <base>) and posted N inline / M summary comment(s)` | **Yes** | Work the threads |
+| `finished on <sha> (job result: ...) but posted **nothing**` | No | Read the run log for tool denials, then `@claude full review` |
+| `re-checked open threads at <sha>: N resolved / M left open` | No, threads only, no new code read | Not review evidence for this head; do not let `8/8 resolved` read as clean |
+| `ran a verification round on <sha> (mutate result: ...) but posted **nothing**` | No | Same escalation as the silent full-review case |
+| `auto-paused after N automatic rounds at <sha>` | No | Summon with `@claude review`; never wait for the next push |
+| `did not run at <sha>: no CLAUDE_CODE_OAUTH_TOKEN reached this lane` | No | Fix the stub; `secrets: inherit` does not cross owners |
+| `no new commits since <sha> was last reviewed; nothing to re-review` | No | Nothing to do; the prior review still stands |
 
 **No liveness comment at all is its own signal**, and the trap that costs the most time: the
 comment is only upserted when the review job actually ran, so a PR the lane never admitted has
