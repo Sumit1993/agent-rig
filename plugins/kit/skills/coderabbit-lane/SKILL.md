@@ -2,86 +2,75 @@
 name: coderabbit-lane
 description: "CodeRabbit review lane (`coderabbitai[bot]`) mechanics: managing the per-developer cooldown counter shared across every repo you touch, manual admission via `coderabbit_review` label, per-repo admission read from the registry, when spending a slot is warranted (a sensitive surface, or a check from an unshared model), bare `@coderabbitai review` trigger syntax, the in-thread reply protocol with `cr-reply.sh`, and thread resolution rules. Load when deciding to request CodeRabbit review, handling its feedback threads or rate limits, or replying to `coderabbitai[bot]` comments."
 metadata:
-  version: "2.0.0"
+  version: "3.0.0"
 ---
 
 # The CodeRabbit review lane
 
-The CodeRabbit review lane (`coderabbitai[bot]`) is our independent automated reviewer. It runs against pull requests on enabled repositories to catch bugs, design flaws, and violations of repository invariants.
+`coderabbitai[bot]` is the independent automated reviewer. `AGENTS.md` decides reviewer routing. `pr-watch` covers watching a PR this session raised, watcher lifecycles and merge mechanics. `claude-review-lane` covers `claude[bot]`. `autofix` applies PR-thread feedback with per-change approval. Process truth is `claude-kit/docs/pr-review-process.html`. Stories are in `docs/incidents.md`.
 
-Boundaries: `AGENTS.md` decides reviewer routing; this skill never repeats that choice. `pr-watch` covers watching a PR this session raised, watcher lifecycles, and merge mechanics. `claude-review-lane` covers our `claude[bot]` lane. `autofix` handles applying PR-thread feedback with per-change approval. Process truth lives in `claude-kit/docs/pr-review-process.html`.
+## 1. Admission
 
-## 1. Admission and enablement
+Admission is per repo. Read it: `kit-meta.sh get <repo> coderabbit_auto_review`. The repo's own AGENTS.md says why.
 
-Admission is a per-repo setting, so read it rather than assuming: `kit-meta.sh get <repo> coderabbit_auto_review`. The repo's own AGENTS.md carries why it is set that way.
+- Manual (`coderabbit_auto_review` false): apply the `coderabbit_review` label by hand, or post a bare `@coderabbitai review`. Without the label CodeRabbit outputs `Review skipped: excluded by label configuration`, which is expected.
+- Automatic (`auto_review.enabled: true` in that repo's `.coderabbit.yaml`): every PR is reviewed, no summon. The push is the request, so batch before pushing, and never tell a lane to hold off triggering when pushing is what triggers. A repo hosting `claude-code-review.yml` needs this, because `claude-code-action` self-skips on any PR editing that file.
 
-- **Manual admission (`coderabbit_auto_review` false):** Apply the `coderabbit_review` label by hand or post a bare `@coderabbitai review` comment. Without the label, CodeRabbit outputs `Review skipped: excluded by label configuration`, which is expected behavior, not an error.
-- **Automatic admission (`auto_review.enabled: true` in that repo's `.coderabbit.yaml`):** Every PR is reviewed with no summon. **The push is the request.** There is no step to withhold, so batch before pushing rather than before triggering, and never instruct a lane to hold off triggering when pushing is what triggers it. A repo hosting `claude-code-review.yml` needs this, because `claude-code-action` self-skips on any PR editing that file, leaving CodeRabbit as its only reviewer.
+## 2. When a slot is warranted
 
-## 2. When spending a slot is warranted
+A slot is a deliberate budget decision, never routine. Two cases:
 
-CodeRabbit review slots are scarce. Spending one is a deliberate budget decision, never a routine step. Spending a slot is warranted in two situations:
+1. A sensitive surface: the CI and workflow surface itself, credential and crypto handling, the engine core, contract and schema changes.
+2. Independent validation: a Claude finding that wants a reviewer sharing no model, prompt or failure mode.
 
-1. **A sensitive surface:** the CI and workflow surface itself, credential and crypto handling, the engine core, or contract and schema changes.
-2. **Independent validation:** when a Claude finding wants a check from a reviewer sharing no model, prompt or failure mode.
+A judgement call, not a path test. prismalens #415 retired `review-admit.yml` and the `review-evidence` gate, and neither file is on `main`; do not propose finishing them (`prismalens-415-retires-automatic-admission`). The hand-applied label is the whole mechanism. Hand admission exists because traffic outruns the counter (`traffic-outruns-counter-measurement`).
 
-**This is a judgement call, not a path test.** Admission used to be automatic. `review-admit.yml` applied the label on a path match against `.github/high-risk-paths.txt`, and a `review-evidence` gate held such PRs red until `coderabbitai[bot]` evidence existed. prismalens#415 retired both, and neither file is on `main`. Do not propose finishing them. The hand-applied label is the whole mechanism.
+`.coderabbit.yaml` path instructions still shape review quality and the Claude lane cannot see them, so they stay worth writing. They do not decide admission. `profile: chill` tames noise.
 
-Hand admission exists because traffic outruns the counter. Measured over 180 merges: 7.5 PRs/day, worst hour 8 opens, and at one review per hour 61% of PRs arrived with the counter already empty. Reviewing everything automatically spends the budget where PRs happen to fall rather than where a second opinion is worth having.
+## 3. The per-developer counter
 
-`.coderabbit.yaml` path instructions still shape review quality, and the Claude lane cannot see them, so they remain worth writing. They are not what decides admission. Tame reviewer noise with `profile: chill`.
-
-## 3. Per-developer cooldown-gated counter
-
-The review lane operates on the Free/OSS plan, where seat assignment is disabled:
+The lane runs on the Free/OSS plan, seat assignment disabled:
 
 | Plan | PR/hr | Files per review |
 |---|---|---|
-| **OSS** (our public repos) | **1–10** (typically ~1–2) | 50–150 |
+| OSS (our public repos) | 1 to 10, typically 1 or 2 | 50 to 150 |
 | Pro | 5 | 150 |
 | Pro+ | 10 | 300 |
 
-- **The counter is per developer, not per repo.** `prismalens`, `sreforge` and `mage-memory` all draw one pool, so a review spent on any of them is a review the others cannot have. It is not per-branch, per-session or per-subagent either. Run at most one review at a time across every repo you touch; parallel runs serialize and delay all lanes.
-- **Every run spends a slot:** Initial reviews, automatic incremental reviews after a push, and manual `@coderabbitai review` comments all spend one slot. The `coderabbit_review` label gates automatic review only. A manual summon runs on an unlabelled PR and still spends the counter, which is what makes it the escape hatch when the Claude lane is down. To prevent rapid budget exhaustion, enabled repositories set `auto_pause_after_reviewed_commits: 1` in `.coderabbit.yaml`: one review per PR, then batch fixes before re-requesting.
-- **Auto-pause is recoverable, not terminal.** A push past `auto_pause_after_reviewed_commits` pauses the lane on that PR: no review runs, and none arrives on its own. A bare `@coderabbitai resume` restarts it, and what follows is a real review of the final head that posts `Review completed` there. So a PR whose own fix commits paused the lane can still satisfy a merge condition requiring a completed review. Reading the pause as terminal wrongly makes such a condition look unsatisfiable. Resume deliberately, since it spends a slot from the shared counter, so batch the fixes first.
-- **Batch fixes before requesting:** Never spend a slot on a commit you are about to amend.
-- **Remaining capacity is not readable:** Querying `@coderabbitai rate limit` yields documentation links, never remaining counts.
-- **The notice's stated wait is accurate. Obey it.** It is the per-developer window anchored to the last accepted review, not a per-PR figure running below the real cooldown, and it has measured exact to within fifteen seconds. Waiting a flat 60 minutes from the *refusal* instead has the right magnitude and the wrong anchor: it lands about 21 minutes late, and because nothing re-reads the notice afterwards the error stays invisible. `watch-coderabbit.sh` arms on the parsed figure and falls back to `CR_WATCH_COOLDOWN_SECONDS` (default 3600) only when nothing parses; the event line names which it used. Measurements: claude-kit#28. CodeRabbit has used at least three wordings, and the watcher's pattern once matched only the first, so every rate limit quietly armed the fallback:
+- The counter is per developer, not per repo, branch, session or subagent. `prismalens`, `sreforge` and `mage-memory` draw one pool. Run at most one review at a time across every repo you touch; parallel runs serialise and delay every lane.
+- Every run spends a slot: initial reviews, automatic incremental reviews after a push, manual `@coderabbitai review`. The label gates automatic review only; a manual summon on an unlabelled PR still spends the counter, which makes it the escape hatch when the Claude lane is down. Enabled repos set `auto_pause_after_reviewed_commits: 1` in `.coderabbit.yaml`: one review per PR, then batch fixes before re-requesting.
+- Auto-pause is recoverable. A push past the limit pauses the lane on that PR and nothing arrives on its own. A bare `@coderabbitai resume` restarts it, and what follows is a real review of the final head that posts `Review completed`, so a PR paused by its own fix commits can still meet a merge condition requiring one. Resume deliberately; it spends a slot.
+- Batch fixes before requesting. Never spend a slot on a commit you are about to amend.
+- Remaining capacity is not readable. `@coderabbitai rate limit` returns documentation links.
+- The notice's stated wait is accurate. Obey it. It is the per-developer window anchored to the last accepted review, measured exact to within fifteen seconds. A flat 60 minutes from the refusal has the wrong anchor and lands about 21 minutes late (`flat-60-minute-wait-error`). `watch-coderabbit.sh` arms on the parsed figure and falls back to `CR_WATCH_COOLDOWN_SECONDS` (default 3600) only when nothing parses; the event line names which it used. CodeRabbit has used at least three wordings, and the pattern once matched only the first (`claude-kit-28-rate-limit-wording-gap`):
   - `Next review available in: **47 minutes**`
   - `**Next included review available in 30 minutes.**`
   - `Your next included review will be available in 23 minutes.`
-- **The cooldown figures below have no recorded provenance.** "Roughly 40 minutes", "37 rejected", "45 or more succeeds": nobody wrote down when these were measured or on which plan, and they disagree with both the watcher's 3600-second fallback and with longer waits observed since. Do not build arithmetic on them the way a session recently did, reaching a confident wrong conclusion from numbers that were never evidence. Treat them as folklore until someone measures and dates them.
-- **Cooldown retries:** Retrying 37 minutes after a review is rejected outright without wait times; retries at ≥45 minutes succeed. Budget ≥45 minutes and confirm acceptance.
-- **`review full` is NOT a way past the limit.** Both trigger forms draw the same included-review budget, so `review full` does not get past a rate-limit refusal. An apparent success shortly after a refusal is the limit window rolling over, not the command; do not read it as a bypass. Use `review full` when the incremental form refuses because it "does not re-review already reviewed commits", which is a different refusal; use the clock for the limit.
-- **CodeRabbit edits its reply in place, so a first read can show the opposite of the settled outcome.** Read the comment's `updated_at`, wait for it to stop changing, and classify on the settled body. **Re-read it before you act on it, not only before you classify it.** A poll that matched `rate limited` once and stopped is the trap: the body it acted on was a draft of a comment still being written, and the number it needed was in the settled version.
+- The figures "roughly 40 minutes", "37 rejected", "45 or more succeeds" have no recorded provenance and disagree with the 3600-second fallback and with longer waits seen since. Folklore until someone measures and dates them; never build arithmetic on them (`session-misused-unattributed-cooldown-figures`). What was observed: a retry at 37 minutes was rejected outright, retries at 45 minutes or more succeeded. Budget 45 minutes and confirm acceptance.
+- `review full` is not a way past the limit. Both forms draw the same budget. A success shortly after a refusal is the window rolling over. `review full` is for the different refusal, "does not re-review already reviewed commits"; the clock is for the limit.
+- CodeRabbit edits its reply in place, so a first read can show the opposite of the settled outcome. Read `updated_at`, wait for it to stop changing, classify on the settled body, and re-read before acting, not only before classifying (`settled-body-classification-trap`).
 
-## 4. Trigger grammar and polling
+## 4. Triggers and polling
 
-- **Two triggers, both bare.** `@coderabbitai review` is incremental and is the default. `@coderabbit review full` re-reads the whole diff and is the fallback when the incremental one is refused, per §3. The rejection notice names the reason the incremental form gets refused twice over: it is "an incremental review system and does not re-review already reviewed commits", so a push that only moves documentation can be declined even off cooldown.
-- **Keep trigger comments bare:** Post exactly the trigger, with nothing else. Comments containing extra questions or bullet points are parsed as chat rather than commands, returning *"For best results, initiate chat on the files or code changes"* with no review executed. Put context in the PR description instead, which the review reads automatically.
-- **Poll after every trigger, without exception.** A trigger comment posting successfully is not a review starting. Wait ~60 seconds, inspect the latest `coderabbitai[bot]` comment, and only then report an outcome. Three cases:
-  1. `rate limited`: Request rejected, nothing ran. `review full` draws the same budget and will not get past this; wait out the window. See §3.
-  2. `initiate chat on the files`: Misparsed as chat; re-trigger with a bare comment.
-  3. Anything else: Accepted; review in progress.
-- **Analysis depth:** CodeRabbit is not diff-only. Its analysis chains execute `rg`, `fd`, `sed`, `git show`, and inline Python against the repository checkout to reason across files outside the diff. It does not run test suites.
+- Two triggers, both bare. `@coderabbitai review` is incremental and the default. `@coderabbit review full` re-reads the whole diff and is the fallback when the incremental form is refused as "an incremental review system" that "does not re-review already reviewed commits"; a push that only moves documentation can be declined off cooldown.
+- Post exactly the trigger and nothing else. Extra questions or bullets are parsed as chat, return "For best results, initiate chat on the files or code changes", and run no review. Context goes in the PR description, which the review reads.
+- Poll after every trigger. A trigger posting is not a review starting. Wait about 60 seconds, inspect the latest `coderabbitai[bot]` comment, then report. `rate limited`: rejected, nothing ran, wait out the window. `initiate chat on the files`: misparsed, re-trigger bare. Anything else: accepted.
+- CodeRabbit is not diff-only. It runs `rg`, `fd`, `sed`, `git show` and inline Python against the checkout to reason across files. It does not run test suites.
 
-## 5. In-thread reply protocol
+## 5. In-thread replies
 
-Replies to CodeRabbit review comments must go in-thread to satisfy `required_review_thread_resolution` merge requirements:
+Replies go in-thread, to satisfy `required_review_thread_resolution`:
 
 ```bash
 "${CLAUDE_PLUGIN_ROOT}/scripts/cr-reply.sh" <pr> <root_id> "@coderabbitai Fixed in <sha>: <what changed>. Please verify."
 ```
 
-- **Never write the word "resolve" in a reply:** Writing "resolve" causes CodeRabbit to parse the reply as a command and return boilerplate instructions ("Post `@coderabbitai resolve` as a new top-level PR comment"), resolving nothing.
-- **Reply-in events:** CodeRabbit posts verdicts on your fixes as replies in the thread. Read them to verify whether it accepted the change or pushed back.
+- Never write the word "resolve" in a reply. CodeRabbit parses it as a command and returns boilerplate ("Post `@coderabbitai resolve` as a new top-level PR comment"), resolving nothing.
+- Reply-in events are CodeRabbit's verdicts on your fixes. Read them.
 
-## 6. Thread resolution rules
+## 6. Thread resolution
 
-- **Fixed threads:** Resolution of fixed threads happens via one verified re-review, not blanket commands. After all fixes for the round are committed, pushed, and replied to in-thread, spend one `@coderabbitai review` trigger. CodeRabbit re-evaluates the changes and automatically resolves threads it considers addressed. Any threads left open must be reviewed and resolved individually with rationale stated in-thread.
-- **Do not use blanket resolve on fixed threads:** Bare top-level `@coderabbitai resolve` blanket-resolves all threads with zero validation. It is reserved strictly for rounds that consist entirely of declined or deferred findings where dispositions have already been recorded.
-- **Declining or deferring findings:** CodeRabbit only self-resolves when it agrees code changed. If declining or deferring a finding, the operator or session resolves it directly under these three rules:
-  1. State the disposition clearly in the reply (accepted-and-deferred with landing target, or rejected with reasons; "noted" is not a disposition).
-  2. Wait ~60 seconds for CodeRabbit's counter-reply before resolving, ensuring follow-up issue offers or counter-arguments are not dropped.
-  3. Reference tracking issues by number.
-- **Never reply and resolve in a single step:** Allow time for the reviewer counter-reply before closing the thread.
+- Fixed threads resolve through one verified re-review, never a blanket command. After every fix for the round is committed, pushed and replied to in-thread, spend one `@coderabbitai review`. CodeRabbit resolves the threads it considers addressed; anything left open is reviewed and resolved individually with rationale in-thread.
+- Bare top-level `@coderabbitai resolve` blanket-resolves every thread with zero validation. Reserved for rounds made entirely of declined or deferred findings whose dispositions are already recorded.
+- Declining or deferring: CodeRabbit self-resolves only when code changed, so the operator or session resolves under three rules. State the disposition (accepted-and-deferred with landing target, or rejected with reasons; "noted" is not a disposition). Wait about 60 seconds for the counter-reply so follow-up issue offers are not dropped. Reference tracking issues by number.
+- Never reply and resolve in one step.
