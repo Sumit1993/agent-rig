@@ -53,3 +53,27 @@ A run concluded `cancelled` with zero jobs. It had been evicted from its concurr
 ## verify-round-reply-eviction
 
 Every review round ended by posting a top-level verdict comment. That fired `issue_comment` into the PR's concurrency group and took the single pending seat from any queued in-thread reply, so a reply posted while a round ran was dropped, every time. Bot-authored comments now route to a per-run throwaway group.
+
+## prismalens-415-retires-automatic-admission
+
+`review-admit.yml` applied the `coderabbit_review` label on a path match against `.github/high-risk-paths.txt`, and a `review-evidence` gate held such PRs red until `coderabbitai[bot]` evidence existed. prismalens #415 retired both. Neither file is on main, and admission became a hand-applied label.
+
+## traffic-outruns-counter-measurement
+
+Measured over 180 prismalens merges: 7.5 PRs a day, worst hour 8 opens, and at one review per hour 61% of PRs arrived with the counter already empty. Automatic review spent the budget where PRs happened to fall, not where a second opinion was worth having.
+
+## claude-kit-28-rate-limit-wording-gap
+
+claude-kit #28 recorded three wordings CodeRabbit has used for its cooldown notice. The watcher's pattern matched only the first, so every rate limit silently armed the 3600-second fallback instead of the notice's figure.
+
+## flat-60-minute-wait-error
+
+Waiting a flat 60 minutes from the refusal has the right magnitude and the wrong anchor. The window is anchored to the last accepted review, so the flat wait landed about 21 minutes late, and because nothing re-read the notice the error stayed invisible.
+
+## session-misused-unattributed-cooldown-figures
+
+A session built arithmetic on "roughly 40 minutes", "37 rejected", "45 or more succeeds", figures nobody had dated or attributed to a plan, and reached a confident wrong conclusion. They disagree with the 3600-second fallback and with longer waits observed since.
+
+## settled-body-classification-trap
+
+CodeRabbit edits its cooldown reply in place while composing it. A poll that matched `rate limited` once and stopped acted on a draft; the number it needed was in the settled version.
