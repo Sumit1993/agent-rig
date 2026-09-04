@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.6.0](https://github.com/Sumit1993/claude-kit/compare/kit-v0.5.3...kit-v0.6.0) (2026-09-04)
+
+
+### Features
+
+* **dotfiles:** deny WebFetch at user scope; context-mode owns fetching ([#59](https://github.com/Sumit1993/claude-kit/issues/59)) ([edc433c](https://github.com/Sumit1993/claude-kit/commit/edc433c5a80d2ac100e6c7745126cdedad612708))
+
+
+### Documentation
+
+* **AGENTS:** cut to routing and rules, add the issues-are-the-record doctrine ([#38](https://github.com/Sumit1993/claude-kit/issues/38)) ([ce77e27](https://github.com/Sumit1993/claude-kit/commit/ce77e279e0e4b55d6659e54747871b6f5c710e83))
+* **agy-delegate:** rules only, stories move to docs/incidents.md ([#39](https://github.com/Sumit1993/claude-kit/issues/39)) ([6e56455](https://github.com/Sumit1993/claude-kit/commit/6e564550ae115c6e5ca9de8bdc079f921983b6fb))
+* **anti-stall:** rules only, two stories move to docs/incidents.md ([#40](https://github.com/Sumit1993/claude-kit/issues/40)) ([fec59c7](https://github.com/Sumit1993/claude-kit/commit/fec59c7acb6285b11e301f8aa2b817e949873339))
+* **claude-review-lane:** rules only, five stories move to docs/incidents.md ([#42](https://github.com/Sumit1993/claude-kit/issues/42)) ([da3a6f7](https://github.com/Sumit1993/claude-kit/commit/da3a6f7f929b14db7dbf002de82d5fa129727e92))
+* **coderabbit-lane:** rules only, six stories move to docs/incidents.md ([#43](https://github.com/Sumit1993/claude-kit/issues/43)) ([4f6f5cd](https://github.com/Sumit1993/claude-kit/commit/4f6f5cdcd3a75782f3143190a8ec175c13c237e8))
+* **docs-governance:** tighten prose, keep every rule ([#44](https://github.com/Sumit1993/claude-kit/issues/44)) ([d4b8cec](https://github.com/Sumit1993/claude-kit/commit/d4b8cec41182a3d267a6e598e11c9de825fe64b8))
+* **pr-watch:** rules only, three stories move to docs/incidents.md ([#41](https://github.com/Sumit1993/claude-kit/issues/41)) ([aadec1e](https://github.com/Sumit1993/claude-kit/commit/aadec1ef5e62ae0ada78fd8da2e4b5f9d7260360))
+* **README:** one line per piece, sections lose their repetition ([#46](https://github.com/Sumit1993/claude-kit/issues/46)) ([5bd0a73](https://github.com/Sumit1993/claude-kit/commit/5bd0a730c1588ddcb54f903aebd0f6e4ce939b52))
+* **unattended-run:** rules only, eleven stories move to docs/incidents.md ([#45](https://github.com/Sumit1993/claude-kit/issues/45)) ([5365fe5](https://github.com/Sumit1993/claude-kit/commit/5365fe5e4852e6b97a9654ab7b7b3eebe63a156f))
+
 ## [0.5.3](https://github.com/Sumit1993/claude-kit/compare/kit-v0.5.2...kit-v0.5.3) (2026-09-01)
 
 
