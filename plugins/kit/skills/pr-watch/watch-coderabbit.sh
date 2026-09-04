@@ -328,7 +328,7 @@ while [ ${#PRS[@]} -gt 0 ]; do
         fi
       elif [ "$ap_ts" != "$ap_prev" ]; then
         printf '%s' "$ap_ts" > "$ap_state"
-        echo "PR#$pr CODERABBIT AUTO-PAUSED — no review ran; resume with '@coderabbitai resume'"
+        echo "PR#$pr CODERABBIT AUTO-PAUSED — pause after a completed review; resume with '@coderabbitai resume'"
       fi
     fi
     fi  # CR_PRESENT
