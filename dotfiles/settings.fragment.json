@@ -2,6 +2,7 @@
   "permissions": {
     "allow": ["Bash(agy *)"],
     "deny": [
+      "WebFetch",
       "Bash(npm run dev*)",
       "Bash(pnpm dev*)",
       "Bash(pnpm run dev*)",
