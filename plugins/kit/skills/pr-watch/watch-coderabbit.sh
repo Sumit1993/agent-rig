@@ -158,6 +158,8 @@ while [ ${#PRS[@]} -gt 0 ]; do
     chat_prev=""; [ -f "$chat_state" ] && chat_prev=$(cat "$chat_state" 2>/dev/null)
     ar_state="$STATE_DIR/$KEY-pr$pr.alreadyreviewed"
     ar_prev=""; [ -f "$ar_state" ] && ar_prev=$(cat "$ar_state" 2>/dev/null)
+    ar_pending_state="$STATE_DIR/$KEY-pr$pr.alreadyreviewed.pending"
+    ar_pending=""; [ -f "$ar_pending_state" ] && ar_pending=$(cat "$ar_pending_state" 2>/dev/null)
     ic_raw=$(gh api "repos/$REPO/issues/$pr/comments?per_page=100" 2>/dev/null)
     if is_json_array <<<"$ic_raw"; then
       chat_ts=$(jq -r '[.[] | select(.user.login | test("coderabbit"))
@@ -179,9 +181,28 @@ while [ ${#PRS[@]} -gt 0 ]; do
       ar_ts=$(jq -r '[.[] | select(.user.login | test("coderabbit"))
                       | select(.body | test("already reviewed commits|Already reviewed the last commit"))]
                  | last | .updated_at // empty' <<<"$ic_raw" 2>/dev/null)
+      # CodeRabbit edits one summary comment in place, so the updated_at dedupe alone still
+      # reports an intermediate body that a later edit supersedes. Wait one more poll, then
+      # re-read once more right before acting (coderabbit-lane's settled-body-classification-trap). Refs #73.
       if [ -n "$ar_ts" ] && [ "$ar_ts" != "$ar_prev" ]; then
-        printf '%s' "$ar_ts" > "$ar_state"
-        echo "PR#$pr CODERABBIT ALREADY REVIEWED — the trigger was refused because this head is already reviewed. No new review ran and none is coming. Only '@coderabbitai full review' reruns it, and it draws the same budget."
+        if [ "$ar_ts" = "$ar_pending" ]; then
+          ar_recheck_raw=$(gh api "repos/$REPO/issues/$pr/comments?per_page=100" 2>/dev/null)
+          ar_ts2=""
+          is_json_array <<<"$ar_recheck_raw" && ar_ts2=$(jq -r '[.[] | select(.user.login | test("coderabbit"))
+                          | select(.body | test("already reviewed commits|Already reviewed the last commit"))]
+                     | last | .updated_at // empty' <<<"$ar_recheck_raw" 2>/dev/null)
+          if [ "$ar_ts2" = "$ar_ts" ]; then
+            printf '%s' "$ar_ts" > "$ar_state"
+            rm -f "$ar_pending_state"
+            echo "PR#$pr CODERABBIT ALREADY REVIEWED — the trigger was refused because this head is already reviewed. No new review ran and none is coming. Only '@coderabbitai full review' reruns it, and it draws the same budget."
+          elif [ -n "$ar_ts2" ]; then
+            printf '%s' "$ar_ts2" > "$ar_pending_state"
+          else
+            rm -f "$ar_pending_state"
+          fi
+        else
+          printf '%s' "$ar_ts" > "$ar_pending_state"
+        fi
       fi
     fi
 

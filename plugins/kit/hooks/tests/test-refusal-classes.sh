@@ -62,11 +62,18 @@ run() { # body-file -> one poll, fresh state dir
     timeout 20 bash "$WATCHER" --repo acme/widget 7 2>&1
 }
 
-# --- "Already reviewed" is its own event, with the opposite meaning ------------
+# --- "Already reviewed" settles before it fires: unchanged across two polls, then its
+# own event, with the opposite meaning (claude-kit#73: the first poll must not fire on
+# a body an in-place edit is about to supersede). --------------------------------
 d1="$SANDBOX/s1"; mkdir -p "$d1"
 out=$(run "$SANDBOX/already.txt" "$d1")
 case "$out" in
-  *"ALREADY REVIEWED"*"already reviewed"*) pass "an already-reviewed refusal gets its own event" ;;
+  *"ALREADY REVIEWED"*) fail "already-reviewed fired on the first sighting, before it settled: $(printf '%s' "$out" | tr '\n' '|')" ;;
+  *) pass "already-reviewed withheld on the first sighting" ;;
+esac
+out=$(run "$SANDBOX/already.txt" "$d1")
+case "$out" in
+  *"ALREADY REVIEWED"*"already reviewed"*) pass "an already-reviewed refusal gets its own event once settled" ;;
   *) fail "already-reviewed missed: $(printf '%s' "$out" | tr '\n' '|')" ;;
 esac
 case "$out" in
