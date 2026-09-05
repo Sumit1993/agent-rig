@@ -2,8 +2,9 @@
 # claude-kit bootstrap for a new machine. Idempotent. Requires: jq, git, gh (authed).
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
-CLAUDE="$HOME/.claude"
-mkdir -p "$CLAUDE"
+CLAUDE="${CLAUDE_DIR:-$HOME/.claude}"
+AGY="${AGY_DIR:-$HOME/.gemini/antigravity-cli}"
+mkdir -p "$CLAUDE" "$AGY"
 
 # CLAUDE.md is an IMPORT STUB, not a copy.
 #
@@ -73,6 +74,8 @@ fi
 
 echo "→ statusline"
 cp "$HERE/statusline-command.sh" "$CLAUDE/statusline-command.sh"
+cp "$HERE/agy-statusline-command.sh" "$AGY/agy-statusline-command.sh"
+chmod +x "$AGY/agy-statusline-command.sh"
 
 echo "→ settings.json (deep-merge: fragment overlays existing; permissions.allow unions)"
 if [ -f "$CLAUDE/settings.json" ]; then
@@ -84,6 +87,25 @@ if [ -f "$CLAUDE/settings.json" ]; then
   mv /tmp/settings.merged.json "$CLAUDE/settings.json"
 else
   cp "$HERE/settings.fragment.json" "$CLAUDE/settings.json"
+fi
+
+echo "→ agy settings.json"
+agy_settings="$AGY/settings.json"
+agy_cmd="$AGY/agy-statusline-command.sh"
+agy_tmp="$(mktemp "$AGY/settings.json.tmp.XXXXXX")"
+trap 'rm -f "$agy_tmp"' EXIT
+# Point agy statusLine at the installed script without guessing type.
+# Temp file lives in target dir for atomic rename. Refs #48.
+if [ -f "$agy_settings" ]; then
+  jq --arg cmd "$agy_cmd" '
+    .statusLine = ((.statusLine // {}) + {command: $cmd})
+  ' "$agy_settings" > "$agy_tmp"
+  jq -e . "$agy_tmp" >/dev/null
+  mv "$agy_tmp" "$agy_settings"
+else
+  jq -n --arg cmd "$agy_cmd" '{statusLine: {command: $cmd}}' > "$agy_tmp"
+  jq -e . "$agy_tmp" >/dev/null
+  mv "$agy_tmp" "$agy_settings"
 fi
 
 echo "→ done. Restart Claude Code; the claude-kit marketplace + kit plugin load from settings."

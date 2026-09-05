@@ -36,7 +36,7 @@ Plugin `kit`, path-independent via `${CLAUDE_PLUGIN_ROOT}`:
 
 Claude Code does not read the name `AGENTS.md` on its own. `install.sh` writes `~/.claude/CLAUDE.md` as a one-line `@` import to this checkout, so there is one copy. Machine-local rules go below the import line. A plugin cannot carry this; Claude Code does not load a `CLAUDE.md` at a plugin root.
 
-Dotfiles, what a plugin cannot carry: `AGENTS.md`, `statusline-command.sh`, `settings.fragment.json` (registers this repo as a marketplace and enables the plugin), `install.sh`, `dedupe.sh`.
+Dotfiles, what a plugin cannot carry: `AGENTS.md`, `statusline-command.sh`, `agy-statusline-command.sh`, `settings.fragment.json` (registers this repo as a marketplace and enables the plugin), `install.sh`, `dedupe.sh`.
 
 ## New machine
 
