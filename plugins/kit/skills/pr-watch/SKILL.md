@@ -115,7 +115,7 @@ The session that owns the Monitor is a thin router. Read the sentinel line, then
 
 Check `kit-meta.sh get <owner/repo> merge_queue` first.
 
-- Queue repos: `gh pr merge <n> --squash` enqueues, and the queue tests a speculative merge onto main. No BEHIND cascade, no update-branch babysitting, no `merge-cascade.sh`; that script is pre-queue and must not be used. One timing rule survives: do not enqueue before the liveness comment shows posted review output. The queue gates on checks and threads, not on whether a reviewer spoke, and most verdicts in `claude-review-lane` §2 are not posted output.
+- Queue repos: `gh pr merge <n> --squash` enqueues, and the queue tests a speculative merge onto main. No BEHIND cascade, no update-branch babysitting. The pre-queue cascade script was removed. One timing rule survives: do not enqueue before the liveness comment shows posted review output. The queue gates on checks and threads, not on whether a reviewer spoke, and most verdicts in `claude-review-lane` §2 are not posted output.
 - Classic repos: merge by hand once the round's threads are resolved, `gh pr merge <n> --squash`. BEHIND still applies, so update-branch and re-green before merging the next.
 
 Afterward remove the lane's worktree. Its commits are on the PR, so nothing reclaims it on its own (`AGENTS.md` §Worktrees): `git worktree remove <path>`, delete the local branch, `git worktree unlock` first if git refuses.

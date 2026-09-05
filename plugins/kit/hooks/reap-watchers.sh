@@ -16,7 +16,7 @@
 set -u
 mode="${1:-end}"
 dry="${2:-}"
-pattern='watch-coderabbit\.sh|merge-cascade\.sh'
+pattern='watch-coderabbit\.sh'
 
 reap() {
   if [ "$dry" = "--dry" ]; then echo "would kill $1"; else kill "$1" 2>/dev/null; fi
