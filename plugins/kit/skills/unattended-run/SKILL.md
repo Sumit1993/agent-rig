@@ -50,7 +50,7 @@ Every dispatch prompt says, in as many words:
 
 Never override a lane's brief with reasoning you invented on the spot. If you contradict a brief, cite what supersedes it. With no source, the brief wins, and a lane that refuses an unsourced order is behaving correctly (`unsourced-order-refused`).
 
-Workflows and subagents are free to use; cost is the only limit. Do not ration agents to save money and do not do work by hand to avoid spawning one.
+Workflows, subagents and todos are free to use; cost is the only limit. Do not ration agents to save money and do not do work by hand to avoid spawning one. This grant is about model choice and does not exempt bounded mechanical work from the delegation rule in `AGENTS.md`, which still sends that work to agy.
 
 ## 2. Delegate, then verify
 
@@ -132,9 +132,11 @@ The PR that repairs a gate is the worst candidate in the repo for skipping revie
 - An honest gap beats an invented claim. Say where the evidence for a parked item is incomplete.
 - Every parked item goes in the plan file's decision list as a specific question with options, never "needs review".
 
-## 11. Short output: the operator is reading a terminal
+## 11. Short output, and near-silence once the operator is away
 
 Findings, decisions, evidence, SHAs, blockers. Do not restate the plan, narrate intent, or re-summarise logged work. Every dispatched agent gets the same instruction. A tick with no dispatch is a valid tick, one line with the reason.
+
+While the operator is away, the terminal has no reader, and the plan file is the record and the report. A tick that dispatched, verified and logged reports one line, or nothing at all. Spend the words on the plan file and the issue comments, which survive, rather than on scrollback, which does not. Full reporting resumes for the handback, which the operator does read.
 
 Short is length, not vocabulary. Plain sentences a reader who was not watching can follow, identifiers and commands exact. Compress the words, never the meaning.
 
