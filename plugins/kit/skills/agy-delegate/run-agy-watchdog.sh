@@ -2,19 +2,44 @@
 # Usage: run-agy-watchdog.sh <worktree> <promptfile> <outfile> <expected_commits> <timeout> [model]
 # Runs agy headless; kills it if it hangs after completing its work
 # (activity log stale >3min AND >=expected commits ahead of origin/main AND clean tree).
-# Always appends the AGY_EXITED sentinel to <outfile> — wait on that, per the anti-stall skill.
+# Always appends the AGY_EXITED sentinel to <outfile>, wait on that, per the anti-stall skill.
 set -u
 WT="$1"; PROMPT="$2"; OUT="$3"; EXPECT="$4"; TMOUT="$5"
 MODEL="${6:-gemini-3.8-flash-high}"
 
+WT=$(realpath -m "$WT")
+PROMPT=$(realpath -m "$PROMPT")
+OUT=$(realpath -m "$OUT")
+ACTIVITY=$(realpath -m "${OUT%.*}.activity.log")
+STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
 # agy's own --log-file streams; stdout holds one JSON envelope written only at the end.
 # Staleness must key on the streaming log, or every run looks hung until it finishes.
 SLUG="agy-$(basename "$PROMPT" .md)-$$-$(date +%s)"
-ACTIVITY="${OUT%.*}.activity.log"
 
 : > "$ACTIVITY"
-cd "$WT" || { echo "WATCHDOG: worktree missing" >&2; echo "AGY_EXITED rc=1 status=NO_WORKTREE" >> "$ACTIVITY"; exit 1; }
-STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+cd "$WT" || {
+  echo "WATCHDOG: worktree missing" >&2
+  if command -v jq >/dev/null 2>&1; then
+    jq -n \
+      --arg slug "$SLUG" \
+      --arg model "$MODEL" \
+      --arg prompt_file "$PROMPT" \
+      --arg worktree "$WT" \
+      --arg started_at "$STARTED_AT" \
+      '{
+        slug: $slug,
+        model: $model,
+        prompt_file: $prompt_file,
+        worktree: $worktree,
+        started_at: $started_at,
+        rc: 1,
+        status: "NO_WORKTREE"
+      }' > "$OUT.meta.json.tmp" 2>/dev/null && mv -f "$OUT.meta.json.tmp" "$OUT.meta.json" 2>/dev/null || rm -f "$OUT.meta.json.tmp" 2>/dev/null
+  fi
+  echo "AGY_EXITED rc=1 model=$MODEL status=NO_WORKTREE" >> "$ACTIVITY"
+  exit 1
+}
 AGY_VERSION=$(agy --version 2>/dev/null | head -1 || true)
 # Sidecar metadata written before launch so early deaths are attributable. Issue #62.
 if command -v jq >/dev/null 2>&1; then
@@ -25,6 +50,7 @@ if command -v jq >/dev/null 2>&1; then
     --arg worktree "$WT" \
     --arg activity_log "$ACTIVITY" \
     --arg envelope "$OUT" \
+    --arg stderr_file "$OUT.err" \
     --arg started_at "$STARTED_AT" \
     --arg agy_version "$AGY_VERSION" \
     --arg expected_commits "$EXPECT" \
@@ -36,11 +62,12 @@ if command -v jq >/dev/null 2>&1; then
       worktree: $worktree,
       activity_log: $activity_log,
       envelope: $envelope,
+      stderr_file: $stderr_file,
       started_at: $started_at,
       agy_version: $agy_version,
       expected_commits: ($expected_commits | tonumber? // $expected_commits),
       print_timeout: $print_timeout
-    }' > "$OUT.meta.json" 2>/dev/null || true
+    }' > "$OUT.meta.json.tmp" 2>/dev/null && mv -f "$OUT.meta.json.tmp" "$OUT.meta.json" 2>/dev/null || rm -f "$OUT.meta.json.tmp" 2>/dev/null
 fi
 
 agy --model "$MODEL" --log-file "$ACTIVITY" --output-format json \
@@ -68,12 +95,20 @@ RC=$?
 # The sentinel goes to the activity log, never to $OUT: appending to $OUT would make the
 # JSON envelope unparseable, and an unparseable envelope is how truncation is detected.
 # conversation_id is the resume handle; surface it so a salvage does not have to re-prompt.
-CID=$(jq -r '.conversation_id // empty' "$OUT" 2>/dev/null)
-STATUS=$(jq -r '.status // empty' "$OUT" 2>/dev/null)
 ENDED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 BYTES=$(stat -c %s "$OUT" 2>/dev/null || echo 0)
 
 if command -v jq >/dev/null 2>&1; then
+  CID=$(jq -r '.conversation_id // empty' "$OUT" 2>/dev/null || true)
+  STATUS=$(jq -r '.status // empty' "$OUT" 2>/dev/null || true)
+  SENTINEL_STATUS="${STATUS:-UNPARSEABLE}"
+  # launched is true only when at least one turn ran. num_turns: 0 means the
+  # request was rejected before any work started (bad model, quota hit). Issue #50.
+  TURNS=$(jq -r '(.num_turns // 0) | tonumber? // 0' "$OUT" 2>/dev/null || echo 0)
+  LAUNCHED=false
+  if [ "${TURNS:-0}" -gt 0 ] 2>/dev/null; then
+    LAUNCHED=true
+  fi
   jq -n \
     --arg slug "$SLUG" \
     --arg model "$MODEL" \
@@ -81,6 +116,7 @@ if command -v jq >/dev/null 2>&1; then
     --arg worktree "$WT" \
     --arg activity_log "$ACTIVITY" \
     --arg envelope "$OUT" \
+    --arg stderr_file "$OUT.err" \
     --arg started_at "$STARTED_AT" \
     --arg agy_version "$AGY_VERSION" \
     --arg expected_commits "$EXPECT" \
@@ -90,6 +126,7 @@ if command -v jq >/dev/null 2>&1; then
     --arg conversation_id "${CID:-}" \
     --arg ended_at "$ENDED_AT" \
     --arg envelope_bytes "$BYTES" \
+    --argjson launched "$LAUNCHED" \
     '{
       slug: $slug,
       model: $model,
@@ -97,6 +134,7 @@ if command -v jq >/dev/null 2>&1; then
       worktree: $worktree,
       activity_log: $activity_log,
       envelope: $envelope,
+      stderr_file: $stderr_file,
       started_at: $started_at,
       agy_version: $agy_version,
       expected_commits: ($expected_commits | tonumber? // $expected_commits),
@@ -105,8 +143,13 @@ if command -v jq >/dev/null 2>&1; then
       status: $status,
       conversation_id: $conversation_id,
       ended_at: $ended_at,
-      envelope_bytes: ($envelope_bytes | tonumber? // $envelope_bytes)
-    }' > "$OUT.meta.json" 2>/dev/null || true
+      envelope_bytes: ($envelope_bytes | tonumber? // $envelope_bytes),
+      launched: $launched
+    }' > "$OUT.meta.json.tmp" 2>/dev/null && mv -f "$OUT.meta.json.tmp" "$OUT.meta.json" 2>/dev/null || rm -f "$OUT.meta.json.tmp" 2>/dev/null
+else
+  CID=""
+  STATUS=""
+  SENTINEL_STATUS="NO_JQ"
 fi
 
-echo "AGY_EXITED rc=$RC model=$MODEL status=${STATUS:-UNPARSEABLE} cid=${CID:-none} out=$OUT bytes=$(stat -c %s "$OUT" 2>/dev/null || echo 0)" >> "$ACTIVITY"
+echo "AGY_EXITED rc=$RC model=$MODEL status=$SENTINEL_STATUS cid=${CID:-none} out=$OUT bytes=$(stat -c %s "$OUT" 2>/dev/null || echo 0)" >> "$ACTIVITY"
