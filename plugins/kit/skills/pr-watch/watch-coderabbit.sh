@@ -113,6 +113,17 @@ retry_seconds() {
   RETRY_SECS=$RETRY_NOTICE
 }
 
+# Delta first, absolute second: a reader acts on the countdown, the timestamp is only
+# for citing in an issue. $2 is what to print when $1 is at or past zero. Refs #82.
+fmt_delta() {
+  local d=$1 past="$2"
+  if [ "$d" -le 0 ]; then printf '%s' "$past"; return; fi
+  if [ "$d" -lt 60 ]; then printf '%ds' "$d"; return; fi
+  if [ "$d" -lt 3600 ]; then printf '%dm' "$((d / 60))"; return; fi
+  local h=$((d / 3600)) m=$(((d % 3600) / 60))
+  if [ "$m" -eq 0 ]; then printf '%dh' "$h"; else printf '%dh%dm' "$h" "$m"; fi
+}
+
 # PRs whose rate-limit state this process has already evaluated once (see the recovery
 # block below). Per process, not per poll.
 rl_seen=""
@@ -249,7 +260,16 @@ while [ ${#PRS[@]} -gt 0 ]; do
         if [ "$rl_ts" != "$prev_ts" ] || [ "$recover" = "1" ]; then
           retry_seconds "$rl_body"; secs=$RETRY_SECS
           if [ "$AUTORETRY" != "1" ]; then
-            armed="window $((secs / 60))m; auto-retry OFF (CR_WATCH_AUTORETRY=0) — re-trigger by hand or run the model review pass"
+            win_epoch=$(date -u -d "$rl_ts" +%s 2>/dev/null) || win_epoch=""
+            case "$win_epoch" in ''|*[!0-9]*) win_epoch=$(date +%s);; esac
+            win_end=$((win_epoch + secs))
+            win_at=$(date -u -d "@$win_end" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "unknown")
+            win_delta=$(fmt_delta $((win_end - $(date +%s))) "elapsed")
+            if [ "$win_delta" = "elapsed" ]; then
+              armed="window elapsed (at $win_at); auto-retry OFF (CR_WATCH_AUTORETRY=0) — re-trigger by hand or run the model review pass"
+            else
+              armed="window elapses in $win_delta (at $win_at); auto-retry OFF (CR_WATCH_AUTORETRY=0) — re-trigger by hand or run the model review pass"
+            fi
             retry_at=0
           elif [ "$used" -lt "$MAX_RETRIES" ]; then
             claimed="notice unparsed, using the ${COOLDOWN_SECONDS}s fallback"
@@ -273,7 +293,12 @@ while [ ${#PRS[@]} -gt 0 ]; do
           # arrives when the arming was lost. Say when the retry will fire, in UTC.
           if [ "$retry_at" -gt 0 ]; then
             at=$(date -u -d "@$retry_at" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "unknown")
-            echo "PR#$pr CODERABBIT RETRY ARMED — will re-trigger at $at"
+            arm_delta=$(fmt_delta $((retry_at - $(date +%s))) "now")
+            if [ "$arm_delta" = "now" ]; then
+              echo "PR#$pr CODERABBIT RETRY ARMED — fires now (at $at)"
+            else
+              echo "PR#$pr CODERABBIT RETRY ARMED — fires in $arm_delta (at $at)"
+            fi
           fi
           printf '%s\t%s\t%s\n' "$rl_ts" "$retry_at" "$used" > "$rl_state"
           prev_ts="$rl_ts"

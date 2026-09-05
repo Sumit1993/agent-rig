@@ -68,10 +68,19 @@ case "$out" in
   *"RETRY RECOVERED"*) pass "a re-armed watcher notices the unarmed notice" ;;
   *) fail "re-arm did not recover: $(printf '%s' "$out" | tr '\n' '|')" ;;
 esac
-case "$out" in
-  *"RETRY ARMED — will re-trigger at "*Z*) pass "and says when it will fire, in UTC" ;;
-  *) fail "no armed-at line: $(printf '%s' "$out" | tr '\n' '|')" ;;
-esac
+armed_line=$(printf '%s\n' "$out" | grep "RETRY ARMED" | tail -1)
+# Two checks, not one: a fixed-phrase match can't tell a delta from nothing.
+# This fails if either half goes missing. Refs #82.
+if printf '%s' "$armed_line" | grep -qE 'RETRY ARMED — fires (now|in [0-9]+(h([0-9]+m)?|m|s)) \(at '; then
+  pass "and says when it will fire, as a delta"
+else
+  fail "no delta on the armed line: $armed_line"
+fi
+if printf '%s' "$armed_line" | grep -qE '\(at [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z\)$'; then
+  pass "and keeps the absolute timestamp, in UTC"
+else
+  fail "no absolute timestamp on the armed line: $armed_line"
+fi
 # The notice is 90 minutes old and claimed 39, so the window has passed: firing now is
 # correct. Arming 39 minutes from the recovery instead would be the bug all over again.
 case "$out" in
