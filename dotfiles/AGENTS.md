@@ -39,7 +39,10 @@ Claude models via the Agent or Workflow `model` parameter (`fable`, `opus`, `son
 - Never Haiku.
 # Reviewers
 - `claude[bot]` reviews every same-repo PR in the consumer repos, automatically.
-- CodeRabbit is the only escalation: automatic on `gh-workflows`, where the Claude lane cannot run, and by hand elsewhere with the `coderabbit_review` label. The counter is per developer, so `prismalens`, `sreforge` and `mage-memory` share one pool.
+- The account is on Free, so CodeRabbit reviews code only on public repos, through the OSS tier.
+- On a private repo, `claude-kit` included, there is no CodeRabbit code review at all, and the escalation there is a model pass.
+- On a public repo under 10 stars, the review must be triggered by hand.
+- The allowance is one review per developer per hour, rolling, shared across every repo.
 - Spend a slot on judgement, never a path test: a sensitive surface (CI and workflows, credentials and crypto, the engine core, contracts and schemas), or a Claude finding that wants a reviewer sharing no model or prompt.
 - Procedure: `claude-review-lane`, `coderabbit-lane`, `pr-watch`.
 
