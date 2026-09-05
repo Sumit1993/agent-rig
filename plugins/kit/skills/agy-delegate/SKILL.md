@@ -9,7 +9,7 @@ metadata:
 
 Which model gets which task is `AGENTS.md`. Model choice inside an agy run is this skill's. How to wait on a run is `anti-stall`, assumed here and not repeated. Stories behind the rules are in `docs/incidents.md`.
 
-Verified against agy 1.1.22. Check `agy --version` before trusting a flag; `agy changelog` records what moved.
+Verified against agy 1.1.27. Check `agy --version` before trusting a flag; `agy changelog` records what moved.
 
 ## Before dispatching
 
@@ -29,7 +29,21 @@ mkdir -p ~/ai-context/agy-logs
 SLUG="agy-<task>-$(date +%s)"
 ACTIVITY=~/ai-context/agy-logs/$SLUG.activity.log   # streams; staleness keys on this
 OUT=~/ai-context/agy-logs/$SLUG.json                # the envelope, written once at the end
-agy --model gemini-3.8-flash-high \
+MODEL=gemini-3.8-flash-high
+command -v jq >/dev/null 2>&1 && jq -n \
+  --arg slug "$SLUG" \
+  --arg model "$MODEL" \
+  --arg prompt_file "<prompt-file>" \
+  --arg worktree "$PWD" \
+  --arg activity_log "$ACTIVITY" \
+  --arg envelope "$OUT" \
+  --arg started_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --arg agy_version "$(agy --version 2>/dev/null | head -1)" \
+  --arg expected_commits 0 \
+  --arg print_timeout 40m \
+  '{slug: $slug, model: $model, prompt_file: $prompt_file, worktree: $worktree, activity_log: $activity_log, envelope: $envelope, started_at: $started_at, agy_version: $agy_version, expected_commits: ($expected_commits | tonumber? // $expected_commits), print_timeout: $print_timeout}' \
+  > "$OUT.meta.json"
+agy --model "$MODEL" \
     --log-file "$ACTIVITY" \
     --output-format json \
     -p "$(cat <prompt-file>)" \
@@ -46,6 +60,7 @@ AGY_PID=$!            # agy itself, no subshell in between
 - `--dangerously-skip-permissions` whenever agy needs tools.
 - No `--effort` with an effort-suffixed slug; `--model gemini-3.8-flash-high --effort low` is rejected.
 - A valueless `-p` and a stray trailing argument are errors since 1.1.18.
+- Sidecar `$OUT.meta.json` records the model and launch parameters at start, because agy's envelope omits the model.
 
 ## Models inside agy
 
