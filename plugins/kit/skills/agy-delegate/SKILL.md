@@ -1,6 +1,6 @@
 ---
 name: agy-delegate
-description: "Load BEFORE any Agent tool call, to decide whether the work belongs on agy at all rather than on a Claude subagent. agy (Antigravity CLI: Gemini 3.7 Flash / Gemini 3.1 Pro / Opus 4.6 / Sonnet 4.6) draws a separate abundant quota. Applies whenever the work is expressible as a written procedure with verify commands: implementing to a spec, rebases, evidence collection, log or CI triage, smoke runs, repetitive per-item procedure, research, doc review, bulk reading. Dispatch is one step: write the task prompt to a file and spawn `subagent_type: \"agy-runner\"` with the path. Also load when an agy run returns empty or truncated output, or when a handler needs to kill, salvage or resume one."
+description: "Load BEFORE any Agent tool call, to decide whether the work belongs on agy at all rather than on a Claude subagent. agy (Antigravity CLI: Gemini 3.8 Flash / Gemini 3.1 Pro / Opus 4.6 / Sonnet 4.6) draws a separate abundant quota. Applies whenever the work is expressible as a written procedure with verify commands: implementing to a spec, rebases, evidence collection, log or CI triage, smoke runs, repetitive per-item procedure, research, doc review, bulk reading. Dispatch is one step: write the task prompt to a file and spawn `subagent_type: \"agy-runner\"` with the path. Also load when an agy run returns empty or truncated output, or when a handler needs to kill, salvage or resume one."
 metadata:
   version: "4.0.0"
 ---
@@ -29,7 +29,7 @@ mkdir -p ~/ai-context/agy-logs
 SLUG="agy-<task>-$(date +%s)"
 ACTIVITY=~/ai-context/agy-logs/$SLUG.activity.log   # streams; staleness keys on this
 OUT=~/ai-context/agy-logs/$SLUG.json                # the envelope, written once at the end
-agy --model gemini-3.7-flash-high \
+agy --model gemini-3.8-flash-high \
     --log-file "$ACTIVITY" \
     --output-format json \
     -p "$(cat <prompt-file>)" \
@@ -40,17 +40,17 @@ AGY_PID=$!            # agy itself, no subshell in between
 
 - Stderr goes to its own file. `2>&1` puts warnings in the envelope and makes it unparseable, which then reads as truncation.
 - Staleness keys on `$ACTIVITY`. Stdout holds one object written at the end, so a healthy run looks frozen if you watch it.
-- `--model` takes the slug: `gemini-3.7-flash-high`, `claude-opus-4-6-thinking`, `claude-sonnet-4-6`. `agy models` lists them. Display strings work but do not survive quoting.
+- `--model` takes the slug: `gemini-3.8-flash-high`, `claude-opus-4-6-thinking`, `claude-sonnet-4-6`. `agy models` lists them. Display strings work but do not survive quoting.
 - `--output-format json` on every headless run. The envelope carries `status`, `response`, `conversation_id`, `duration_seconds`, `num_turns`, `usage`, and is what makes truncation and resume detectable.
 - `--print-timeout` is a Go duration, `40m` or `1h`. Bare `2400` exits 2 with `missing unit in duration`.
 - `--dangerously-skip-permissions` whenever agy needs tools.
-- No `--effort` with an effort-suffixed slug; `--model gemini-3.7-flash-high --effort low` is rejected.
+- No `--effort` with an effort-suffixed slug; `--model gemini-3.8-flash-high --effort low` is rejected.
 - A valueless `-p` and a stray trailing argument are errors since 1.1.18.
 
 ## Models inside agy
 
-- `gemini-3.7-flash-high` for all delegable work: research, doc and market review, second opinions, plan critique, bounded multi-step tool tasks. Strict template, clear spec. Not open-ended unsupervised coding.
-- `gemini-3.6-flash-high` is the fallback if 3.7 misbehaves.
+- `gemini-3.8-flash-high` for all delegable work: research, doc and market review, second opinions, plan critique, bounded multi-step tool tasks. Strict template, clear spec. Not open-ended unsupervised coding.
+- `gemini-3.7-flash-high` is the fallback if 3.8 misbehaves.
 - `gemini-3.1-pro-high` is the one tier above Flash and untested here. Try it on a bounded job before giving it a lane, and record what you find.
 - Avoid `gemini-3.5-flash-*` (verbose, token-hungry, weak at code) and `gpt-oss-120b-medium` (not competitive).
 - agy has its own skills. Matt Pocock's set (grilling, tdd, code-review, domain-modeling) is installed at `~/ai-context/vendor/mattpocock-skills` for agy-side planning and review.
@@ -96,7 +96,7 @@ Write the complete, self-contained prompt to `~/ai-context/agy-prompts/<task>.md
 
 - The prompt goes in the file, not in the subagent's prompt. Inline pays for it twice, your output tokens and its input tokens; agy reads the file at shell level.
 - Do not brief the runner on how to run agy. It loads this skill for the launch line, slugs, kill, resume and the babysit loop. Path in, verified report out.
-- In Workflows, where `subagent_type` is unavailable: `agent(pathOnlyPrompt, {model: 'sonnet', effort: 'low', label: 'antigravity-gemini-3.7:<task>'})`, and the prompt says to load `agy-delegate` and `anti-stall` first. The `antigravity-<model>` label prefix is required; the UI shows the wrapper's Claude model, so the label is the only sign of who is working.
+- In Workflows, where `subagent_type` is unavailable: `agent(pathOnlyPrompt, {model: 'sonnet', effort: 'low', label: 'antigravity-gemini-3.8:<task>'})`, and the prompt says to load `agy-delegate` and `anti-stall` first. The `antigravity-<model>` label prefix is required; the UI shows the wrapper's Claude model, so the label is the only sign of who is working.
 
 ## Handler babysit loop
 

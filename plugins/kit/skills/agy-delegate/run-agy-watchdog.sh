@@ -5,7 +5,7 @@
 # Always appends the AGY_EXITED sentinel to <outfile> — wait on that, per the anti-stall skill.
 set -u
 WT="$1"; PROMPT="$2"; OUT="$3"; EXPECT="$4"; TMOUT="$5"
-MODEL="${6:-gemini-3.7-flash-high}"
+MODEL="${6:-gemini-3.8-flash-high}"
 
 # agy's own --log-file streams; stdout holds one JSON envelope written only at the end.
 # Staleness must key on the streaming log, or every run looks hung until it finishes.
