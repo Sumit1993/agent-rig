@@ -14,6 +14,35 @@ ACTIVITY="${OUT%.*}.activity.log"
 
 : > "$ACTIVITY"
 cd "$WT" || { echo "WATCHDOG: worktree missing" >&2; echo "AGY_EXITED rc=1 status=NO_WORKTREE" >> "$ACTIVITY"; exit 1; }
+STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+AGY_VERSION=$(agy --version 2>/dev/null | head -1 || true)
+# Sidecar metadata written before launch so early deaths are attributable. Issue #62.
+if command -v jq >/dev/null 2>&1; then
+  jq -n \
+    --arg slug "$SLUG" \
+    --arg model "$MODEL" \
+    --arg prompt_file "$PROMPT" \
+    --arg worktree "$WT" \
+    --arg activity_log "$ACTIVITY" \
+    --arg envelope "$OUT" \
+    --arg started_at "$STARTED_AT" \
+    --arg agy_version "$AGY_VERSION" \
+    --arg expected_commits "$EXPECT" \
+    --arg print_timeout "$TMOUT" \
+    '{
+      slug: $slug,
+      model: $model,
+      prompt_file: $prompt_file,
+      worktree: $worktree,
+      activity_log: $activity_log,
+      envelope: $envelope,
+      started_at: $started_at,
+      agy_version: $agy_version,
+      expected_commits: ($expected_commits | tonumber? // $expected_commits),
+      print_timeout: $print_timeout
+    }' > "$OUT.meta.json" 2>/dev/null || true
+fi
+
 agy --model "$MODEL" --log-file "$ACTIVITY" --output-format json \
   -p "$(cat "$PROMPT")" \
   --dangerously-skip-permissions --print-timeout "$TMOUT" > "$OUT" 2> "$OUT.err" &
@@ -41,4 +70,43 @@ RC=$?
 # conversation_id is the resume handle; surface it so a salvage does not have to re-prompt.
 CID=$(jq -r '.conversation_id // empty' "$OUT" 2>/dev/null)
 STATUS=$(jq -r '.status // empty' "$OUT" 2>/dev/null)
-echo "AGY_EXITED rc=$RC status=${STATUS:-UNPARSEABLE} cid=${CID:-none} out=$OUT bytes=$(stat -c %s "$OUT" 2>/dev/null || echo 0)" >> "$ACTIVITY"
+ENDED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+BYTES=$(stat -c %s "$OUT" 2>/dev/null || echo 0)
+
+if command -v jq >/dev/null 2>&1; then
+  jq -n \
+    --arg slug "$SLUG" \
+    --arg model "$MODEL" \
+    --arg prompt_file "$PROMPT" \
+    --arg worktree "$WT" \
+    --arg activity_log "$ACTIVITY" \
+    --arg envelope "$OUT" \
+    --arg started_at "$STARTED_AT" \
+    --arg agy_version "$AGY_VERSION" \
+    --arg expected_commits "$EXPECT" \
+    --arg print_timeout "$TMOUT" \
+    --arg rc "$RC" \
+    --arg status "${STATUS:-UNPARSEABLE}" \
+    --arg conversation_id "${CID:-}" \
+    --arg ended_at "$ENDED_AT" \
+    --arg envelope_bytes "$BYTES" \
+    '{
+      slug: $slug,
+      model: $model,
+      prompt_file: $prompt_file,
+      worktree: $worktree,
+      activity_log: $activity_log,
+      envelope: $envelope,
+      started_at: $started_at,
+      agy_version: $agy_version,
+      expected_commits: ($expected_commits | tonumber? // $expected_commits),
+      print_timeout: $print_timeout,
+      rc: ($rc | tonumber? // $rc),
+      status: $status,
+      conversation_id: $conversation_id,
+      ended_at: $ended_at,
+      envelope_bytes: ($envelope_bytes | tonumber? // $envelope_bytes)
+    }' > "$OUT.meta.json" 2>/dev/null || true
+fi
+
+echo "AGY_EXITED rc=$RC model=$MODEL status=${STATUS:-UNPARSEABLE} cid=${CID:-none} out=$OUT bytes=$(stat -c %s "$OUT" 2>/dev/null || echo 0)" >> "$ACTIVITY"
