@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.8.0](https://github.com/Sumit1993/claude-kit/compare/kit-v0.7.0...kit-v0.8.0) (2026-09-06)
+
+
+### Features
+
+* **direction:** one command for where the estate stands and what is next ([#104](https://github.com/Sumit1993/claude-kit/issues/104)) ([f750924](https://github.com/Sumit1993/claude-kit/commit/f750924ba53f6be072bec32c383b3f69c7a7e4fa))
+* **scripts:** sync raw run records to R2, query them with DuckDB ([#93](https://github.com/Sumit1993/claude-kit/issues/93)) ([a69ed18](https://github.com/Sumit1993/claude-kit/commit/a69ed18eb097a433ae9fc865467e7d44cb2d4a0c))
+
+
+### Bug Fixes
+
+* **pr-watch:** classify on CodeRabbit's verdict line, not its boilerplate footer ([#102](https://github.com/Sumit1993/claude-kit/issues/102)) ([1177c24](https://github.com/Sumit1993/claude-kit/commit/1177c244c80b8c17a6131ea17f0922bb1f194ba1)), closes [#101](https://github.com/Sumit1993/claude-kit/issues/101)
+
+
+### Documentation
+
+* **AGENTS:** Gemini 3.8 Flash Intel 7 to 8 in the model table ([#98](https://github.com/Sumit1993/claude-kit/issues/98)) ([e2ce29b](https://github.com/Sumit1993/claude-kit/commit/e2ce29bd373aaef544d5a16c9e9760edf70cbdd9)), closes [#62](https://github.com/Sumit1993/claude-kit/issues/62)
+* **AGENTS:** state what the organizer seat may do, and cap its reports ([#103](https://github.com/Sumit1993/claude-kit/issues/103)) ([49769a7](https://github.com/Sumit1993/claude-kit/commit/49769a7f4ae0067c2cb9208875fba3154722fd11)), closes [#94](https://github.com/Sumit1993/claude-kit/issues/94) [#95](https://github.com/Sumit1993/claude-kit/issues/95) [#97](https://github.com/Sumit1993/claude-kit/issues/97)
+* list the direction skill, and remove the root AGENTS.md that was ruled against ([#106](https://github.com/Sumit1993/claude-kit/issues/106)) ([e6bae6d](https://github.com/Sumit1993/claude-kit/commit/e6bae6d3338fc832e7a3f49d848d300320f57989))
+
 ## [0.7.0](https://github.com/Sumit1993/claude-kit/compare/kit-v0.6.0...kit-v0.7.0) (2026-09-06)
 
 
