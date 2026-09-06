@@ -189,8 +189,10 @@ while [ ${#PRS[@]} -gt 0 ]; do
       # matched it, so a refused trigger looked like a review still in flight, and the
       # nearest event said "no review ran" when the head IS reviewed. `coderabbit-lane` §4
       # already separates the two refusals; the watcher now does too. Story: claude-kit#28.
+      # Match ONLY the verdict line. CodeRabbit appends "does not re-review already reviewed
+      # commits" to every command reply, so matching that footer fired on all of them. Refs #101.
       ar_ts=$(jq -r '[.[] | select(.user.login | test("coderabbit"))
-                      | select(.body | test("already reviewed commits|Already reviewed the last commit"))]
+                      | select(.body | test("Already reviewed the last commit"))]
                  | last | .updated_at // empty' <<<"$ic_raw" 2>/dev/null)
       # CodeRabbit edits one summary comment in place, so the updated_at dedupe alone still
       # reports an intermediate body that a later edit supersedes. Wait one more poll, then
@@ -200,7 +202,7 @@ while [ ${#PRS[@]} -gt 0 ]; do
           ar_recheck_raw=$(gh api "repos/$REPO/issues/$pr/comments?per_page=100" 2>/dev/null)
           ar_ts2=""
           is_json_array <<<"$ar_recheck_raw" && ar_ts2=$(jq -r '[.[] | select(.user.login | test("coderabbit"))
-                          | select(.body | test("already reviewed commits|Already reviewed the last commit"))]
+                          | select(.body | test("Already reviewed the last commit"))]
                      | last | .updated_at // empty' <<<"$ar_recheck_raw" 2>/dev/null)
           if [ "$ar_ts2" = "$ar_ts" ]; then
             printf '%s' "$ar_ts" > "$ar_state"
