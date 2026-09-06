@@ -8,6 +8,7 @@ Plugin `kit`, path-independent via `${CLAUDE_PLUGIN_ROOT}`:
 
 | Piece | One line |
 |---|---|
+| `skills/direction` | Where the estate stands and what is next: goals are numbered milestones, `p0` orders inside one, the pick is one command |
 | `skills/anti-stall` | Wait on long work without dozing: sentinel first, evidence-keyed loops, batch scripts over agent-per-step |
 | `skills/unattended-run` | Hold a long unattended run: cron wake-up first, organizer never types, stall rule, green is not evidence, park what needs a human |
 | `skills/pr-watch` | Watch a PR this session raised: merge contract, seed and arm the reviewer/CI Monitor, route events as pointers, merge or enqueue |
