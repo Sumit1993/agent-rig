@@ -109,6 +109,48 @@ case "$out" in
   *) fail "chat advice still unconditional: $(printf '%s' "$out" | tr '\n' '|')" ;;
 esac
 
+# --- The footer every reply carries must NOT fire already-reviewed. Bodies are REAL,
+# from prismalens/gh-workflows#133 and #134, reported 2026-09-06. The old matcher also
+# accepted "already reviewed commits", which appears only in this Note, so it fired on
+# every command reply CodeRabbit sends. See claude-kit#101. ---------------------
+cat > "$SANDBOX/triggered.txt" <<'EOF'
+<details>
+<summary>Action performed</summary>
+
+Review triggered.
+
+> Note: CodeRabbit is an incremental review system and does not re-review already reviewed commits. This command is applicable only when automatic reviews are paused.
+
+</details>
+EOF
+
+cat > "$SANDBOX/ratelimited.txt" <<'EOF'
+<details>
+<summary>Action not completed</summary>
+
+Review rate limited.
+
+> Note: CodeRabbit is an incremental review system and does not re-review already reviewed commits. This command is applicable only when automatic reviews are paused.
+
+</details>
+EOF
+
+d3="$SANDBOX/s3"; mkdir -p "$d3"
+run "$SANDBOX/triggered.txt" "$d3" >/dev/null
+out=$(run "$SANDBOX/triggered.txt" "$d3")
+case "$out" in
+  *"ALREADY REVIEWED"*) fail "a Review-triggered reply fired already-reviewed; a review IS running: $(printf '%s' "$out" | tr '\n' '|')" ;;
+  *) pass "a Review-triggered reply does not fire already-reviewed" ;;
+esac
+
+d4="$SANDBOX/s4"; mkdir -p "$d4"
+run "$SANDBOX/ratelimited.txt" "$d4" >/dev/null
+out=$(run "$SANDBOX/ratelimited.txt" "$d4")
+case "$out" in
+  *"ALREADY REVIEWED"*) fail "a rate-limited reply fired already-reviewed; the head is UNREVIEWED: $(printf '%s' "$out" | tr '\n' '|')" ;;
+  *) pass "a rate-limited reply does not fire already-reviewed" ;;
+esac
+
 # --- Both dedupe on updated_at ------------------------------------------------
 out=$(run "$SANDBOX/already.txt" "$d1")
 case "$out" in
