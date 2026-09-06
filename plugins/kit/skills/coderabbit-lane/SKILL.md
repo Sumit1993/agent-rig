@@ -33,20 +33,24 @@ The lane runs on the Free/OSS plan, seat assignment disabled:
 
 | Plan | PR/hr | Files per review |
 |---|---|---|
-| OSS (our public repos) | 1 to 10, typically 1 or 2 | 50 to 150 |
-| Pro | 5 | 150 |
-| Pro+ | 10 | 300 |
+| Free | 1 | 150 |
+| OSS (our public repos) | 1 to 10, typically 1 or 2 | 100 to 300 |
+| Team | 8 | 300 |
 
+Essentials was formerly called Pro, and Team was formerly called Pro+.
+
+- Public repositories with fewer than 10 stars require a manual trigger, so `auto_review` appearing to do nothing there is expected rather than broken.
+- **Do not read the plan off the bot.** CodeRabbit's run configuration reports a feature tier, and it printed "Plan: Team" on a repo that is rate-limited as Free, because open-source projects receive Team features without a subscription. The name the bot prints is not the row of the rate-limit table that applies.
 - The counter is per developer, not per repo, branch, session or subagent. `prismalens`, `sreforge` and `mage-memory` draw one pool. Run at most one review at a time across every repo you touch; parallel runs serialise and delay every lane.
 - Every run spends a slot: initial reviews, automatic incremental reviews after a push, manual `@coderabbitai review`. The label gates automatic review only; a manual summon on an unlabelled PR still spends the counter, which makes it the escape hatch when the Claude lane is down. Enabled repos set `auto_pause_after_reviewed_commits: 1` in `.coderabbit.yaml`: one review per PR, then batch fixes before re-requesting.
 - Auto-pause is recoverable. A push past the limit pauses the lane on that PR and nothing arrives on its own. A bare `@coderabbitai resume` restarts it, and what follows is a real review of the final head that posts `Review completed`, so a PR paused by its own fix commits can still meet a merge condition requiring one. Resume deliberately; it spends a slot.
 - Batch fixes before requesting. Never spend a slot on a commit you are about to amend.
 - Remaining capacity is not readable. `@coderabbitai rate limit` returns documentation links.
-- The notice's stated wait is accurate. Obey it. It is the per-developer window anchored to the last accepted review, measured exact to within fifteen seconds. A flat 60 minutes from the refusal has the wrong anchor and lands about 21 minutes late (`flat-60-minute-wait-error`). `watch-coderabbit.sh` arms on the parsed figure and falls back to `CR_WATCH_COOLDOWN_SECONDS` (default 3600) only when nothing parses; the event line names which it used. CodeRabbit has used at least three wordings, and the pattern once matched only the first (`claude-kit-28-rate-limit-wording-gap`):
+- The notice's stated wait is accurate. Obey it, because it is the same one-review-per-developer-per-hour Free limit measured directly, not a guess. It is the per-developer window anchored to the last accepted review, measured exact to within fifteen seconds. A flat 60 minutes from the refusal has the wrong anchor and lands about 21 minutes late (`flat-60-minute-wait-error`). `watch-coderabbit.sh` arms on the parsed figure and falls back to `CR_WATCH_COOLDOWN_SECONDS` (default 3600, a coincidental match to the hourly limit since this is the unparseable-notice fallback, not the limit itself) only when nothing parses; the event line names which it used. CodeRabbit has used at least three wordings, and the pattern once matched only the first (`claude-kit-28-rate-limit-wording-gap`):
   - `Next review available in: **47 minutes**`
   - `**Next included review available in 30 minutes.**`
   - `Your next included review will be available in 23 minutes.`
-- The figures "roughly 40 minutes", "37 rejected", "45 or more succeeds" have no recorded provenance and disagree with the 3600-second fallback and with longer waits seen since. Folklore until someone measures and dates them; never build arithmetic on them (`session-misused-unattributed-cooldown-figures`). What was observed: a retry at 37 minutes was rejected outright, retries at 45 minutes or more succeeded. Budget 45 minutes and confirm acceptance.
+- The documented limit is one review per developer per hour on Free, rolling. The observed interval between an accepted review and the next runs about 55 to 57 minutes.
 - `review full` is not a way past the limit. Both forms draw the same budget. A success shortly after a refusal is the window rolling over. `review full` is for the different refusal, "does not re-review already reviewed commits"; the clock is for the limit.
 - CodeRabbit edits its reply in place, so a first read can show the opposite of the settled outcome. Read `updated_at`, wait for it to stop changing, classify on the settled body, and re-read before acting, not only before classifying (`settled-body-classification-trap`).
 
