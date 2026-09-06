@@ -98,6 +98,31 @@ RC=$?
 ENDED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 BYTES=$(stat -c %s "$OUT" 2>/dev/null || echo 0)
 
+# Quota exhaustion records best-effort state and updates the sidecar. Issue #47.
+QUOTA_EXHAUSTED=false
+if command -v jq >/dev/null 2>&1; then
+  ERR_MSG=$(jq -r 'if .error | type == "string" then .error elif .error != null then (.error | tostring) else "" end' "$OUT" 2>/dev/null || true)
+  ERR_LOWER=$(printf '%s' "$ERR_MSG" | tr '[:upper:]' '[:lower:]')
+  if printf '%s' "$ERR_LOWER" | grep -q 'quota' && printf '%s' "$ERR_LOWER" | grep -qE 'reached|resource[_ ]exhausted|429'; then
+    QUOTA_EXHAUSTED=true
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+    AGY_QUOTA="$SCRIPT_DIR/agy-quota.sh"
+    if [ -f "$AGY_QUOTA" ]; then
+      RESET_ARG=""
+      if [[ "$ERR_MSG" =~ [Rr]esets?[[:space:]]+in[[:space:]]+([0-9]+[hms][0-9hms]*) ]]; then
+        RESET_ARG="${BASH_REMATCH[1]}"
+      elif [[ "$ERR_MSG" =~ ([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(Z|[+-][0-9]{2}:?[0-9]{2})?) ]]; then
+        RESET_ARG="${BASH_REMATCH[1]}"
+      fi
+      if [ -n "$RESET_ARG" ]; then
+        bash "$AGY_QUOTA" record "$MODEL" "$RESET_ARG" 2>/dev/null || true
+      else
+        bash "$AGY_QUOTA" record "$MODEL" 2>/dev/null || true
+      fi
+    fi
+  fi
+fi
+
 if command -v jq >/dev/null 2>&1; then
   CID=$(jq -r '.conversation_id // empty' "$OUT" 2>/dev/null || true)
   STATUS=$(jq -r '.status // empty' "$OUT" 2>/dev/null || true)
@@ -127,6 +152,7 @@ if command -v jq >/dev/null 2>&1; then
     --arg ended_at "$ENDED_AT" \
     --arg envelope_bytes "$BYTES" \
     --argjson launched "$LAUNCHED" \
+    --argjson quota_exhausted "$QUOTA_EXHAUSTED" \
     '{
       slug: $slug,
       model: $model,
@@ -144,7 +170,8 @@ if command -v jq >/dev/null 2>&1; then
       conversation_id: $conversation_id,
       ended_at: $ended_at,
       envelope_bytes: ($envelope_bytes | tonumber? // $envelope_bytes),
-      launched: $launched
+      launched: $launched,
+      quota_exhausted: $quota_exhausted
     }' > "$OUT.meta.json.tmp" 2>/dev/null && mv -f "$OUT.meta.json.tmp" "$OUT.meta.json" 2>/dev/null || rm -f "$OUT.meta.json.tmp" 2>/dev/null
 else
   CID=""

@@ -14,7 +14,7 @@ Verified against agy 1.1.27. Check `agy --version` before trusting a flag; `agy 
 ## Before dispatching
 
 - Permission to use subagents is not an exemption from the delegation rule. It grants model choice, which `AGENTS.md` already gives. A Claude subagent on delegable work needs a stated reason in your reply, and "simpler to set up" is not one.
-- Probe one lane before fanning out. One `-p "say ok"` costs seconds; five wrappers each discovering an empty quota cost five wrappers.
+- Probe one lane before fanning out. Check `agy-quota.sh check <model>` first, and skip the probe entirely when the file already says the lane is dead. One `-p "say ok"` costs seconds; five wrappers each discovering an empty quota cost five wrappers.
 - Lane count is derived, never a constant. Name the scarce resource and its scope first (a review counter, a serialising merge invariant, agy-Claude's weekly pool). A limit assumed per-repo can be org-wide or per-developer. Serialise inside that scope, run everything else wide.
 - Gemini exhausted is not agy exhausted. Probe `claude-opus-4-6-thinking` or `claude-sonnet-4-6` with `-p "say ok"`, and if one answers use it, one job at a time, never parallel. Park on the reset timer only when every lane is dry.
 - Reference repo content is live refs, never a working tree. A prompt that copies or consults another repo's files fetches them with `gh api repos/<r>/contents/<path>`, or `git fetch` then `git show origin/main:<path>`, and says so explicitly. A checkout's files lag its refs (`stale-working-tree-seeds-canon-repo`).
@@ -62,6 +62,7 @@ AGY_PID=$!            # agy itself, no subshell in between
 - No `--effort` with an effort-suffixed slug; `--model gemini-3.8-flash-high --effort low` is rejected.
 - A valueless `-p` and a stray trailing argument are errors since 1.1.18.
 - Sidecar `$OUT.meta.json` records the model and launch parameters at start, because agy's envelope omits the model. The model field is the requested model, and launched says whether it ran.
+- `agy-quota.sh` records quota state and checks lane availability across runs, so dispatches avoid launching into known-dead models.
 
 ## Models inside agy
 
