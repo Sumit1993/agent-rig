@@ -36,7 +36,7 @@ Claude models via the Agent or Workflow `model` parameter (`fable`, `opus`, `son
 - Scores are defaults. Override the model freely. The delegation rule below is not overridable.
 - Shipping work: Intelligence > Taste > Cost. Cheap models gather context and prototype, final execution moves up. Sub-par output is redone on a smarter model without asking: Opus 5 for code and review, Fable 5.1 only when planning failed.
 - Never tell Opus 5 or Fable 5.1 to double-check or echo reasoning. They self-verify, and the second triggers refusals on Fable. Sonnet and agy-Gemini need explicit verification steps.
-- Never Haiku.
+- Never choose Haiku: not as an Agent `model`, not as a session model. Runtime agent types such as `claude-code-guide` and headless launches pick their own model; the miner counts those, the hook does not block them.
 # Reviewers
 - `claude[bot]` reviews every same-repo PR in the consumer repos, automatically.
 - CodeRabbit is the only escalation: automatic on `gh-workflows`, where the Claude lane cannot run, and by hand elsewhere with the `coderabbit_review` label. The counter is per developer, so `prismalens`, `sreforge` and `mage-memory` share one pool.
