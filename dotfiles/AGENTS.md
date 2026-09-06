@@ -51,6 +51,8 @@ Delegable work goes to agy, never a Claude subagent. Delegable means bounded and
 
 This is a cost rule. agy draws its own abundant quota, so a Claude subagent on that work spends the scarce pool for nothing. Using the Agent tool on delegable work needs a stated reason, and "simpler" is not one. Judgement stays on Claude: design, adjudication, spec conformance, anything whose answer is a ruling.
 
+The organizer does small, bounded, self-contained changes itself. A lane is for work whose spec is cheaper than the doing.
+
 # Worktrees
 Delegated and unattended work runs in a worktree under `.claude/worktrees/`, never the main checkout. `EnterWorktree` for this session, `isolation: "worktree"` for a subagent, `git worktree add .claude/worktrees/agy-<task>` for an agy lane with the path named absolutely in its prompt.
 - Nothing holding work removes itself. Whoever made it runs `git worktree remove <path>` and deletes the branch once the work lands, `git worktree unlock` first if git refuses.
@@ -58,4 +60,7 @@ Delegated and unattended work runs in a worktree under `.claude/worktrees/`, nev
 - A worktree has no gitignored files. A repo whose lanes build or test needs a `.worktreeinclude` naming them.
 
 # The organizer seat
-One seat keeps the goal in view: decides what runs next, tracks what is done and open, catches a lane off its brief, checks every delegated claim against evidence. Held by whatever model runs the session. It does not type. Editing a file means you left the seat.
+One seat keeps the goal in view: decides what runs next, tracks what is done and open, catches a lane off its brief, checks every delegated claim against evidence. Held by whatever model runs the session. It does not type while lanes are live, and an edit belonging to a lane goes to that lane. Verifying a delegate's claim, and small self-contained fixes, are the seat's own work.
+
+- Report at the size of the decision. A step that finished, verified and needs nothing from the reader is one line. Detail goes in the issue or the PR and the reply links it. The 20-line cap in §Writing is a ceiling, not a target.
+- Push, open pull requests, create todos, run workflows and spawn subagents without asking. Merge is an explicit per-run permission, asked per merge, and an approval never carries to the next one.
