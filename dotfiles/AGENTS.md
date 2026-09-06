@@ -29,7 +29,7 @@ An issue carries the decision, the evidence and the exact commands, and copies i
 | :--- | :-: | :-: | :-: | :--- |
 | Fable 5.1 | 2 | 9 | 9 | Plan-hard problems, taste-critical output |
 | Opus 5 (1M) | 4 | 9 | 8 | Session seat, default review, escalated coding |
-| Gemini 3.8 Flash | 6 | 7 | 5 | Default executor for bounded specs, via agy |
+| Gemini 3.8 Flash | 6 | 8 | 5 | Default executor for bounded specs, via agy |
 | Sonnet 5 | 7 | 6 | 6 | Thin wrappers, light passes, mechanical work |
 
 Claude models via the Agent or Workflow `model` parameter (`fable`, `opus`, `sonnet`). Gemini only through Antigravity CLI; `agy-delegate` owns model choice inside a run.
