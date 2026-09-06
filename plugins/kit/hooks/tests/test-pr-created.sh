@@ -107,7 +107,7 @@ second=$(run "gh pr view 12" "$URL" "$shared")
 # An agy lane redirects output to a file, so the URL never reaches a Bash result;
 # it arrives in the handler subagent's report. Story: gh-workflows#69.
 agent_dir=$(mktemp -d)
-quiet=$(run 'agy --model gemini-3.7-flash-high -p "$(cat p.md)" > "$OUT" 2> "$OUT.err"' "" "$agent_dir")
+quiet=$(run 'agy --model gemini-3.8-flash-high -p "$(cat p.md)" > "$OUT" 2> "$OUT.err"' "" "$agent_dir")
 [ -z "$quiet" ] && pass "a redirected agy launch surfaces no URL, so nothing fires" \
   || fail "fired on a launch that printed no URL: ${quiet:0:60}"
 

@@ -27,15 +27,15 @@ An issue carries the decision, the evidence and the exact commands, and copies i
 # Models
 | Model | Afford | Intel | Taste | Use for |
 | :--- | :-: | :-: | :-: | :--- |
-| Fable 5 | 2 | 9 | 9 | Plan-hard problems, taste-critical output |
+| Fable 5.1 | 2 | 9 | 9 | Plan-hard problems, taste-critical output |
 | Opus 5 (1M) | 4 | 9 | 8 | Session seat, default review, escalated coding |
-| Gemini 3.7 Flash | 6 | 7 | 5 | Default executor for bounded specs, via agy |
+| Gemini 3.8 Flash | 6 | 7 | 5 | Default executor for bounded specs, via agy |
 | Sonnet 5 | 7 | 6 | 6 | Thin wrappers, light passes, mechanical work |
 
 Claude models via the Agent or Workflow `model` parameter (`fable`, `opus`, `sonnet`). Gemini only through Antigravity CLI; `agy-delegate` owns model choice inside a run.
 - Scores are defaults. Override the model freely. The delegation rule below is not overridable.
-- Shipping work: Intelligence > Taste > Cost. Cheap models gather context and prototype, final execution moves up. Sub-par output is redone on a smarter model without asking: Opus 5 for code and review, Fable 5 only when planning failed.
-- Never tell Opus 5 or Fable 5 to double-check or echo reasoning. They self-verify, and the second triggers refusals on Fable. Sonnet and agy-Gemini need explicit verification steps.
+- Shipping work: Intelligence > Taste > Cost. Cheap models gather context and prototype, final execution moves up. Sub-par output is redone on a smarter model without asking: Opus 5 for code and review, Fable 5.1 only when planning failed.
+- Never tell Opus 5 or Fable 5.1 to double-check or echo reasoning. They self-verify, and the second triggers refusals on Fable. Sonnet and agy-Gemini need explicit verification steps.
 - Never Haiku.
 # Reviewers
 - `claude[bot]` reviews every same-repo PR in the consumer repos, automatically.

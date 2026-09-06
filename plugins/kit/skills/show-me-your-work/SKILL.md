@@ -78,7 +78,7 @@ Fix the log, not the story. If the work diverged from what a row claims, the row
 
 Before handing back, spawn a reviewer on a different model family from the one that did the work.
 Self-review is not a substitute; the point is fresh eyes you cannot bring yourself. Route it
-through the **agy-delegate** skill (Gemini 3.7 Flash is the cheap different family) or, staying in
+through the **agy-delegate** skill (Gemini 3.8 Flash is the cheap different family) or, staying in
 the Claude family, a tier you did not run the work on. The reviewer reads the audit trail and the
 run's transcript, then flags what the user should pay attention to. Not a redo of the work, a scan
 for what's suboptimal or risky.
