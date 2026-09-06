@@ -299,7 +299,7 @@ For each fixed issue, reply to the thread's root comment:
 
 ```bash
 gh api "repos/$owner/$repo/pulls/$pr_number/comments/<root_comment_databaseId>/replies" \
-  -f body="@coderabbitai Fixed in <commit-sha>: <one-sentence what changed>. Please verify and resolve."
+  -f body="@coderabbitai Fixed in <commit-sha>: <one-sentence what changed>. Please verify."
 ```
 
 If merge depends on thread resolution, poll the thread's `isResolved` via GraphQL (resolution typically lands in 1–5 min). Do NOT resolve threads yourself via the `resolveReviewThread` mutation — the reviewer (or the human) resolves; an author self-resolving bypasses the review gate.
@@ -352,4 +352,4 @@ Optionally react to CodeRabbit's main comment with 👍.
 - **Preserve issue titles** - Use CodeRabbit's exact titles, don't paraphrase
 - **Preserve thread state** - Ignore resolved and outdated CodeRabbit threads
 - **Preserve ordering** - Keep display order aligned with unresolved current threads; process fixes by severity only after display
-- **Per-issue replies go IN-THREAD** - Reply to CodeRabbit's root comment via the `/replies` endpoint with `@coderabbitai ... verify and resolve`; fix notes posted only as new top-level comments do not resolve threads and block merges under `required_review_thread_resolution` rulesets
+- **Per-issue replies go IN-THREAD** - Reply to CodeRabbit's root comment via the `/replies` endpoint with `@coderabbitai ... Please verify`; fix notes posted only as new top-level comments do not resolve threads and block merges under `required_review_thread_resolution` rulesets

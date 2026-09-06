@@ -48,7 +48,7 @@ git clone https://github.com/Sumit1993/claude-kit && ./claude-kit/dotfiles/insta
 
 Skills sourced from someone else live here as real copies, never symlinks. A symlink puts the file under another tool's ownership, and `coderabbit skills` and `npx skills` both replace what they manage, dropping any patch.
 
-Each vendored `SKILL.md` records `upstream`, `upstream_version`, `upstream_latest_seen`, and `patched` with a `patch_note` in `metadata`. Checking for updates is manual:
+Every vendored `SKILL.md` records `upstream` in `metadata`, and a patched one also records `upstream_version`, `upstream_latest_seen`, `patched` and `patch_note`. Checking for updates is manual:
 
 ```bash
 coderabbit skills          # CodeRabbit's autofix; reports its current version
