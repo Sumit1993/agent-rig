@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.7.0](https://github.com/Sumit1993/claude-kit/compare/kit-v0.6.0...kit-v0.7.0) (2026-09-06)
+
+
+### Features
+
+* **agy-delegate:** record model and launch metadata in sidecar ([#65](https://github.com/Sumit1993/claude-kit/issues/65)) ([ece63dc](https://github.com/Sumit1993/claude-kit/commit/ece63dc3ee5b9b04cd33a273495d56e6395cb981))
+* **scripts:** add check.sh wrapper and rehome audit scripts ([#68](https://github.com/Sumit1993/claude-kit/issues/68)) ([0cce229](https://github.com/Sumit1993/claude-kit/commit/0cce22925abc73612d5bd88414dc1111b74a4ff4))
+
+
+### Bug Fixes
+
+* **coderabbit-lane:** match doctrine to the Free plan we are actually on ([#76](https://github.com/Sumit1993/claude-kit/issues/76)) ([94655ba](https://github.com/Sumit1993/claude-kit/commit/94655ba88419c9f10ce9b6996e4fac3835d8f7b4)), closes [#73](https://github.com/Sumit1993/claude-kit/issues/73)
+* **hooks:** allow quoted heredoc prose in no-broad-agy-kill ([#69](https://github.com/Sumit1993/claude-kit/issues/69)) ([ca64a69](https://github.com/Sumit1993/claude-kit/commit/ca64a699aca0e2388b176a79c2947f98aa526a44))
+* **hooks:** close no-haiku gap and scope rule to deliberate choice ([#85](https://github.com/Sumit1993/claude-kit/issues/85)) ([80531f6](https://github.com/Sumit1993/claude-kit/commit/80531f6ce5e9c9e246942b236eb90cf3730818f6)), closes [#77](https://github.com/Sumit1993/claude-kit/issues/77)
+* **kit:** five doctrine-drift defects the consistency audit found ([#64](https://github.com/Sumit1993/claude-kit/issues/64)) ([21e1751](https://github.com/Sumit1993/claude-kit/commit/21e1751b5357b48de8c04cef084712cdb48e52c0))
+* **pr-watch:** print delta before absolute in retry and rate-limit events ([#84](https://github.com/Sumit1993/claude-kit/issues/84)) ([4baca94](https://github.com/Sumit1993/claude-kit/commit/4baca9420beef74e945bff2bdc65c3fba69150c2))
+* **pr-watch:** settle the ALREADY REVIEWED body before emitting it ([#83](https://github.com/Sumit1993/claude-kit/issues/83)) ([dce40b2](https://github.com/Sumit1993/claude-kit/commit/dce40b2052772ff39f4f1e920e0178742c07f591))
+
+
+### Documentation
+
+* **unattended-run:** clarify absent operator output and grant todos ([#66](https://github.com/Sumit1993/claude-kit/issues/66)) ([1b72210](https://github.com/Sumit1993/claude-kit/commit/1b722103435dea4e719bb8b169f16ff67b6a38ce))
+
+
+### Tests
+
+* **hooks:** cover the three entries nobody exercised ([#78](https://github.com/Sumit1993/claude-kit/issues/78)) ([91ffca1](https://github.com/Sumit1993/claude-kit/commit/91ffca1b8dbe750595bd121fdc20021d6458c41d))
+
+
+### Miscellaneous Chores
+
+* **kit:** Fable 5.1 and Gemini 3.8 Flash are the current models ([#63](https://github.com/Sumit1993/claude-kit/issues/63)) ([1fec128](https://github.com/Sumit1993/claude-kit/commit/1fec128929eb275453bcb5a05e93c647d8536092))
+
 ## [0.6.0](https://github.com/Sumit1993/claude-kit/compare/kit-v0.5.3...kit-v0.6.0) (2026-09-04)
 
 
