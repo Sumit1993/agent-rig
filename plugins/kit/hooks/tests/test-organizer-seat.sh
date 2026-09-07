@@ -45,6 +45,15 @@ check "fires on the first edit while a run is live" 2 s1
 check "stays quiet for the rest of that session"    0 s1
 check "a different session gets its own nudge"      2 s2
 
+# Guard reporting: when blocking, exits 2 even with mage absent, and stderr contains guard id
+err=$(printf '{"session_id":"s_guard"}' | PATH="$FAKEBIN:/usr/bin:/bin" "$HOOK" 2>&1 >/dev/null)
+rc=$?
+if [ "$rc" -eq 2 ] && grep -q '^mage:kit/guard/organizer-seat$' <<<"$err"; then
+  echo "PASS: blocks with exit 2 and guard id on stderr when mage absent"
+else
+  echo "FAIL: guard report check failed (rc=$rc, err=$err)"; fails=$((fails + 1))
+fi
+
 kill -9 "$FAKE_PID" 2>/dev/null; FAKE_PID=""; sleep 1
 if pgrep -x agy >/dev/null 2>&1; then
   echo "SKIP: silent again once the run ends (a real agy run is active)"
