@@ -2,7 +2,7 @@
 name: claude-review-lane
 description: "How our Claude review lane (`claude[bot]`) behaves on any PR of any age: reading the liveness comment's verdicts, the ways the lane stays quiet (skipped author, auto-pause, fork head, self-skip), the summon grammar (`@claude review`, `@claude full review`, the per-run `--model` override), verification rounds, and who may resolve a `claude[bot]` thread. Load when a `claude[bot]` thread or a liveness comment is in front of you, when the lane has gone quiet or a review is missing, when deciding whether to summon or re-summon, and when judging whether a head has actually been reviewed before it merges. Arming a watcher on a PR this session raised is `pr-watch` instead."
 metadata:
-  version: "3.3.0"
+  version: "3.3.1"
 ---
 
 # The Claude review lane

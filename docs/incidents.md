@@ -123,3 +123,9 @@ A required check demanded a reviewer artifact the reviewer only emits when it ha
 ## merge-reported-as-waiting
 
 A lane merged the first PR of an eight hour run, then reported only that it was waiting on a cooldown. The organizer found out about the merge by checking independently. Lead with what landed.
+
+## verdict-enum-copied-twice-both-short
+
+The review lane's `announce` job emits fourteen `verdict_kind` values. Two independent prose copies of that enum had drifted from it: `claude-review-lane` documented eight, and the gh-workflows dashboard bucketed unrecognised kinds as `error`. Both were missing the same three, `paused-by-request`, `skipped-trivial` and `superseded`, and neither gap was noticed until a night of review-lane triage went looking for something else.
+
+The dashboard now has `tests/test-verdict-kind-drift.py` holding it and the workflow together. Nothing can do that for a skill, because a skill is prose an agent reads, not code a test can import. That is the standing cost of skills being self-sufficient rather than pointing at a document, and the price is paid by re-reading the source when the surface it describes changes, not by a check.
