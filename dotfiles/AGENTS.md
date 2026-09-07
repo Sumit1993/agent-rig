@@ -41,7 +41,8 @@ Claude models via the Agent or Workflow `model` parameter (`fable`, `opus`, `son
 - `claude[bot]` reviews every same-repo PR in the consumer repos, automatically.
 - The account is on Free, so CodeRabbit reviews code only on public repos, through the OSS tier.
 - On a private repo, `claude-kit` included, there is no CodeRabbit code review at all, and the escalation there is a model pass.
-- On a public repo under 10 stars, the review must be triggered by hand.
+- Whether auto_review fires is a per-repo fact, read from the first bot comment's timestamp, never from the star count.
+- A draft spends nothing, to open or to push to. A non-draft spends at `gh pr create`. A draft spends when it is marked ready.
 - The allowance is one review per developer per hour, rolling, shared across every repo.
 - Spend a slot on judgement, never a path test: a sensitive surface (CI and workflows, credentials and crypto, the engine core, contracts and schemas), or a Claude finding that wants a reviewer sharing no model or prompt.
 - Procedure: `claude-review-lane`, `coderabbit-lane`, `pr-watch`.
