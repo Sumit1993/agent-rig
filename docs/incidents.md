@@ -54,6 +54,8 @@ A run concluded `cancelled` with zero jobs. It had been evicted from its concurr
 
 Every review round ended by posting a top-level verdict comment. That fired `issue_comment` into the PR's concurrency group and took the single pending seat from any queued in-thread reply, so a reply posted while a round ran was dropped, every time. Bot-authored comments now route to a per-run throwaway group.
 
+The pending seat itself is not the bug and was not fixed. It is GitHub's documented default: one run per group in progress, one pending, and a new arrival evicts the pending one. Human replies are not diverted and are not meant to be, so a burst of them still leaves zero-job cancellations, which are normal. Only the lane's own emissions were ever the fault. `claude-review-lane` once generalised this story into a diagnostic saying such a cancellation meant a stale stub; that inference was never true and cost a session a wrong diagnosis on 2026-09-07.
+
 ## prismalens-415-retires-automatic-admission
 
 `review-admit.yml` applied the `coderabbit_review` label on a path match against `.github/high-risk-paths.txt`, and a `review-evidence` gate held such PRs red until `coderabbitai[bot]` evidence existed. prismalens #415 retired both. Neither file is on main, and admission became a hand-applied label.

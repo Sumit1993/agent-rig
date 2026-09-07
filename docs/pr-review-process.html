@@ -458,7 +458,130 @@ and the liveness comment cheerfully reports a successful review. You have to rep
 most "why is this still blocked" confusion, and it is deliberate: a push is a claim about code, a reply is a claim about a
 specific finding, and only the second one tells the lane which threads to re-check.</div>
 
-<h2><span class="n">5</span>The token question</h2>
+<h2><span class="n">5</span>Everything that is not the review</h2>
+<p>The four jobs above decide what a round says. Nothing in them records that the round happened, and nothing in them
+notices when a round does not. That work sits outside the review entirely, in a Worker, a database and three watchers,
+and it exists because a green job proves nothing on its own.</p>
+
+<p>The two model-running jobs are covered above and not repeated here: <code>verify</code> re-checks past findings and
+writes a schema-validated artifact but never touches GitHub, and <code>mutate</code> holds no model and is the only job
+that posts or resolves. What follows is the machinery around them.</p>
+
+<figure>
+<figcaption>Where a round's record goes, and what is written when no round happens</figcaption>
+<svg viewBox="0 0 940 400" role="img" aria-label="Telemetry path: the review job posts a record to the Worker, which writes usage_records, lane_events and round_agents in D1, read by the dashboard">
+  <defs><marker id="tel1" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#7a828c"/></marker></defs>
+
+  <rect x="20" y="40" width="200" height="118" rx="9" fill="#2b5f9e"/>
+  <text x="120" y="66" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">the round ran</text>
+  <text x="120" y="88" text-anchor="middle" fill="#cfe0f3" font-size="10.5">telemetry step reads the</text>
+  <text x="120" y="103" text-anchor="middle" fill="#cfe0f3" font-size="10.5">execution file and the</text>
+  <text x="120" y="118" text-anchor="middle" fill="#cfe0f3" font-size="10.5">subagent transcripts</text>
+  <text x="120" y="141" text-anchor="middle" fill="#fff" font-size="10" font-weight="600">warns and exits 0 on failure</text>
+
+  <rect x="20" y="196" width="200" height="104" rx="9" fill="#8a5a2b"/>
+  <text x="120" y="222" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">the round did not</text>
+  <text x="120" y="244" text-anchor="middle" fill="#f2e0cc" font-size="10.5">skip-author, fork-head,</text>
+  <text x="120" y="259" text-anchor="middle" fill="#f2e0cc" font-size="10.5">auto-paused, no-token,</text>
+  <text x="120" y="274" text-anchor="middle" fill="#f2e0cc" font-size="10.5">skip-trivial, superseded</text>
+  <text x="120" y="292" text-anchor="middle" fill="#fff" font-size="10">each names its own reason</text>
+
+  <line x1="220" y1="99" x2="320" y2="150" stroke="#7a828c" stroke-width="1.6" marker-end="url(#tel1)"/>
+  <line x1="220" y1="248" x2="320" y2="196" stroke="#7a828c" stroke-width="1.6" marker-end="url(#tel1)"/>
+
+  <rect x="322" y="132" width="200" height="82" rx="8" fill="#fff" stroke="#b3403a" stroke-width="2"/>
+  <text x="422" y="158" text-anchor="middle" font-size="12" font-weight="600" fill="#b3403a">POST /ingest</text>
+  <text x="422" y="178" text-anchor="middle" font-size="10.5" fill="#4a5160">bearer token, one shared</text>
+  <text x="422" y="193" text-anchor="middle" font-size="10.5" fill="#4a5160">secret per consumer repo</text>
+
+  <line x1="522" y1="173" x2="612" y2="173" stroke="#7a828c" stroke-width="1.6" marker-end="url(#tel1)"/>
+
+  <rect x="614" y="40" width="300" height="264" rx="9" fill="#f6f2e9" stroke="#e3ddd1"/>
+  <text x="764" y="66" text-anchor="middle" font-size="12" font-weight="600" fill="#1e222b">D1</text>
+
+  <rect x="632" y="80" width="264" height="58" rx="7" fill="#fff" stroke="#c9c2b4"/>
+  <text x="764" y="100" text-anchor="middle" font-size="11" font-weight="600" fill="#1e222b">usage_records</text>
+  <text x="764" y="117" text-anchor="middle" font-size="9.8" fill="#5b6270">one row per round: cost, verdict,</text>
+  <text x="764" y="130" text-anchor="middle" font-size="9.8" fill="#5b6270">variant identity, what the round saw</text>
+
+  <rect x="632" y="148" width="264" height="52" rx="7" fill="#fff" stroke="#c9c2b4"/>
+  <text x="764" y="168" text-anchor="middle" font-size="11" font-weight="600" fill="#1e222b">lane_events</text>
+  <text x="764" y="186" text-anchor="middle" font-size="9.8" fill="#5b6270">one row per round that did not happen</text>
+
+  <rect x="632" y="210" width="264" height="52" rx="7" fill="#fff" stroke="#c9c2b4"/>
+  <text x="764" y="230" text-anchor="middle" font-size="11" font-weight="600" fill="#1e222b">round_agents</text>
+  <text x="764" y="248" text-anchor="middle" font-size="9.8" fill="#5b6270">one row per subagent: model, tokens, tools</text>
+
+  <text x="764" y="286" text-anchor="middle" font-size="10" fill="#6b7280">read back through the Worker by the dashboard</text>
+
+  <text x="30" y="330" font-size="10.5" fill="#6b7280">A failed POST warns and exits 0, always. Telemetry must never fail a review, and that decision is why the watchers below exist.</text>
+  <text x="30" y="352" font-size="10.5" fill="#6b7280">An absent row is therefore ambiguous by construction: it can mean the round was skipped, or that the record never arrived.</text>
+</svg>
+</figure>
+
+<p>Two things in that picture are easy to misread. <code>usage_records</code> holds what the round <em>saw</em>, which is
+not the same as what is true now: a pull request's title, author and state are captured at round time and never revisited.
+And <code>round_agents</code> exists because a round's cost is mostly its subagents' cost, which the round-level total
+cannot attribute. The per-agent split comes from the transcripts the CLI writes beside the execution stream, joined to the
+execution file's own agent identities on <code>task_id</code>.</p>
+
+<h3>The three watchers, and what each one's silence means</h3>
+<p>Nothing above can report its own failure, because the report would travel the channel that just failed. That is not a
+gap to be patched inside the pipeline; it is the reason there are watchers outside it.</p>
+
+<figure>
+<figcaption>What each watcher proves, and the question it cannot answer</figcaption>
+<svg viewBox="0 0 940 350" role="img" aria-label="Three watchers: canary proves ingest is alive, reconciler proves rounds were recorded, pr-state hook keeps PR facts current">
+  <rect x="20" y="30" width="286" height="200" rx="9" fill="#fff" stroke="#2b5f9e" stroke-width="2"/>
+  <text x="163" y="56" text-anchor="middle" font-size="12.5" font-weight="600" fill="#2b5f9e">canary</text>
+  <text x="163" y="76" text-anchor="middle" font-size="10" fill="#6b7280">scheduled, in gh-workflows</text>
+  <text x="163" y="102" text-anchor="middle" font-size="10.5" fill="#3a4150">Posts a known ping and reads it</text>
+  <text x="163" y="117" text-anchor="middle" font-size="10.5" fill="#3a4150">back. Proves the token, the route</text>
+  <text x="163" y="132" text-anchor="middle" font-size="10.5" fill="#3a4150">and the database are all alive.</text>
+  <rect x="38" y="150" width="250" height="62" rx="7" fill="#fdf6f5" stroke="#e0b6b3"/>
+  <text x="163" y="170" text-anchor="middle" font-size="10" font-weight="600" fill="#b3403a">cannot answer</text>
+  <text x="163" y="187" text-anchor="middle" font-size="9.8" fill="#7a4a47">whether any actual round was</text>
+  <text x="163" y="200" text-anchor="middle" font-size="9.8" fill="#7a4a47">recorded. It only pings itself.</text>
+
+  <rect x="326" y="30" width="286" height="200" rx="9" fill="#fff" stroke="#6d4aa8" stroke-width="2"/>
+  <text x="469" y="56" text-anchor="middle" font-size="12.5" font-weight="600" fill="#6d4aa8">reconciler</text>
+  <text x="469" y="76" text-anchor="middle" font-size="10" fill="#6b7280">scheduled, reads from outside</text>
+  <text x="469" y="102" text-anchor="middle" font-size="10.5" fill="#3a4150">Lists review runs from the Actions</text>
+  <text x="469" y="117" text-anchor="middle" font-size="10.5" fill="#3a4150">API, asks the Worker which run ids</text>
+  <text x="469" y="132" text-anchor="middle" font-size="10.5" fill="#3a4150">it holds, and fails red on a gap.</text>
+  <rect x="344" y="150" width="250" height="62" rx="7" fill="#f7f4fb" stroke="#c3b2dd"/>
+  <text x="469" y="170" text-anchor="middle" font-size="10" font-weight="600" fill="#6d4aa8">the only one that can</text>
+  <text x="469" y="187" text-anchor="middle" font-size="9.8" fill="#5c4a78">catch a failure of the channel</text>
+  <text x="469" y="200" text-anchor="middle" font-size="9.8" fill="#5c4a78">itself, because it does not use it</text>
+
+  <rect x="632" y="30" width="286" height="200" rx="9" fill="#fff" stroke="#8a5a2b" stroke-width="2"/>
+  <text x="775" y="56" text-anchor="middle" font-size="12.5" font-weight="600" fill="#8a5a2b">pr-state hook</text>
+  <text x="775" y="76" text-anchor="middle" font-size="10" fill="#6b7280">event-driven, in each consumer</text>
+  <text x="775" y="102" text-anchor="middle" font-size="10.5" fill="#3a4150">Fires on close, reopen, edit and</text>
+  <text x="775" y="117" text-anchor="middle" font-size="10.5" fill="#3a4150">draft changes, so the PR facts</text>
+  <text x="775" y="132" text-anchor="middle" font-size="10.5" fill="#3a4150">stop being a round-time snapshot.</text>
+  <rect x="650" y="150" width="250" height="62" rx="7" fill="#fdf9f4" stroke="#ddc4a6"/>
+  <text x="775" y="170" text-anchor="middle" font-size="10" font-weight="600" fill="#8a5a2b">cannot answer</text>
+  <text x="775" y="187" text-anchor="middle" font-size="9.8" fill="#7a5c3a">anything about a repo that never</text>
+  <text x="775" y="200" text-anchor="middle" font-size="9.8" fill="#7a5c3a">installed it. The reconciler backstops it.</text>
+
+  <text x="30" y="262" font-size="10.5" fill="#6b7280">The canary is a liveness probe for the pipe. The reconciler is an audit of what went through it. They are not substitutes:</text>
+  <text x="30" y="282" font-size="10.5" fill="#6b7280">a green canary alongside eight unrecorded rounds is the exact state this system was in for a full day.</text>
+  <text x="30" y="308" font-size="10.5" fill="#6b7280">Hook for freshness, reconciler for truth. The hook is exact and can be missed; the sweep is late and cannot.</text>
+</svg>
+</figure>
+
+<div class="warn"><strong>Why the reconciler fails red rather than warning.</strong> A scheduled job that warns is the
+invisible-warning problem it exists to solve. Nobody reads a green run's annotations, which is precisely how eight rounds
+were lost while every check stayed green. A red scheduled workflow is a signal that reaches someone.
+The same rule applies inside it: a repository it could not read is <em>unknown</em> coverage, not clean coverage, so a
+skipped repo fails the run instead of quietly shrinking the set it audited.</div>
+
+<div class="note"><strong>Status.</strong> The canary and the telemetry path are live. The reconciler and the pr-state
+hook are built and under review in gh-workflows#140, and the reconciler still has an open question about which credential
+reads Actions across two different repository owners. Until it lands, an absent row has no watcher behind it.</div>
+
+<h2><span class="n">6</span>The token question</h2>
 <p>Resolving a review thread needs <code>contents: write</code>. Nothing else about the credential matters.
 Posting a reply needs only <code>pull-requests: write</code>, which is why the original failure was so confusing:
 the same token in the same step posted the reply and was refused the resolution.</p>
@@ -518,7 +641,7 @@ with identical permissions separate nothing. Dropping it also dropped the entire
 one of the three repos: nothing left to install per account, nothing to map by secret name per consumer, nothing to drift.
 Six secrets and the App installation were deleted 2026-08-29. Story: gh-workflows#20, #37.</p>
 
-<h2><span class="n">6</span>Configuration: four layers, one key at a time</h2>
+<h2><span class="n">7</span>Configuration: four layers, one key at a time</h2>
 <p>Review settings resolve dynamically, evaluated lowest to highest precedence, and the merge is per key,
 not per file: a repository may set only <code>default_model</code> and still inherit <code>auto_pause_rounds</code>,
 <code>skip_authors</code> and <code>path_filters</code> from whichever layer below it last set them.</p>
@@ -596,10 +719,10 @@ unrecognized <code>--model</code> alias falls back to <code>default_model</code>
 silently. Neither of the three consumer repos has added a <code>.github/claude-review.yml</code> yet, so today all three
 run on org and workflow defaults alone.</p>
 
-<h2><span class="n">7</span>Scenarios</h2>
+<h2><span class="n">8</span>Scenarios</h2>
 <p>Same five parties every time. What changes is who speaks and who stays quiet.</p>
 
-<h3>7.1 The normal round: finding, fix, verify, resolve</h3>
+<h3>8.1 The normal round: finding, fix, verify, resolve</h3>
 <figure>
 <figcaption>The only path that ends in an automatically resolved thread. Note the trigger at step 6: it is the reply, not the push.</figcaption>
 <svg viewBox="0 0 940 512" role="img" aria-label="Sequence diagram of a normal review round from PR open to merge">
@@ -662,7 +785,7 @@ run on org and workflow defaults alone.</p>
 the seeded bug is unchanged at current PR head."</em> The thread stays open. This is the single most important property of the
 whole design, because it is what makes automatic resolution something other than a rubber stamp.</div>
 
-<h3>7.2 A finding you disagree with</h3>
+<h3>8.2 A finding you disagree with</h3>
 <figure>
 <figcaption>The reviewer never closes a thread on judgment. Declines, deferrals and disputes route to a human, by construction.</figcaption>
 <svg viewBox="0 0 940 300" role="img" aria-label="Sequence for a disputed finding: reviewer leaves it open, human resolves">
@@ -697,13 +820,13 @@ whole design, because it is what makes automatic resolution something other than
 </svg>
 </figure>
 
-<h3>7.3 A caller stub still capped at contents: read</h3>
+<h3>8.3 A caller stub still capped at contents: read</h3>
 <p><code>mutate</code> cannot grant itself more than the caller declares: a job's <code>permissions:</code> block is capped
 by the ceiling the consumer's stub sets on the whole call. All three live consumers already declare
 <code>contents: write</code>, so this is a fresh-consumer risk, not a live bug, but the shape is worth knowing because it
 used to be the exact failure mode the now-deleted App was defended on.</p>
 <figure>
-<figcaption>The same round as 7.1, diverging at step 9. Unlike the old App-secret gap, this one cannot degrade quietly.</figcaption>
+<figcaption>The same round as 8.1, diverging at step 9. Unlike the old App-secret gap, this one cannot degrade quietly.</figcaption>
 <svg viewBox="0 0 940 320" role="img" aria-label="Diagram of the degraded path when a caller stub has not raised its ceiling to contents write">
   <rect x="20" y="16" width="420" height="284" rx="9" fill="#fff" stroke="#bcdcc7" stroke-width="2"/>
   <text x="230" y="42" text-anchor="middle" font-size="13" font-weight="600" fill="#2e7d4f">caller declares contents: write</text>
@@ -729,9 +852,9 @@ job with a thread reading "Verified fixed" that still blocked the merge, because
 warning nobody read. A denied mutation now exits the job non-zero instead of printing an error and carrying on, so the
 one gap that mattered is closed by construction rather than by remembering to wire a secret correctly.</div>
 
-<h3>7.4 The four silences</h3>
-<p>The lane going quiet is normal and means four different things. None of them mean approval.
-Every one of them puts a sentence on the PR saying which it was, which is the whole reason the <code>announce</code> job runs on <code>always()</code>.</p>
+<h3>8.4 The silences</h3>
+<p>The lane going quiet is normal and means several different things. None of them mean approval.
+The first three below each put a sentence on the PR saying which it was, and that is what running the <code>announce</code> job on <code>always()</code> buys. The fourth is the deliberate skips, and most of those say nothing at all, because <code>announce</code> can only speak when the callee was invoked at all.</p>
 <figure>
 <figcaption>Why nothing was reviewed, and what actually clears it</figcaption>
 <svg viewBox="0 0 940 400" role="img" aria-label="Four reasons the review lane stays quiet and the fix for each">
@@ -786,7 +909,9 @@ Every one of them puts a sentence on the PR saying which it was, which is the wh
 </svg>
 </figure>
 
-<h3>7.5 A fork PR</h3>
+<p><strong>The skips that say nothing are the expensive ones.</strong> Where the caller stub's own guard skips first, no job runs, so there is no liveness comment and no stated reason: an automatic round on a draft, an in-thread reply on a draft, and a skipped author, plus a fork head whose run holds a read-only token and cannot post its notice. The reply on a draft is the sharp case. A reply is a request for a verify round, and on a draft it produces nothing an operator can tell apart from a broken lane. Tracked as <code>prismalens/gh-workflows#153</code>, whose ruling stops drafts being reviewed by any trigger; until that lands a summon still reaches a draft and still posts, so marking the pull request ready is the reliable way to collect the work either way.</p>
+
+<h3>8.5 A fork PR</h3>
 <figure>
 <figcaption>Refused out loud. Silence would read as approval, so the lane spends a job saying nothing happened.</figcaption>
 <svg viewBox="0 0 940 200" role="img" aria-label="Fork PR flow: secrets withheld, fork-notice comment posted, CodeRabbit as the escape hatch">
@@ -821,7 +946,7 @@ Every one of them puts a sentence on the PR saying which it was, which is the wh
 </svg>
 </figure>
 
-<h3>7.6 Spending a CodeRabbit review</h3>
+<h3>8.6 Spending a CodeRabbit review</h3>
 <p>CodeRabbit is the independent second opinion, spent on changes where being wrong is expensive and where a reviewer
 sharing no model, prompt or failure mode is worth having. The counter is <strong>per developer</strong>, not per repo:
 all three repos draw one pool, and a review costs roughly a 40-minute cooldown across all of them.</p>
@@ -874,7 +999,7 @@ Holding the PR until the review has been read is the only gate the canon repo ha
 all four repos 404 on <code>branches/&lt;b&gt;/protection</code> because none of them use classic branch protection, so that 404
 distinguishes nothing.</p>
 
-<h2><span class="n">8</span>Who resolves this thread</h2>
+<h2><span class="n">9</span>Who resolves this thread</h2>
 <figure>
 <figcaption>The question that comes up most, as a flowchart. Only one branch ends in a machine closing a thread.</figcaption>
 <svg viewBox="0 0 940 360" role="img" aria-label="Decision flowchart for who resolves a review thread">
@@ -931,7 +1056,7 @@ distinguishes nothing.</p>
 </svg>
 </figure>
 
-<h2><span class="n">9</span>Reading the liveness comment</h2>
+<h2><span class="n">10</span>Reading the liveness comment</h2>
 <p>Every PR gets exactly one, from <code>github-actions[bot]</code>, updated in place. Match the marker <em>prefix</em>,
 never the whole string: the field set changes, and an exact-string matcher silently stops finding the comment.</p>
 <div class="note"><strong>It is not a display. It is where the lane keeps its state.</strong> <code>rounds=</code> is read
@@ -978,7 +1103,7 @@ that answers it on the PR itself. It also names the model and why that model was
 </svg>
 </figure>
 
-<h2><span class="n">10</span>Summoning</h2>
+<h2><span class="n">11</span>Summoning</h2>
 <p>Bare PR comments from an <code>OWNER</code>, <code>MEMBER</code> or <code>COLLABORATOR</code>. The comment body is read only by
 workflow <code>contains()</code> expressions and never reaches a prompt or a shell string. That rigidity is the security property,
 not an oversight, which is why the model override is an allowlist of two fixed phrases rather than a parsed argument.</p>
@@ -995,7 +1120,7 @@ output, not merely bypass it for one round. They do not override the fork guard 
 <code>@claude full review --model opus</code> now resolves the model correctly: the alias match no longer shares a string
 with the verb match, so the two compose instead of one silently swallowing the other.</p>
 
-<h2><span class="n">11</span>Standing rules</h2>
+<h2><span class="n">12</span>Standing rules</h2>
 <ul>
   <li><strong>A green job is never evidence a review happened.</strong> The action exits <code>success</code> having posted nothing. Only published output counts, and the liveness comment is where you read it.</li>
   <li><strong>Automatic review is finite, and a summon is the only resume.</strong> Anything waiting on a machine review reads the verdict rather than the absence of one.</li>
@@ -1006,7 +1131,7 @@ with the verb match, so the two compose instead of one silently swallowing the o
   <li><strong>Lane logic changes happen in <code>prismalens/gh-workflows</code> only.</strong> Consumers hold thin stubs.</li>
 </ul>
 
-<h2><span class="n">12</span>What is still open</h2>
+<h2><span class="n">13</span>What is still open</h2>
 <table>
   <tr><th>Item</th><th>State</th><th>Next move</th></tr>
   <tr>
