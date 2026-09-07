@@ -2,7 +2,7 @@
 name: pr-watch
 description: "Watch a PR raised in THIS session until its review round completes: seed the seen-state, arm the deterministic reviewer/CI Monitor, route each event as a pointer to the seat holding the diff, then merge (queue-enabled repos enqueue; no cascade). Also carries the merge contract. Trigger AFTER any `gh pr create`, when a PostToolUse hook reports a PR was raised, or when the user asks to watch or merge a PR. Claude lane behavior is `claude-review-lane`; CodeRabbit mechanics live in `coderabbit-lane`."
 metadata:
-  version: "4.0.0"
+  version: "4.1.0"
 ---
 
 # PR watch: the session-scoped review round
@@ -115,7 +115,17 @@ The session that owns the Monitor is a thin router. Read the sentinel line, then
 
 Check `kit-meta.sh get <owner/repo> merge_queue` first.
 
-- Queue repos: `gh pr merge <n> --squash` enqueues, and the queue tests a speculative merge onto main. No BEHIND cascade, no update-branch babysitting. The pre-queue cascade script was removed. One timing rule survives: do not enqueue before the liveness comment shows posted review output. The queue gates on checks and threads, not on whether a reviewer spoke, and most verdicts in `claude-review-lane` §2 are not posted output.
+- Queue repos: `gh pr merge <n> --squash` enqueues, and the queue tests a speculative merge onto main. No BEHIND cascade, no update-branch babysitting. The pre-queue cascade script was removed. One timing rule survives: do not enqueue before the liveness comment shows posted review output. The queue gates on checks and threads, not on whether a reviewer spoke, and most verdicts in `claude-review-lane` under "The liveness comment" are not posted output.
+
+Two facts, not one, before any merge. That posted review output exists, and that it landed on the head you are merging. Read `sha=` off the liveness marker and compare it to the head:
+
+```bash
+gh api "repos/$REPO/issues/<pr>/comments" \
+  --jq '.[] | select(.body|startswith("<!-- claude-review-liveness")) | .body' | head -1
+gh pr view <pr> --json headRefOid --jq .headRefOid
+```
+
+A mismatch means the range between them was never reviewed as a diff. Resolved threads do not close that gap: they describe findings, not coverage, and `mage-memory#206` merged all 24 threads resolved with 83 unreviewed lines past the marker. `claude-review-lane` under "Before a merge" carries the full test.
 - Classic repos: merge by hand once the round's threads are resolved, `gh pr merge <n> --squash`. BEHIND still applies, so update-branch and re-green before merging the next.
 
 Afterward remove the lane's worktree. Its commits are on the PR, so nothing reclaims it on its own (`AGENTS.md` §Worktrees): `git worktree remove <path>`, delete the local branch, `git worktree unlock` first if git refuses.
