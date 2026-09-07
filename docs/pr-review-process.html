@@ -902,14 +902,15 @@ The first three below each put a sentence on the PR saying which it was, and tha
     <text x="500" y="281" font-size="11" fill="#4a5160">fork, or the PR edits claude-code-review.yml itself.</text>
     <text x="500" y="308" font-size="11" fill="#b3403a" font-weight="600">The self-skip is a security control, and no summon</text>
     <text x="500" y="325" font-size="11" fill="#b3403a" font-weight="600">overrides it. Nor does one override a fork head.</text>
-    <text x="500" y="348" font-size="11" fill="#4a5160">Draft and skip_authors both yield to an explicit summon.</text>
+    <text x="500" y="348" font-size="11" fill="#4a5160">skip_authors yields to a summon. A draft no longer does.</text>
     <rect x="500" y="360" width="400" height="16" rx="8" fill="#eaf4ee"/>
     <text x="510" y="372" font-size="10.5" fill="#2e7d4f" font-weight="600">clears with: a summon, or the coderabbit_review label</text>
   </g>
 </svg>
 </figure>
 
-<p><strong>The skips that say nothing are the expensive ones.</strong> Where the caller stub's own guard skips first, no job runs, so there is no liveness comment and no stated reason: an automatic round on a draft, an in-thread reply on a draft, and a skipped author, plus a fork head whose run holds a read-only token and cannot post its notice. The reply on a draft is the sharp case. A reply is a request for a verify round, and on a draft it produces nothing an operator can tell apart from a broken lane. Tracked as <code>prismalens/gh-workflows#153</code>, whose ruling stops drafts being reviewed by any trigger; until that lands a summon still reaches a draft and still posts, so marking the pull request ready is the reliable way to collect the work either way.</p>
+<p><strong>The skips that say nothing are the expensive ones.</strong> Where the caller stub's own guard skips first, no job runs, so there is no liveness comment and no stated reason: an automatic round on a draft, an in-thread reply on a draft, and a skipped author, plus a fork head whose run holds a read-only token and cannot post its notice. The reply on a draft is the one to know about. A reply is a request for a verify round, and on a draft it produces nothing at all.</p>
+<p>Nothing reviews a draft now, summons included. The callee's <code>review</code> gate is <code>admitted &amp;&amp; same_repo &amp;&amp; draft != 'true'</code> with no override, so a summon on a draft still reaches the callee and comes back with a <code>draft</code> verdict naming the reason, rather than spending a run in silence. Marking the pull request ready is what collects the work, and the lane then takes the whole diff in one round.</p>
 
 <h3>8.5 A fork PR</h3>
 <figure>
@@ -1115,8 +1116,9 @@ not an oversight, which is why the model override is an allowlist of two fixed p
   <tr><td>a plain reply inside a thread</td><td>No verb needed. A non-bot in-thread reply is itself the verify trigger.</td></tr>
   <tr><td>bare <code>@claude …</code></td><td>Routes to the mention lane, which answers questions and holds no write permission.</td></tr>
 </table>
-<p>Summons run on drafts, bypass <code>skip_authors</code>, and reset the auto-pause counter to 0 whenever they post review
-output, not merely bypass it for one round. They do not override the fork guard or the self-skip.
+<p>Summons bypass <code>skip_authors</code> and reset the auto-pause counter to 0 whenever they post review
+output, rather than merely bypassing it for one round. They do not override the fork guard, the self-skip, or a draft:
+a summon on a draft reaches the callee and comes back with the <code>draft</code> verdict.
 <code>@claude full review --model opus</code> now resolves the model correctly: the alias match no longer shares a string
 with the verb match, so the two compose instead of one silently swallowing the other.</p>
 
