@@ -2,7 +2,7 @@
 name: claude-review-lane
 description: "How our Claude review lane (`claude[bot]`) behaves on any PR of any age: reading the liveness comment's verdicts, the ways the lane stays quiet (skipped author, auto-pause, fork head, self-skip), the summon grammar (`@claude review`, `@claude full review`, the per-run `--model` override), verification rounds, and who may resolve a `claude[bot]` thread. Load when a `claude[bot]` thread or a liveness comment is in front of you, when the lane has gone quiet or a review is missing, when deciding whether to summon or re-summon, and when judging whether a head has actually been reviewed before it merges. Arming a watcher on a PR this session raised is `pr-watch` instead."
 metadata:
-  version: "3.2.0"
+  version: "3.3.0"
 ---
 
 # The Claude review lane
@@ -21,7 +21,7 @@ gh api repos/prismalens/gh-workflows/contents/README.md --jq .content | base64 -
 - Silence is never approval. No posted findings means no machine review on record for this head. Treat it exactly as a rate-limited one.
 - A green job is not evidence. The lane publishes no commit status and gates nothing. A run can finish `success` having posted zero comments, and a self-skip reports nothing. Read for posted output, never a check's colour.
 
-The liveness comment is the only thing that certifies a review happened, and it certifies only what was posted.
+The liveness comment is the only thing that certifies a review happened, and it certifies only what was posted. It is not infallible: see "When the comment itself is wrong".
 
 ## 2. The liveness comment
 
@@ -56,6 +56,18 @@ Fourteen `verdict_kind` values in the callee's `announce` job, fifteen rows belo
 
 No liveness comment at all is its own signal, and the costliest trap: the comment is upserted only when the review job ran, so a PR the lane never admitted has nothing to read and a watcher waiting for one waits forever.
 
+### When the comment itself is wrong
+
+`announce` is its own job and can fail while `review` succeeded. The comment then keeps whatever the previous run wrote: it names an older run and can read `posted nothing` while the findings that run posted are open and blocking the gate (`prismalens/gh-workflows#159`).
+
+So a negative verdict is not conclusive on its own. Cross-check the threads before believing one:
+
+```bash
+gh pr view <pr> --json reviewThreads --jq '.reviewThreads[] | select(.isResolved==false) | .comments[0].author.login' | sort | uniq -c
+```
+
+Open `claude[bot]` threads against a comment that claims nothing was posted means the comment is stale, not the review. A positive verdict needs no cross-check; nothing fabricates posted output.
+
 ## 3. Admission, and every way the lane stays quiet
 
 Automatic rounds fire on `pull_request` for same-repo heads. A summon or an in-thread reply also needs write access to the repository, checked live against the collaborators API by the `admit` action, plus an explicit verb for summons and an open PR.
@@ -69,7 +81,7 @@ Five ways a PR gets no review. Whether each leaves a liveness comment is noted w
    - Automatic round, and in-thread reply: the stub's own `if: github.event.pull_request.draft != true` skips first, so no run is spent and no liveness comment appears. A reply on a draft is therefore silent. That is the one silent draft path left, and it is silent by design.
    - Summon: `issue_comment` carries no `pull_request` object, so `.draft` is null, the stub admits it and the callee runs. `review` skips on the gate and `announce` posts the `draft` verdict, so a spent summon says why rather than vanishing. A `draft` lane event records it too.
 3. Fork head. Never machine-reviewed: GitHub withholds secrets from fork code and the lane avoids `pull_request_target`. A `fork-notice` job upserts a comment marked `<!-- claude-review-fork-notice -->` pointing at the `coderabbit_review` label. A summon does not override this in v1. When the fork run holds a read-only `GITHUB_TOKEN` (the default unless the repository enables "Send write tokens to workflows from fork pull requests") the comment is denied and the job falls back to a workflow warning annotation carrying the same text, easy to miss.
-4. Self-skip on the workflow itself. A PR that edits `.github/workflows/claude-code-review.yml` is never reviewed: `claude-code-action` self-skips on workflow-validation mismatch. A security control, and the one case a summon cannot fix; label the PR `coderabbit_review`. A self-skip leaves the action's conclusion empty, identical to a tool denial that aborted midway, except a denial may have posted findings first. The liveness comment says which, the run log says why.
+4. Self-skip on the workflow itself. A PR that edits `.github/workflows/claude-code-review.yml` is never reviewed: `claude-code-action` self-skips on workflow-validation mismatch. A security control, and the one case a summon cannot fix; label the PR `coderabbit_review`. A self-skip leaves the action's conclusion empty, which three different causes share. A tool denial that aborted midway looks the same, except a denial may have posted findings first. So does an account usage limit, which kills the action in under two seconds and is neither of the other two (`prismalens/gh-workflows#159`). Run duration separates the third from the first two; the run log says which.
 5. Auto-paused. After `auto_pause_rounds` automatic rounds (default 5) the lane posts the auto-paused verdict instead of reviewing. This one does leave a comment. A paused PR is not reviewed on push, so a wait keyed on the next push has no end (`auto-pause-wait-forever`). A summon resets the counter and resumes the lane, but only when the round posts review output; a green summon that posted nothing leaves the count untouched.
 
 ### Refusal versus cancellation
