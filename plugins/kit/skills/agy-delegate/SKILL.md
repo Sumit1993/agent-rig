@@ -126,8 +126,8 @@ The runner's section, not the dispatcher's. A handler owns its run end to end: l
 4. Empty output: check the worktree (`git status`, expected files) before assuming failure. Landed and passing its own verification is success; note the silent death.
 5. Verify before reporting. Run the prompt's verification commands yourself. Report evidence, not agy's claims.
 6. A run with no output that dies within about 30 seconds never started. Relaunch without charging the budget. Three in a row is an agy-side problem: change model.
-7. Probe the other lane before declaring a run dead. `agy --model claude-sonnet-4-6 -p "say ok"` and `claude-opus-4-6-thinking` answer in seconds. Dead means every lane is dry.
-8. Retry budget: 2 real relaunches. A resume on a surviving `conversation_id` is free, it is the same run.
+7. Probe the other lane before declaring a run dead. `agy --model claude-sonnet-4-6 -p "say ok"` and `claude-opus-4-6-thinking` answer in seconds. `agy-quota.sh check <model>` says which lanes are already known dead, so probe the rest. A quota wall on the current model is a lane switch, not a death. Dead means every lane is dry.
+8. Retry budget: 2 real relaunches. A resume on a surviving `conversation_id` is free, it is the same run. A quota wall costs no budget; it costs a lane.
 9. Name any PR the lane opened: `gh pr list --head <branch> --json number,url`, URL in the report. Do not arm a watcher; a Monitor dies with your turn. The main session arms `pr-watch` on it (`gh-workflows-69-unwatched-pr`).
 10. Preserve work before reporting. A change that passes the prompt's own verification gets committed on the lane's branch and said so. Stop there: no push, no PR, no merge.
 
@@ -135,6 +135,8 @@ The runner's section, not the dispatcher's. A handler owns its run end to end: l
 
 1. A verified result, with the verification commands you ran and their output.
 2. A salvaged partial, with evidence of what landed and what did not.
-3. Budget spent, with the log tail, the worktree state, and what remains.
+3. Every lane dry, with the probe output proving it, the log tail, the worktree state, and what remains.
+
+Report 3 is invalid without the step-7 probe output pasted into it. A quota wall on one model is not a terminal condition and does not spend the step-8 budget, which counts relaunches. Switch lanes and keep going (`quota-wall-reported-as-budget-spent`).
 
 "Standing by", "still waiting on the agy run" and every other progress update is not a terminal report. Returning one ends the handler while the work is live.

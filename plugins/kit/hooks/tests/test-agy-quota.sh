@@ -161,5 +161,26 @@ case "$c8_err" in
 esac
 check "the usage line names the new verb" '[ "$c8_rc" -eq 2 ] && [ "$c8_match" -eq 1 ]'
 
+echo "-- 9. The skill and the agent definition agree"
+SKILL_FILE="$SRC/SKILL.md"
+RUNNER_FILE="$(cd "$SRC/../../agents" && pwd)/agy-runner.md"
+c9_skill_no_bs=0
+if ! sed -n '/### The three terminal reports/,$p' "$SKILL_FILE" | grep -qi "budget spent"; then
+  c9_skill_no_bs=1
+fi
+c9_runner_no_bs=0
+if ! grep -qi "budget spent" "$RUNNER_FILE"; then
+  c9_runner_no_bs=1
+fi
+c9_skill_eld=0
+if grep -qi "every lane dry" "$SKILL_FILE"; then
+  c9_skill_eld=1
+fi
+c9_runner_eld=0
+if grep -qi "every lane dry" "$RUNNER_FILE"; then
+  c9_runner_eld=1
+fi
+check "the skill and the agent definition agree" '[ "$c9_skill_no_bs" -eq 1 ] && [ "$c9_runner_no_bs" -eq 1 ] && [ "$c9_skill_eld" -eq 1 ] && [ "$c9_runner_eld" -eq 1 ]'
+
 [ "$fails" -eq 0 ] && echo && echo "all test-agy-quota tests passed"
 exit "$fails"
