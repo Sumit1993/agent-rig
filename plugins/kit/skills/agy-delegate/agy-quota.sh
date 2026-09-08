@@ -137,17 +137,52 @@ cmd_clear() {
   fi
 }
 
+cmd_record_from_envelope() {
+  local model="$1"
+  local file="${2:-}"
+  if ! command -v jq >/dev/null 2>&1; then
+    return 0
+  fi
+  if [ -z "$file" ] || [ ! -r "$file" ]; then
+    echo "record-from-envelope: no envelope at $file" >&2
+    exit 3
+  fi
+  local err_msg
+  err_msg=$(jq -r 'if .error | type == "string" then .error elif .error != null then (.error | tostring) else "" end' "$file" 2>/dev/null || true)
+  local err_lower
+  err_lower=$(printf '%s' "$err_msg" | tr '[:upper:]' '[:lower:]')
+  if ! (printf '%s' "$err_lower" | grep -q 'quota' && printf '%s' "$err_lower" | grep -qE 'reached|resource[_ ]exhausted|429'); then
+    return 0
+  fi
+  local reset_arg=""
+  if [[ "$err_msg" =~ [Rr]esets?[[:space:]]+in[[:space:]]+([0-9]+[hms][0-9hms]*) ]]; then
+    reset_arg="${BASH_REMATCH[1]}"
+  elif [[ "$err_msg" =~ ([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(Z|[+-][0-9]{2}:?[0-9]{2})?) ]]; then
+    reset_arg="${BASH_REMATCH[1]}"
+  fi
+  if [ -n "$reset_arg" ]; then
+    cmd_record "$model" "$reset_arg"
+  else
+    cmd_record "$model"
+  fi
+  echo "recorded: $model quota exhausted (reset ${reset_arg:-unknown})"
+  return 0
+}
+
 action="${1:-}"
 model="${2:-}"
 
 if [ -z "$action" ] || [ -z "$model" ]; then
-  echo "Usage: agy-quota.sh record <model> [reset_at] | check <model> | clear <model>" >&2
+  echo "Usage: agy-quota.sh record <model> [reset_at] | record-from-envelope <model> <file> | check <model> | clear <model>" >&2
   exit 2
 fi
 
 case "$action" in
   record)
     cmd_record "$model" "${3:-}"
+    ;;
+  record-from-envelope)
+    cmd_record_from_envelope "$model" "${3:-}"
     ;;
   check)
     cmd_check "$model"
@@ -156,7 +191,7 @@ case "$action" in
     cmd_clear "$model"
     ;;
   *)
-    echo "Usage: agy-quota.sh record <model> [reset_at] | check <model> | clear <model>" >&2
+    echo "Usage: agy-quota.sh record <model> [reset_at] | record-from-envelope <model> <file> | check <model> | clear <model>" >&2
     exit 2
     ;;
 esac

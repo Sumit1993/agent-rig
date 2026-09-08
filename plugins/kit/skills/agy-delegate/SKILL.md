@@ -63,6 +63,7 @@ AGY_PID=$!            # agy itself, no subshell in between
 - A valueless `-p` and a stray trailing argument are errors since 1.1.18.
 - Sidecar `$OUT.meta.json` records the model and launch parameters at start, because agy's envelope omits the model. The model field is the requested model, and launched says whether it ran.
 - `agy-quota.sh` records quota state and checks lane availability across runs, so dispatches avoid launching into known-dead models.
+- `agy-quota.sh record-from-envelope <model> <envelope>` reads a finished envelope and records a quota wall from it, so any launch path can feed the state file. `run-agy-watchdog.sh` calls it for you.
 
 ## Models inside agy
 
@@ -119,7 +120,7 @@ Write the complete, self-contained prompt to `~/ai-context/agy-prompts/<task>.md
 
 The runner's section, not the dispatcher's. A handler owns its run end to end: launch, watch, kill on hang, salvage, retry. Never return "agy didn't respond" without having run this.
 
-1. Launch via background Bash with an exit sentinel to the activity log, so `$OUT` stays parseable JSON: `(agy … > "$OUT" 2>"$OUT.err"; echo "AGY_EXITED rc=$?" >> "$ACTIVITY")`. Or `run-agy-watchdog.sh` in this skill's directory, which launches, reaps hang-after-report, and writes the sentinel.
+1. Launch with `run-agy-watchdog.sh` from this skill's directory. It launches, reaps hang-after-report, records quota to `agy-quota.sh`, and writes the `AGY_EXITED` sentinel. A bare background launch (`(agy … > "$OUT" 2>"$OUT.err"; echo "AGY_EXITED rc=$?" >> "$ACTIVITY")`) is the shape the watchdog runs, not a second sanctioned path: taking it yourself loses both, so it must be followed by `agy-quota.sh record-from-envelope "$MODEL" "$OUT"`.
 2. Wait in the foreground with repeated bounded Bash calls and a long timeout. A handler never ends a turn while its run is alive: no Monitor, no `pgrep` liveness, no bare timer. Ending the turn destroys the context the wake would land in. The background until-loop in `anti-stall` is for the main session only.
 3. Kill on hang-after-report per the table, by PID.
 4. Empty output: check the worktree (`git status`, expected files) before assuming failure. Landed and passing its own verification is success; note the silent death.

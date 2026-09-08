@@ -98,29 +98,15 @@ RC=$?
 ENDED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 BYTES=$(stat -c %s "$OUT" 2>/dev/null || echo 0)
 
-# Quota exhaustion records best-effort state and updates the sidecar. Issue #47.
+# Quota exhaustion records best-effort state and updates the sidecar. Issues #47, #108.
 QUOTA_EXHAUSTED=false
-if command -v jq >/dev/null 2>&1; then
-  ERR_MSG=$(jq -r 'if .error | type == "string" then .error elif .error != null then (.error | tostring) else "" end' "$OUT" 2>/dev/null || true)
-  ERR_LOWER=$(printf '%s' "$ERR_MSG" | tr '[:upper:]' '[:lower:]')
-  if printf '%s' "$ERR_LOWER" | grep -q 'quota' && printf '%s' "$ERR_LOWER" | grep -qE 'reached|resource[_ ]exhausted|429'; then
-    QUOTA_EXHAUSTED=true
-    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-    AGY_QUOTA="$SCRIPT_DIR/agy-quota.sh"
-    if [ -f "$AGY_QUOTA" ]; then
-      RESET_ARG=""
-      if [[ "$ERR_MSG" =~ [Rr]esets?[[:space:]]+in[[:space:]]+([0-9]+[hms][0-9hms]*) ]]; then
-        RESET_ARG="${BASH_REMATCH[1]}"
-      elif [[ "$ERR_MSG" =~ ([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(Z|[+-][0-9]{2}:?[0-9]{2})?) ]]; then
-        RESET_ARG="${BASH_REMATCH[1]}"
-      fi
-      if [ -n "$RESET_ARG" ]; then
-        bash "$AGY_QUOTA" record "$MODEL" "$RESET_ARG" 2>/dev/null || true
-      else
-        bash "$AGY_QUOTA" record "$MODEL" 2>/dev/null || true
-      fi
-    fi
-  fi
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+AGY_QUOTA="$SCRIPT_DIR/agy-quota.sh"
+if [ -f "$AGY_QUOTA" ]; then
+  QUOTA_OUT=$(bash "$AGY_QUOTA" record-from-envelope "$MODEL" "$OUT" 2>/dev/null || true)
+  case "$QUOTA_OUT" in
+    recorded:*) QUOTA_EXHAUSTED=true ;;
+  esac
 fi
 
 if command -v jq >/dev/null 2>&1; then
