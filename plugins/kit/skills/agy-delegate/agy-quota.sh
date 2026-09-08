@@ -1,5 +1,7 @@
 #!/bin/bash
-# Atomic quota state per model slug. Issue #47.
+# Atomic quota state per agy quota group. agy meters two groups, not one lane per
+# model: Gemini Flash and Gemini Pro share a pool, Claude Opus, Claude Sonnet and
+# GPT-OSS share the other. Issues #47, #118.
 set -u
 
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/agy"
@@ -26,6 +28,14 @@ write_state() {
   fi
 }
 
+group_for() {
+  case "$1" in
+    gemini*) echo "gemini" ;;
+    claude*|gpt*) echo "claude-gpt" ;;
+    *) echo "$1" ;;
+  esac
+}
+
 parse_iso_reset() {
   local raw="$1"
   if [ -z "$raw" ] || [ "$raw" = "null" ]; then
@@ -45,7 +55,8 @@ parse_iso_reset() {
 }
 
 cmd_record() {
-  local model="$1"
+  local model
+  model=$(group_for "$1")
   local raw_reset="${2:-}"
   if ! command -v jq >/dev/null 2>&1; then
     return 0
@@ -73,7 +84,8 @@ cmd_record() {
 }
 
 cmd_check() {
-  local model="$1"
+  local model
+  model=$(group_for "$1")
   if ! command -v jq >/dev/null 2>&1; then
     echo "usable: jq is not available, skipping quota check"
     return 0
@@ -124,7 +136,8 @@ cmd_check() {
 }
 
 cmd_clear() {
-  local model="$1"
+  local model
+  model=$(group_for "$1")
   if ! command -v jq >/dev/null 2>&1; then
     return 0
   fi
@@ -137,17 +150,53 @@ cmd_clear() {
   fi
 }
 
+cmd_record_from_envelope() {
+  local model="$1"
+  local file="${2:-}"
+  if ! command -v jq >/dev/null 2>&1; then
+    return 0
+  fi
+  if [ -z "$file" ] || [ ! -r "$file" ]; then
+    echo "record-from-envelope: no envelope at $file" >&2
+    exit 3
+  fi
+  local err_msg
+  err_msg=$(jq -r 'if .error | type == "string" then .error elif .error != null then (.error | tostring) else "" end' "$file" 2>/dev/null || true)
+  local err_lower
+  err_lower=$(printf '%s' "$err_msg" | tr '[:upper:]' '[:lower:]')
+  if ! (printf '%s' "$err_lower" | grep -q 'quota' && printf '%s' "$err_lower" | grep -qE 'reached|resource[_ ]exhausted|429'); then
+    return 0
+  fi
+  local reset_arg=""
+  if [[ "$err_msg" =~ [Rr]esets?[[:space:]]+in[[:space:]]+([0-9]+[hms][0-9hms]*) ]]; then
+    reset_arg="${BASH_REMATCH[1]}"
+  elif [[ "$err_msg" =~ ([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(Z|[+-][0-9]{2}:?[0-9]{2})?) ]]; then
+    reset_arg="${BASH_REMATCH[1]}"
+  fi
+  if [ -n "$reset_arg" ]; then
+    cmd_record "$model" "$reset_arg"
+  else
+    cmd_record "$model"
+  fi
+  echo "recorded: $(group_for "$model") group quota exhausted via $model (reset ${reset_arg:-unknown})"
+  return 0
+}
+
 action="${1:-}"
 model="${2:-}"
 
 if [ -z "$action" ] || [ -z "$model" ]; then
-  echo "Usage: agy-quota.sh record <model> [reset_at] | check <model> | clear <model>" >&2
+  echo "Usage: agy-quota.sh record <model> [reset_at] | record-from-envelope <model> <file> | check <model> | clear <model>" >&2
+  echo "State is keyed by quota group: any gemini* slug is 'gemini', any claude*/gpt* slug is 'claude-gpt'." >&2
   exit 2
 fi
 
 case "$action" in
   record)
     cmd_record "$model" "${3:-}"
+    ;;
+  record-from-envelope)
+    cmd_record_from_envelope "$model" "${3:-}"
     ;;
   check)
     cmd_check "$model"
@@ -156,7 +205,8 @@ case "$action" in
     cmd_clear "$model"
     ;;
   *)
-    echo "Usage: agy-quota.sh record <model> [reset_at] | check <model> | clear <model>" >&2
+    echo "Usage: agy-quota.sh record <model> [reset_at] | record-from-envelope <model> <file> | check <model> | clear <model>" >&2
+  echo "State is keyed by quota group: any gemini* slug is 'gemini', any claude*/gpt* slug is 'claude-gpt'." >&2
     exit 2
     ;;
 esac

@@ -129,3 +129,9 @@ A lane merged the first PR of an eight hour run, then reported only that it was 
 The review lane's `announce` job emits fourteen `verdict_kind` values. Two independent prose copies of that enum had drifted from it: `claude-review-lane` documented eight, and the gh-workflows dashboard bucketed unrecognised kinds as `error`. Both were missing the same three, `paused-by-request`, `skipped-trivial` and `superseded`, and neither gap was noticed until a night of review-lane triage went looking for something else.
 
 The dashboard now has `tests/test-verdict-kind-drift.py` holding it and the workflow together. Nothing can do that for a skill, because a skill is prose an agent reads, not code a test can import. That is the standing cost of skills being self-sufficient rather than pointing at a document, and the price is paid by re-reading the source when the surface it describes changes, not by a check.
+
+## quota-wall-reported-as-budget-spent
+
+A handler hit a Gemini quota wall, returned budget spent citing a rule against probing, and proposed a wait of over an hour. The rule it cited was real and lived in its own agent definition, contradicting step 7 of the skill. The report looked complete because it named a real error and a real reset time, so nothing in it read as wrong. Gemini going dry is a problem for agy, not for the task: the handler is a Sonnet agent already holding the prompt and the worktree, so it finishes the job itself.
+
+The first fix for this carried the wrong model of agy's limits, and so did `agy-quota.sh`, which keyed state per model slug. agy meters two groups: Gemini Flash with Gemini Pro, and Claude Opus with Claude Sonnet and GPT-OSS. Switching Gemini model to dodge a Gemini wall walks into the same wall, and the state file said the second slug was usable. `agy` with no arguments prints both groups' bars, and nothing in the skill had ever read that screen.

@@ -27,7 +27,7 @@ An issue carries the decision, the evidence and the exact commands, and copies i
 # Models
 | Model | Afford | Intel | Taste | Use for |
 | :--- | :-: | :-: | :-: | :--- |
-| Fable 5.1 | 2 | 9 | 9 | Plan-hard problems, taste-critical output |
+| Fable 5.1 | 2 | 9 | 9 | Every dispatch spec, plan-hard problems, taste-critical output |
 | Opus 5 (1M) | 4 | 9 | 8 | Session seat, default review, escalated coding |
 | Gemini 3.8 Flash | 6 | 8 | 5 | Default executor for bounded specs, via agy |
 | Sonnet 5 | 7 | 6 | 6 | Thin wrappers, light passes, mechanical work |
@@ -50,7 +50,7 @@ Claude models via the Agent or Workflow `model` parameter (`fable`, `opus`, `son
 # Delegation
 Delegable work goes to agy, never a Claude subagent. Delegable means bounded and mechanical, written as a procedure with verify commands: implementing to a spec, rebases, evidence collection, log and CI triage, smoke runs, per-item repetition, research, bulk reading. Load `agy-delegate` first.
 
-This is a cost rule. agy draws its own abundant quota, so a Claude subagent on that work spends the scarce pool for nothing. Using the Agent tool on delegable work needs a stated reason, and "simpler" is not one. Judgement stays on Claude: design, adjudication, spec conformance, anything whose answer is a ruling.
+This is a cost rule. agy draws its own abundant quota, so a Claude subagent on that work spends the scarce pool for nothing. Using the Agent tool on delegable work needs a stated reason, and "simpler" is not one. Judgement stays on Claude: design, adjudication, spec conformance, anything whose answer is a ruling. Writing the spec is judgement too, and it goes to `fable-planner`, never to the seat doing the dispatching.
 
 The organizer does small, bounded, self-contained changes itself. A lane is for work whose spec is cheaper than the doing.
 
@@ -63,5 +63,6 @@ Delegated and unattended work runs in a worktree under `.claude/worktrees/`, nev
 # The organizer seat
 One seat keeps the goal in view: decides what runs next, tracks what is done and open, catches a lane off its brief, checks every delegated claim against evidence. Held by whatever model runs the session. It does not type while lanes are live, and an edit belonging to a lane goes to that lane. Verifying a delegate's claim, and small self-contained fixes, are the seat's own work.
 
+- The seat does not write specs. Every dispatch spec comes from `fable-planner`; the seat hands it the issue, the constraints and the worktree path, and judges what comes back. This holds in every session, not only an unattended one. Reuse one planner inside the prompt-cache hour instead of one per spec. Procedure: `agy-delegate` §Dispatch.
 - Report at the size of the decision. A step that finished, verified and needs nothing from the reader is one line. Detail goes in the issue or the PR and the reply links it. The 20-line cap in §Writing is a ceiling, not a target.
 - Push, open pull requests, create todos, run workflows and spawn subagents without asking. Merge is an explicit per-run permission, asked per merge, and an approval never carries to the next one.
