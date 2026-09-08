@@ -112,8 +112,12 @@ The resumed turn keeps the same `conversation_id` and the full context. A fresh 
 
 ## Dispatch
 
-Write the complete, self-contained prompt to `~/ai-context/agy-prompts/<task>.md`, or into the repo, never `/tmp`. Spawn `subagent_type: "agy-runner"` with the path. That is the whole dispatch.
+The spec comes from a `fable-planner`, not from the seat that dispatches it. Hand it the issue, the constraints and the worktree path, and it returns the prompt file's content. The spec is the artifact the lane is judged against, and a weak one is not recoverable downstream: the lane is entitled to follow it off a cliff. Judging what comes back is still yours, the same as judging any returned claim.
 
+Write that spec to `~/ai-context/agy-prompts/<task>.md`, or into the repo, never `/tmp`. Spawn `subagent_type: "agy-runner"` with the path. That is the whole dispatch.
+
+- Reuse one planner inside the prompt-cache hour instead of spawning a fresh one per spec. A second spec asked inside that window re-reads a cached conversation, while a fresh agent pays for the whole context again. Past the hour it is stale anyway, so start a new one (`#79 - unattended-run: the prompt-cache TTL is a ceiling on the cron interval`).
+- This holds whether or not anyone is watching. A spec drafted by whatever model happens to hold the seat is the same spec in an unattended run and in a session with an operator at the keyboard.
 - The prompt goes in the file, not in the subagent's prompt. Inline pays for it twice, your output tokens and its input tokens; agy reads the file at shell level.
 - Do not brief the runner on how to run agy. It loads this skill for the launch line, slugs, kill, resume and the babysit loop. Path in, verified report out.
 - In Workflows, where `subagent_type` is unavailable: `agent(pathOnlyPrompt, {model: 'sonnet', effort: 'low', label: 'antigravity-gemini-3.8:<task>'})`, and the prompt says to load `agy-delegate` and `anti-stall` first. The `antigravity-<model>` label prefix is required; the UI shows the wrapper's Claude model, so the label is the only sign of who is working.

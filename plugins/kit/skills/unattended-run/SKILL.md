@@ -39,6 +39,8 @@ Dispatch and judge. Editing a file means the seat holding the goal spent its tur
 
 Lanes work in worktrees, never the main checkout. `AGENTS.md` sets which mechanism; a Claude subagent lane and an agy lane do not get the same one. The main checkout and its stack belong to the organizer. A lane that "restores" its branch takes the run down. The organizer creates or reuses the worktree and hands the lane an absolute path, with instructions to stop and report if it is missing.
 
+The organizer does not draft the spec either. `agy-delegate` §Dispatch sends that to a `fable-planner`: you supply the issue, the constraints and the worktree path, and you judge what comes back. Drafting is work, and this seat does not do work.
+
 Every dispatch prompt says, in as many words:
 
 - The absolute worktree path.
@@ -92,6 +94,7 @@ Architecture, security and crypto, product semantics, and any dilemma where two 
 
 - Frame the consult around the subsystem, not the hole in front of you (§7).
 - One consult per decision. Past an hour, start a new one; a stale consult reasons from premises the run has since disproved.
+- Routine dispatch specs come from this same seat (`agy-delegate` §Dispatch), and from the same agent while it is inside that hour. The planner is not reserved for hard calls: it is where every spec is written.
 - Its ruling binds that decision, and what it explicitly deferred stays deferred.
 - A ruling you disagree with is still the ruling. Record the disagreement in the plan file and park it (§10).
 
