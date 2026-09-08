@@ -1,18 +1,65 @@
 ---
 name: direction
-description: "Answer where the estate stands and what to work on next, across every repo it is configured for, without reading an issue list. Load when a session is asked what to do next, when picking up work cold, or when a repo's queue has to be ranked. Priority is a p0 label, placement is a numbered milestone, and the pick is one command."
+description: "Answer where a repo stands and what to work on next by reading GitHub itself: the current version milestone, its open issues, p0 first, blocked skipped. Load when a session is asked what to do next, picks up work cold, or must rank a repo's queue. Reads only the repo it is in. Also the frozen label and milestone vocabulary, and what to report when a repo drifts from it."
 ---
 
 # Direction
 
-Run `direction.sh` first. Pass `owner/repo` when you are working in one repo, and the pick is the first line of that repo's block. With no argument it surveys the estate, repo blocks in goal order, and the pick is the first line overall. Never run an unfiltered `gh issue list`; that is the failure this replaces.
+GitHub is the record and this skill is the reader. There is no script. Run the commands below with `gh` from inside the repo. Never run an unfiltered `gh issue list`; picking by recency is the failure this replaces. The ruling with the evidence is the last superseding comment on `Sumit1993/claude-kit#100`.
 
-A goal is a milestone whose title starts with three digits and a space, `010 R1 - ...`. Lower number is earlier. A milestone without that prefix is a bucket and is never current. There are no due dates anywhere and nothing is ever overdue.
+## The vocabulary
 
-An issue with no milestone is not startable. It is triage debt and appears in section 5.
+Nine labels, the same in every repo, and nothing else:
 
-`p0` sorts an issue to the front of its own goal. It never crosses goals and never makes an unplaced issue startable. Section 1 is a diagnostic, not a pick: a line reading `NO MILESTONE` or `LATER GOAL` is a triage flag to report, not work to start.
+| kind | state | priority |
+| --- | --- | --- |
+| `bug`, `enhancement`, `documentation`, `decision` | `blocked`, `parked`, `needs-operator` | `p0`, `p1` |
 
-Sequence inside one goal is carried by a `blocked` label plus a comment naming the blocker. Never a hand-written ordered list in an issue body. A candidate marked `body-says-blocked` has a blocker written in prose that no query can read: open it before starting, and if the blocker is real, give it the label.
+Bot labels (`dependencies`, `github_actions`, `javascript`, `autorelease:*`) and the review-lane admission label `coderabbit_review` are mechanism, not vocabulary. Leave them alone and do not count them as drift.
 
-The full ruling, with the evidence and the falsifiers, is `Sumit1993/claude-kit#100`.
+A milestone is titled with the version it ships, `0.5.0`. A repo has at most two open: current and next. Line one of the description is the done-when sentence. There is no number prefix, no due date, and no order across repos.
+
+Never create, rename or delete a label or a milestone. If the vocabulary lacks something, file an issue labelled `needs-operator` saying what and why.
+
+## Step 1: read the repo and report drift
+
+```
+gh repo view --json nameWithOwner -q .nameWithOwner
+gh label list --json name -q '.[].name'
+gh api 'repos/{owner}/{repo}/milestones?state=open' --jq '.[] | "\(.title)\t\(.open_issues) open, \(.closed_issues) closed\t\(.description | split("\n")[0])"'
+```
+
+Drift is any label outside the nine and the mechanism set, more than two open milestones, or a milestone title that is not a bare version. Report drift to the operator in one line each. Do not fix it.
+
+## Step 2: the current milestone
+
+Current is the lowest open version. Sort the titles with `sort -V` and take the first. If the repo has no open milestone, nothing is startable; say so and stop.
+
+## Step 3: the pick
+
+```
+gh issue list --state open --milestone '<current>' --json number,title,labels,createdAt --jq '
+  map(select(.labels | map(.name) | index("blocked") | not))
+  | sort_by([(.labels | map(.name) | index("p0") == null), .createdAt])
+  | .[] | "#\(.number)\t\(.labels | map(.name) | join(","))\t\(.title)"'
+```
+
+The pick is the first line. `p0` sorts to the front of its own milestone and nowhere else. `blocked` is skipped; the comment on that issue names the blocker. An issue whose body says it is blocked but carries no label is a triage note: open it, and if the blocker is real, add the `blocked` label with a comment.
+
+An issue with no milestone is not startable. Count them and report the number:
+
+```
+gh issue list --state open --search 'no:milestone' --json number --jq length
+```
+
+## Step 4: what is in flight
+
+```
+gh pr list --state open --json number,title,isDraft,updatedAt --jq '.[] | select(.title | startswith("chore(deps)") | not) | "#\(.number)\t\(if .isDraft then "draft" else "ready" end)\t\(.title)"'
+```
+
+A ready PR on the pick means the pick is already taken; move to the next line.
+
+## Handoffs
+
+Each repo's pinned issue is the handoff log. Its last comment says where the previous session stopped. Read it after the pick, never instead of it, and never treat a list in its body as a queue.
