@@ -16,7 +16,8 @@ Verified against agy 1.1.27. Check `agy --version` before trusting a flag; `agy 
 - Permission to use subagents is not an exemption from the delegation rule. It grants model choice, which `AGENTS.md` already gives. A Claude subagent on delegable work needs a stated reason in your reply, and "simpler to set up" is not one.
 - Probe one lane before fanning out. Check `agy-quota.sh check <model>` first, and skip the probe entirely when the file already says the lane is dead. One `-p "say ok"` costs seconds; five wrappers each discovering an empty quota cost five wrappers.
 - Lane count is derived, never a constant. Name the scarce resource and its scope first (a review counter, a serialising merge invariant, agy-Claude's weekly pool). A limit assumed per-repo can be org-wide or per-developer. Serialise inside that scope, run everything else wide.
-- Gemini exhausted is not agy exhausted. Probe `claude-opus-4-6-thinking` or `claude-sonnet-4-6` with `-p "say ok"`, and if one answers use it, one job at a time, never parallel. Park on the reset timer only when every lane is dry.
+- Flash dry is not Gemini dry. `agy-quota.sh check gemini-3.1-pro-high` before giving up on agy, and dispatch there if it is usable, one job at a time, never parallel.
+- Both Gemini lanes dry ends the dispatch, it does not park the work. New work goes to a Claude subagent on `model: sonnet` holding the same prompt file, and a run you launched yourself with no wrapper goes the same way. Never a reset timer, and never agy's Claude lanes.
 - Reference repo content is live refs, never a working tree. A prompt that copies or consults another repo's files fetches them with `gh api repos/<r>/contents/<path>`, or `git fetch` then `git show origin/main:<path>`, and says so explicitly. A checkout's files lag its refs (`stale-working-tree-seeds-canon-repo`).
 - Global standards for every run live in `~/.gemini/GEMINI.md` and agy loads them itself: evidence not narration, a new test must execute, verify both directions, never weaken a test, byte-exact commit messages. Prompts stay lean on those. You still verify agy's claims.
 
@@ -70,6 +71,7 @@ AGY_PID=$!            # agy itself, no subshell in between
 - `gemini-3.8-flash-high` for all delegable work: research, doc and market review, second opinions, plan critique, bounded multi-step tool tasks. Strict template, clear spec. Not open-ended unsupervised coding.
 - `gemini-3.7-flash-high` is the fallback if 3.8 misbehaves.
 - `gemini-3.1-pro-high` is the one tier above Flash and untested here. Try it on a bounded job before giving it a lane, and record what you find.
+- `claude-opus-4-6-thinking` and `claude-sonnet-4-6` are valid slugs and are not a quota fallback. When Gemini is dry the work leaves agy for Claude proper, so those lanes stay for a job that specifically wants them.
 - Avoid `gemini-3.5-flash-*` (verbose, token-hungry, weak at code) and `gpt-oss-120b-medium` (not competitive).
 - agy has its own skills. Matt Pocock's set (grilling, tdd, code-review, domain-modeling) is installed at `~/ai-context/vendor/mattpocock-skills` for agy-side planning and review.
 
@@ -126,8 +128,8 @@ The runner's section, not the dispatcher's. A handler owns its run end to end: l
 4. Empty output: check the worktree (`git status`, expected files) before assuming failure. Landed and passing its own verification is success; note the silent death.
 5. Verify before reporting. Run the prompt's verification commands yourself. Report evidence, not agy's claims.
 6. A run with no output that dies within about 30 seconds never started. Relaunch without charging the budget. Three in a row is an agy-side problem: change model.
-7. Probe the other lane before declaring a run dead. `agy --model claude-sonnet-4-6 -p "say ok"` and `claude-opus-4-6-thinking` answer in seconds. `agy-quota.sh check <model>` says which lanes are already known dead, so probe the rest. A quota wall on the current model is a lane switch, not a death. Dead means every lane is dry.
-8. Retry budget: 2 real relaunches. A resume on a surviving `conversation_id` is free, it is the same run. A quota wall costs no budget; it costs a lane.
+7. A quota wall is a lane switch, not a death. Flash dry: `agy-quota.sh check gemini-3.1-pro-high`, and relaunch there if it is usable. Both Gemini lanes dry: agy is finished for this run and you are not. You are a Sonnet agent already holding the prompt file and the worktree, so do the task yourself from that prompt and say so in the report. Handing it on costs a re-read of everything you have, and the reset timer is not a plan.
+8. Retry budget: 2 real relaunches. A resume on a surviving `conversation_id` is free, it is the same run. A quota wall costs no budget; it costs a lane, and running out of Gemini lanes costs the agy run, not the task.
 9. Name any PR the lane opened: `gh pr list --head <branch> --json number,url`, URL in the report. Do not arm a watcher; a Monitor dies with your turn. The main session arms `pr-watch` on it (`gh-workflows-69-unwatched-pr`).
 10. Preserve work before reporting. A change that passes the prompt's own verification gets committed on the lane's branch and said so. Stop there: no push, no PR, no merge.
 
@@ -135,8 +137,8 @@ The runner's section, not the dispatcher's. A handler owns its run end to end: l
 
 1. A verified result, with the verification commands you ran and their output.
 2. A salvaged partial, with evidence of what landed and what did not.
-3. Every lane dry, with the probe output proving it, the log tail, the worktree state, and what remains.
+3. The relaunch budget spent on real failures, with the log tail, the worktree state, and what remains.
 
-Report 3 is invalid without the step-7 probe output pasted into it. A quota wall on one model is not a terminal condition and does not spend the step-8 budget, which counts relaunches. Switch lanes and keep going (`quota-wall-reported-as-budget-spent`).
+Gemini going dry never produces report 3. It is not a terminal condition and it does not spend the step-8 budget, which counts relaunches. You finish the task on your own Sonnet and return report 1 or 2, saying which parts Gemini did and which you did (`quota-wall-reported-as-budget-spent`).
 
 "Standing by", "still waiting on the agy run" and every other progress update is not a terminal report. Returning one ends the handler while the work is live.

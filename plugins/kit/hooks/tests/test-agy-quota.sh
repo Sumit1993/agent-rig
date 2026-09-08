@@ -161,26 +161,25 @@ case "$c8_err" in
 esac
 check "the usage line names the new verb" '[ "$c8_rc" -eq 2 ] && [ "$c8_match" -eq 1 ]'
 
-echo "-- 9. The skill and the agent definition agree"
+echo "-- 9. The skill and the agent definition route a dry Gemini the same way"
 SKILL_FILE="$SRC/SKILL.md"
 RUNNER_FILE="$(cd "$SRC/../../agents" && pwd)/agy-runner.md"
-c9_skill_no_bs=0
-if ! sed -n '/### The three terminal reports/,$p' "$SKILL_FILE" | grep -qi "budget spent"; then
-  c9_skill_no_bs=1
-fi
-c9_runner_no_bs=0
-if ! grep -qi "budget spent" "$RUNNER_FILE"; then
-  c9_runner_no_bs=1
-fi
-c9_skill_eld=0
-if grep -qi "every lane dry" "$SKILL_FILE"; then
-  c9_skill_eld=1
-fi
-c9_runner_eld=0
-if grep -qi "every lane dry" "$RUNNER_FILE"; then
-  c9_runner_eld=1
-fi
-check "the skill and the agent definition agree" '[ "$c9_skill_no_bs" -eq 1 ] && [ "$c9_runner_no_bs" -eq 1 ] && [ "$c9_skill_eld" -eq 1 ] && [ "$c9_runner_eld" -eq 1 ]'
+HANDLER=$(sed -n '/## Handler babysit loop/,$p' "$SKILL_FILE")
+c9_skill_pro=0
+printf '%s' "$HANDLER" | grep -q 'gemini-3.1-pro-high' && c9_skill_pro=1
+c9_skill_self=0
+printf '%s' "$HANDLER" | grep -q 'do the task yourself' && c9_skill_self=1
+c9_skill_no_agy_claude=0
+printf '%s' "$HANDLER" | grep -qE 'claude-(sonnet|opus)-4-6' || c9_skill_no_agy_claude=1
+c9_runner_pro=0
+grep -q 'gemini-3.1-pro-high' "$RUNNER_FILE" && c9_runner_pro=1
+c9_runner_self=0
+grep -q 'I do the task myself' "$RUNNER_FILE" && c9_runner_self=1
+c9_runner_no_agy_claude=0
+grep -qE 'claude-(sonnet|opus)-4-6' "$RUNNER_FILE" || c9_runner_no_agy_claude=1
+c9_runner_tools=0
+grep -q '^tools:.*Edit' "$RUNNER_FILE" && grep -q '^tools:.*Write' "$RUNNER_FILE" && c9_runner_tools=1
+check "the skill and the agent definition route a dry Gemini the same way" '[ "$c9_skill_pro" -eq 1 ] && [ "$c9_skill_self" -eq 1 ] && [ "$c9_skill_no_agy_claude" -eq 1 ] && [ "$c9_runner_pro" -eq 1 ] && [ "$c9_runner_self" -eq 1 ] && [ "$c9_runner_no_agy_claude" -eq 1 ] && [ "$c9_runner_tools" -eq 1 ]'
 
 # The watchdog cds to the worktree, so $0 must be resolved before that. Issue #108.
 (cd "$SRC" && STUB_AGY_MODE=quota bash ./run-agy-watchdog.sh \
@@ -189,6 +188,16 @@ c10_chk_rc=0
 bash "$AGY_QUOTA" check rel-model >/dev/null 2>&1 || c10_chk_rc=$?
 c10_sidecar_quota=$(jq -r '.quota_exhausted // false' "$TMPDIR/out_rel.json.meta.json" 2>/dev/null || echo false)
 check "a relative watchdog invocation still records" '[ "$c10_chk_rc" -eq 1 ] && [ "$c10_sidecar_quota" = "true" ]'
+
+echo "-- 11. The dispatch path names where dry work goes"
+PREFLIGHT=$(sed -n '/## Before dispatching/,/^## Launch/p' "$SKILL_FILE")
+c11_sonnet=0
+printf '%s' "$PREFLIGHT" | grep -q 'model: sonnet' && c11_sonnet=1
+c11_direct=0
+printf '%s' "$PREFLIGHT" | grep -q 'no wrapper' && c11_direct=1
+c11_no_timer=0
+printf '%s' "$PREFLIGHT" | grep -q 'Never a reset timer' && c11_no_timer=1
+check "the dispatch path names where dry work goes" '[ "$c11_sonnet" -eq 1 ] && [ "$c11_direct" -eq 1 ] && [ "$c11_no_timer" -eq 1 ]'
 
 [ "$fails" -eq 0 ] && echo && echo "all test-agy-quota tests passed"
 exit "$fails"
