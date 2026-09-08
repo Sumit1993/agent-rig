@@ -5,7 +5,7 @@ description: "Answer where a repo stands and what to work on next by reading Git
 
 # Direction
 
-GitHub is the record and this skill is the reader. There is no script. Run the commands below with `gh` from inside the repo. Never run an unfiltered `gh issue list`; picking by recency is the failure this replaces. The ruling with the evidence is `Sumit1993/claude-kit#100`, the comment of 2026-09-08.
+GitHub is the record and this skill is the reader. There is no script. Run the commands below with `gh` from inside the repo. Never run an unfiltered `gh issue list`; picking by recency is the failure this replaces. The ruling with the evidence is the last superseding comment on `Sumit1993/claude-kit#100`.
 
 ## The vocabulary
 
