@@ -12,6 +12,8 @@ PROMPT=$(realpath -m "$PROMPT")
 OUT=$(realpath -m "$OUT")
 ACTIVITY=$(realpath -m "${OUT%.*}.activity.log")
 STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+# Resolved before the cd below, or a relative $0 resolves against the worktree. Issue #108.
+SCRIPT_DIR=$(dirname "$(realpath -m "$0")")
 
 # agy's own --log-file streams; stdout holds one JSON envelope written only at the end.
 # Staleness must key on the streaming log, or every run looks hung until it finishes.
@@ -100,7 +102,6 @@ BYTES=$(stat -c %s "$OUT" 2>/dev/null || echo 0)
 
 # Quota exhaustion records best-effort state and updates the sidecar. Issues #47, #108.
 QUOTA_EXHAUSTED=false
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 AGY_QUOTA="$SCRIPT_DIR/agy-quota.sh"
 if [ -f "$AGY_QUOTA" ]; then
   QUOTA_OUT=$(bash "$AGY_QUOTA" record-from-envelope "$MODEL" "$OUT" 2>/dev/null || true)

@@ -182,5 +182,13 @@ if grep -qi "every lane dry" "$RUNNER_FILE"; then
 fi
 check "the skill and the agent definition agree" '[ "$c9_skill_no_bs" -eq 1 ] && [ "$c9_runner_no_bs" -eq 1 ] && [ "$c9_skill_eld" -eq 1 ] && [ "$c9_runner_eld" -eq 1 ]'
 
+# The watchdog cds to the worktree, so $0 must be resolved before that. Issue #108.
+(cd "$SRC" && STUB_AGY_MODE=quota bash ./run-agy-watchdog.sh \
+  "$TMPDIR/wt" "$TMPDIR/prompt.md" "$TMPDIR/out_rel.json" 0 10s rel-model >/dev/null 2>&1) || true
+c10_chk_rc=0
+bash "$AGY_QUOTA" check rel-model >/dev/null 2>&1 || c10_chk_rc=$?
+c10_sidecar_quota=$(jq -r '.quota_exhausted // false' "$TMPDIR/out_rel.json.meta.json" 2>/dev/null || echo false)
+check "a relative watchdog invocation still records" '[ "$c10_chk_rc" -eq 1 ] && [ "$c10_sidecar_quota" = "true" ]'
+
 [ "$fails" -eq 0 ] && echo && echo "all test-agy-quota tests passed"
 exit "$fails"
