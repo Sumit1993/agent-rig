@@ -62,7 +62,7 @@ esac
 check "the verb records a quota envelope" '[ "$c1_rec_pass" -eq 1 ] && [ "$c1_chk_rc" -eq 1 ] && [ "$c1_chk_pass" -eq 1 ]'
 
 echo "-- 2. The reset duration is parsed, not dropped"
-c2_reset_at=$(jq -r '.["gemini-3.8-flash-high"].reset_at // empty' "$TMPDIR/state/agy/quota.json" 2>/dev/null || echo "")
+c2_reset_at=$(jq -r '.gemini.reset_at // empty' "$TMPDIR/state/agy/quota.json" 2>/dev/null || echo "")
 c2_date_ok=0
 if [ -n "$c2_reset_at" ] && [ "$c2_reset_at" != "null" ]; then
   date -u -d "$c2_reset_at" +%s >/dev/null 2>&1 && c2_date_ok=1
@@ -166,13 +166,13 @@ SKILL_FILE="$SRC/SKILL.md"
 RUNNER_FILE="$(cd "$SRC/../../agents" && pwd)/agy-runner.md"
 HANDLER=$(sed -n '/## Handler babysit loop/,$p' "$SKILL_FILE")
 c9_skill_pro=0
-printf '%s' "$HANDLER" | grep -q 'gemini-3.1-pro-high' && c9_skill_pro=1
+printf '%s' "$HANDLER" | grep -q 'share a pool' && c9_skill_pro=1
 c9_skill_self=0
-printf '%s' "$HANDLER" | grep -q 'do the task yourself' && c9_skill_self=1
+printf '%s' "$HANDLER" | grep -qi 'do the task yourself' && c9_skill_self=1
 c9_skill_no_agy_claude=0
 printf '%s' "$HANDLER" | grep -qE 'claude-(sonnet|opus)-4-6' || c9_skill_no_agy_claude=1
 c9_runner_pro=0
-grep -q 'gemini-3.1-pro-high' "$RUNNER_FILE" && c9_runner_pro=1
+grep -q 'share one pool' "$RUNNER_FILE" && c9_runner_pro=1
 c9_runner_self=0
 grep -q 'I do the task myself' "$RUNNER_FILE" && c9_runner_self=1
 c9_runner_no_agy_claude=0
@@ -198,6 +198,26 @@ printf '%s' "$PREFLIGHT" | grep -q 'no wrapper' && c11_direct=1
 c11_no_timer=0
 printf '%s' "$PREFLIGHT" | grep -q 'Never a reset timer' && c11_no_timer=1
 check "the dispatch path names where dry work goes" '[ "$c11_sonnet" -eq 1 ] && [ "$c11_direct" -eq 1 ] && [ "$c11_no_timer" -eq 1 ]'
+
+echo "-- 12. A wall is recorded against the group, not the slug"
+bash "$AGY_QUOTA" clear gemini-3.8-flash-high
+bash "$AGY_QUOTA" clear claude-sonnet-4-6
+bash "$AGY_QUOTA" record gemini-3.8-flash-high 1h35m27s
+c12_pro_rc=0
+c12_pro_out=$(bash "$AGY_QUOTA" check gemini-3.1-pro-high 2>&1) || c12_pro_rc=$?
+c12_pro_exhausted=0
+case "$c12_pro_out" in
+  exhausted:*) c12_pro_exhausted=1 ;;
+esac
+c12_claude_rc=0
+c12_claude_out=$(bash "$AGY_QUOTA" check claude-sonnet-4-6 2>&1) || c12_claude_rc=$?
+c12_claude_usable=0
+case "$c12_claude_out" in
+  usable:*) c12_claude_usable=1 ;;
+esac
+c12_group_key=$(jq -r 'has("gemini")' "$TMPDIR/state/agy/quota.json" 2>/dev/null || echo false)
+c12_no_slug_key=$(jq -r 'has("gemini-3.8-flash-high") | not' "$TMPDIR/state/agy/quota.json" 2>/dev/null || echo false)
+check "a Gemini wall covers every Gemini slug and leaves the other group alone" '[ "$c12_pro_rc" -eq 1 ] && [ "$c12_pro_exhausted" -eq 1 ] && [ "$c12_claude_rc" -eq 0 ] && [ "$c12_claude_usable" -eq 1 ] && [ "$c12_group_key" = "true" ] && [ "$c12_no_slug_key" = "true" ]'
 
 [ "$fails" -eq 0 ] && echo && echo "all test-agy-quota tests passed"
 exit "$fails"

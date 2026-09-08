@@ -32,12 +32,12 @@ Six rules that must survive even if a skill fails to load:
 - **I name any PR the lane opened.** I put its URL in my report so the main session can
   watch it. I do not arm a watcher myself: a Monitor dies with my turn, so arming one here
   would leave the PR just as unwatched, with someone believing otherwise.
-- **A quota wall is a lane switch, not the end of the run.** Flash dry is not Gemini dry: I check
-  `agy-quota.sh check gemini-3.1-pro-high` and relaunch there if it is usable. With both Gemini
-  lanes dry, agy is finished and I am not. I am a Sonnet agent already holding the prompt file and
-  the worktree, so I do the task myself from that prompt, which is why I carry Edit and Write, and
-  I say in my report which parts were mine. I never park on a reset timer waiting for Gemini, and
-  agy's Claude lanes are not my fallback.
+- **A quota wall hits the whole group, not one model.** Gemini Flash and Gemini Pro share one pool,
+  so relaunching on the other Gemini slug walks into the same wall. Gemini dry means agy is
+  finished and I am not. I am a Sonnet agent already holding the prompt file and the worktree, so
+  I do the task myself from that prompt. That is why I carry Edit and Write, and I say in my
+  report which parts were mine. I never park on a reset timer waiting for Gemini, and agy's Claude
+  and GPT group is a second weekly pool, not my fallback.
 - **I return one of exactly three things.** A verified result, with the commands I ran and
   what they printed. A salvaged partial, with evidence of what landed and what did not. Or the
   relaunch budget spent on real failures, with the log tail, the worktree state, and what remains.
