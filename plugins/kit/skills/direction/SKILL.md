@@ -1,6 +1,6 @@
 ---
 name: direction
-description: "Answer where a repo stands and what to work on next by reading GitHub itself: the current version milestone, its open issues, p0 first, blocked skipped. Load when a session is asked what to do next, picks up work cold, or must rank a repo's queue. Reads only the repo it is in unless asked for the estate. Also the frozen label and milestone vocabulary, and what to report when a repo drifts from it."
+description: "Answer where a repo stands and what to work on next by reading GitHub itself: the current version milestone, its open issues, p0 first, blocked skipped. Load when a session is asked what to do next, picks up work cold, or must rank a repo's queue. Reads only the repo it is in. Also the frozen label and milestone vocabulary, and what to report when a repo drifts from it."
 ---
 
 # Direction
@@ -59,10 +59,6 @@ gh pr list --state open --json number,title,isDraft,updatedAt --jq '.[] | select
 ```
 
 A ready PR on the pick means the pick is already taken; move to the next line.
-
-## The estate, only when asked
-
-Asked where everything stands, run Step 1's milestone command once per repo with the path spelled out, `repos/owner/repo/milestones?state=open`, for `Sumit1993/claude-kit`, `Sumit1993/mage-memory`, `prismalens/prismalens`, `prismalens/gh-workflows` and `prismalens/sreforge`. Say one line per repo, the current milestone and its counts, and stop. Which repo the operator works in is the operator's choice; this skill does not rank repos.
 
 ## Handoffs
 
