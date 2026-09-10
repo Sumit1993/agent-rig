@@ -60,6 +60,55 @@
         ],
         "description": "Block pkill/killall targeting agy by name; they reap other sessions' runs as rc=137",
         "id": "pre:bash:no-broad-agy-kill"
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/gh-body-no-scratch.sh\"",
+            "timeout": 10
+          }
+        ],
+        "description": "Block gh issue/pr commands citing scratch paths (ai-context or /tmp)",
+        "id": "pre:bash:gh-body-no-scratch"
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/issue-create-nudge.sh\"",
+            "timeout": 5
+          }
+        ],
+        "description": "Nudge on third gh issue create this session to fold into an umbrella",
+        "id": "pre:bash:issue-create-nudge"
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/vendored-skill-nudge.sh\"",
+            "timeout": 5
+          }
+        ],
+        "description": "Inject record doctrine when vendored handoff/tickets/research skills load",
+        "id": "pre:skill:vendored-skill-nudge"
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/subagent-no-stall.sh\"",
+            "timeout": 10
+          }
+        ],
+        "description": "Block subagents returning stall phrasing instead of waiting in the foreground",
+        "id": "stop:subagent-no-stall"
       }
     ],
     "SessionEnd": [
