@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.9.0](https://github.com/Sumit1993/claude-kit/compare/kit-v0.8.0...kit-v0.9.0) (2026-09-10)
+
+
+### Features
+
+* **direction:** the skill reads GitHub itself, the script is gone ([#100](https://github.com/Sumit1993/claude-kit/issues/100)) ([#122](https://github.com/Sumit1993/claude-kit/issues/122)) ([3f28806](https://github.com/Sumit1993/claude-kit/commit/3f28806b23b0e2ee6de562c159e840caed2b28d7))
+* **kit:** [#123](https://github.com/Sumit1993/claude-kit/issues/123) climb: scratch-path gate, stall refusal, two nudges, length caps, doctrine ([#123](https://github.com/Sumit1993/claude-kit/issues/123)) ([#127](https://github.com/Sumit1993/claude-kit/issues/127)) ([556471c](https://github.com/Sumit1993/claude-kit/commit/556471cbe82a099d88c660c2796aa4db0bf6fd5d))
+* **statusline:** 5h and 7d account percent from stdin, traced to metrics/usage.jsonl ([#124](https://github.com/Sumit1993/claude-kit/issues/124)) ([#126](https://github.com/Sumit1993/claude-kit/issues/126)) ([d0cc721](https://github.com/Sumit1993/claude-kit/commit/d0cc7217816c953d3f0f4fd813704926e5bf80b2))
+
+
+### Bug Fixes
+
+* **agy-delegate:** a quota wall stops agy, not the task, and the spec comes from the planner ([#118](https://github.com/Sumit1993/claude-kit/issues/118)) ([0ded1a1](https://github.com/Sumit1993/claude-kit/commit/0ded1a1432eabb2daafcc2e479e15860b91b93a1))
+* **claude-review-lane:** delete a false cancellation diagnostic, and write down the round-scheduling model ([#111](https://github.com/Sumit1993/claude-kit/issues/111)) ([d7aff96](https://github.com/Sumit1993/claude-kit/commit/d7aff96288b0bb1eddf5d33377a68824d4eb42ef))
+* **claude-review-lane:** six missing verdicts, the new draft contract, and pause grammar ([#113](https://github.com/Sumit1993/claude-kit/issues/113)) ([16262e2](https://github.com/Sumit1993/claude-kit/commit/16262e2add792b833c110ef8c490da80c4d7fea5))
+* **coderabbit-lane:** the star count does not decide whether auto_review fires ([#114](https://github.com/Sumit1993/claude-kit/issues/114)) ([d9e96f3](https://github.com/Sumit1993/claude-kit/commit/d9e96f3592fc00ab46bffe54baabd87a22448312))
+* **sync-raw-to-r2:** skip live transcripts and keep going past a failing source ([#124](https://github.com/Sumit1993/claude-kit/issues/124)) ([#125](https://github.com/Sumit1993/claude-kit/issues/125)) ([33b0fbe](https://github.com/Sumit1993/claude-kit/commit/33b0fbe83db435761a57b6651ca1247356e98dee))
+
 ## [0.8.0](https://github.com/Sumit1993/claude-kit/compare/kit-v0.7.0...kit-v0.8.0) (2026-09-06)
 
 
