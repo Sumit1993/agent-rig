@@ -35,7 +35,8 @@ if [ -n "$five" ]; then
   f=$(printf '%.0f' "$five"); w=$(printf '%.0f' "${week:-0}")
   left=""
   if [ -n "$five_reset" ]; then
-    secs=$(( $(date -d "$five_reset" +%s 2>/dev/null || echo 0) - $(date +%s) ))
+    case "$five_reset" in *[!0-9]*) reset_epoch=$(date -d "$five_reset" +%s 2>/dev/null || echo 0) ;; *) reset_epoch=$five_reset ;; esac
+    secs=$(( reset_epoch - $(date +%s) ))
     [ "$secs" -gt 0 ] && left=" ↺$(( secs / 60 ))m"
   fi
   extra="${extra} | 5h $(color_for $f)${f}%\033[00m${left} 7d $(color_for $w)${w}%\033[00m"
