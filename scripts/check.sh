@@ -35,36 +35,17 @@ else
 fi
 echo
 
-echo "=== 4. length caps"
-# Cap dotfiles/AGENTS.md at 80 and skills at 150; autofix is vendored. Refs #123
-caps_failed=0
-
-if [ -f "dotfiles/AGENTS.md" ]; then
-  agents_lines=$(wc -l < "dotfiles/AGENTS.md" | tr -d ' ')
-  if [ "$agents_lines" -gt 80 ]; then
-    echo "dotfiles/AGENTS.md: $agents_lines lines (cap 80)"
-    caps_failed=1
-  fi
-fi
-
-for skill_file in plugins/kit/skills/*/SKILL.md; do
-  [ -f "$skill_file" ] || continue
-  case "$skill_file" in
-    */autofix/SKILL.md) continue ;;
-  esac
-  lines=$(wc -l < "$skill_file" | tr -d ' ')
-  if [ "$lines" -gt 150 ]; then
-    echo "$skill_file: $lines lines (cap 150)"
-    caps_failed=1
-  fi
+echo "=== 4. rule load (report-only)"
+# Lines, and story lines (a date, a PR number, "tonight", "we learned") per always-loaded file
+# and per skill. Information, not a gate: length has no measured effect on compliance, rule
+# count does. Refs #123
+for f in dotfiles/AGENTS.md plugins/kit/skills/*/SKILL.md; do
+  [ -f "$f" ] || continue
+  lines=$(wc -l < "$f" | tr -d ' ')
+  story=$(grep -cE '20[0-9]{2}-[0-9]{2}|#[0-9]{2,4}\b|tonight|we learned|last week' "$f" || true)
+  printf '%5s lines %3s story  %s\n' "$lines" "$story" "$f"
 done
-
-if [ "$caps_failed" -eq 0 ]; then
-  echo "PASS: length caps"
-else
-  echo "FAIL: length caps"
-  failed_steps+=("length caps")
-fi
+echo "PASS: rule load reported"
 echo
 
 if [ "${#failed_steps[@]}" -eq 0 ]; then

@@ -24,3 +24,8 @@ around it.
 A spec leads with the deliverable list and verify commands and is shorter than the diff it asks for, or the seat sends it back.
 
 A verifier is told that a note or ADR whose provenance commit predates the ruling under test is evidence of the past, not the present.
+
+Every spec or ruling ends with two sections. `Sources`: the outside references read
+before ruling (a comparable tool, a primary doc, a paper), or "none found". `Objection`:
+the strongest case against your own recommendation, in two lines. The seat sends back a
+spec missing either.

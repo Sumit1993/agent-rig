@@ -1,6 +1,6 @@
 ---
 name: anti-stall
-description: "Doctrine for waiting on long-running work without dozing: sentinel-first launches, evidence-keyed waits held in the background by a main session and in the foreground by a handler subagent, batch scripts over agent-per-step, and killing a run without reaping your own shell. Load BEFORE launching any delegation, build, campaign, CI run, or command expected to outlive one turn, whenever a wait has gone quiet longer than expected, and before any pgrep/pkill against a job you launched."
+description: "How to wait on long-running work without dozing: sentinel-first launches, evidence-keyed foreground waits, batch scripts over agent-per-step, killing a run safely. Load before launching anything that outlives one turn."
 metadata:
   version: "2.0.0"
 ---

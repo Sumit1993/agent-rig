@@ -1,6 +1,6 @@
 ---
 name: agy-delegate
-description: "Load BEFORE any Agent tool call, to decide whether the work belongs on agy at all rather than on a Claude subagent. agy (Antigravity CLI: Gemini 3.8 Flash / Gemini 3.1 Pro / Opus 4.6 / Sonnet 4.6) draws its own separate quota. Applies whenever the work is expressible as a written procedure with verify commands: implementing to a spec, rebases, evidence collection, log or CI triage, smoke runs, repetitive per-item procedure, research, doc review, bulk reading. Dispatch is one step: write the task prompt to a file and spawn `subagent_type: \"agy-runner\"` with the path. Also load when an agy run returns empty or truncated output, or when a handler needs to kill, salvage or resume one."
+description: "Load before any Agent tool call: decides whether the work belongs on agy (Antigravity CLI, its own quota) instead of a Claude subagent, and how to dispatch, babysit, kill or resume an agy run."
 metadata:
   version: "4.1.0"
 ---

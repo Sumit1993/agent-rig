@@ -96,6 +96,18 @@
         ],
         "description": "Inject record doctrine when vendored handoff/tickets/research skills load",
         "id": "pre:skill:vendored-skill-nudge"
+      },
+      {
+        "matcher": "AskUserQuestion|EnterPlanMode|Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/outside-view-nudge.sh\"",
+            "timeout": 5
+          }
+        ],
+        "description": "Nudge for an outside view when an agent asks, plans, or spawns the planner; 1st then every 3rd per session",
+        "id": "pre:any:outside-view-nudge"
       }
     ],
     "SubagentStop": [
@@ -135,6 +147,17 @@
         ],
         "description": "Reap orphaned watcher processes (PPID 1) left by sessions that died without the SessionEnd hook",
         "id": "start:reap-orphan-watchers"
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/session-budget.sh\"",
+            "timeout": 10
+          }
+        ],
+        "description": "One line of budget at session start: 5h and 7d percent from the statusline trace, agy quota per group, and the cheap-mode policy",
+        "id": "start:session-budget"
       }
     ],
     "PostToolUse": [

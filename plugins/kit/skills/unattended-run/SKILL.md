@@ -1,6 +1,6 @@
 ---
 name: unattended-run
-description: "Rules for holding a long unattended run: arm the wake-up first, keep the organizer out of the files, catch stalls, treat a green check as nothing, verify every delegate claim, park what needs a human. Load BEFORE any session where the operator is away and the work will outlast their attention: an overnight run, a multi-hour delegation, a cron-driven organizer's first wake-up. Also load whenever a lane reports \"standing by\"."
+description: "Rules for holding a long unattended run: arm the wake-up first, keep the organizer out of the files, catch stalls, treat a green check as nothing, verify every delegate claim, park what needs a human. Load before any run that outlasts the operator's attention."
 metadata:
   version: "3.1.0"
 ---

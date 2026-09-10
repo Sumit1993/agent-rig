@@ -1,6 +1,6 @@
 ---
 name: no-comments
-description: "Enforce the comment budget on a diff — spawn the comment-sicko agent, act on accepted findings, and offer to encode claimed constraints as a check instead of prose. Use for /no-comments, \"kill the comments\", or before merging a diff whose comments read as narration."
+description: "Enforce the comment budget on a diff: spawn the comment-sicko agent, act on accepted findings, offer a check in place of prose. Use for /no-comments or before merging a diff whose comments narrate."
 metadata:
   version: "1.0.0"
   upstream: "cursor/plugins pstack/skills/no-comments"

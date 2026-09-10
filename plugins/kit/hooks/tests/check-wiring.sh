@@ -15,7 +15,7 @@ jq -e . "$JSON" >/dev/null 2>&1 || { echo "FAIL: hooks.json is not valid JSON"; 
 echo "PASS: hooks.json parses"
 
 # Tools a matcher may name. A typo here means the hook silently never fires.
-KNOWN='Bash|Edit|Write|NotebookEdit|Read|Agent|Glob|Grep|WebFetch|WebSearch|Monitor|Skill|Task'
+KNOWN='Bash|Edit|Write|NotebookEdit|Read|Agent|Glob|Grep|WebFetch|WebSearch|Monitor|Skill|Task|AskUserQuestion|EnterPlanMode|ExitPlanMode'
 
 while IFS=$'\t' read -r event id matcher cmd; do
   path=${cmd//\"/}

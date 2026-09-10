@@ -1,6 +1,6 @@
 ---
 name: show-me-your-work
-description: "Keep a decision log: a TSV with one row per decision (what, why, evidence, result), so a reviewer can reconstruct a run without rerunning it or reading the transcript. Local by default; commit it when a reviewer needs the trail to trust the result. Use for /show-me-your-work, or when asked for a decision log, an audit trail, or a record of what was decided and why. For how to hold the run itself, that is unattended-run."
+description: "Keep a decision log, one TSV row per decision (what, why, evidence, result), so a reviewer can reconstruct a run without the transcript. Use for /show-me-your-work or when asked for an audit trail."
 metadata:
   version: "1.0.0"
   upstream: "cursor/plugins pstack/skills/show-me-your-work"

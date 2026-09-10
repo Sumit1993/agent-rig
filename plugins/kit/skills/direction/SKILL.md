@@ -1,6 +1,6 @@
 ---
 name: direction
-description: "Answer where a repo stands and what to work on next by reading GitHub itself: the current version milestone, its open issues, p0 first, blocked skipped. Load when a session is asked what to do next, picks up work cold, or must rank a repo's queue. Reads only the repo it is in. Also the frozen label and milestone vocabulary, and what to report when a repo drifts from it."
+description: "Where a repo stands and what to work on next, read from GitHub itself: the version milestone, its open issues by priority, blocked skipped. Load when a session picks up work cold or must rank a queue. Also the frozen label and milestone vocabulary."
 ---
 
 # Direction
