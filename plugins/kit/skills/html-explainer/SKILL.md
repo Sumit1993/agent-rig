@@ -1,6 +1,6 @@
 ---
 name: html-explainer
-description: "Mechanics for building a standalone HTML explainer page (inline CSS/SVG, no build step, ~/ai-context/ or the repo, explorer.exe offer). Load once AGENTS.md's Language & Communication Style rule has already decided a page is warranted — 3+ moving parts, side-by-side comparisons, diagrams, UI mockups, an explainer past ~100 lines of prose."
+description: "Mechanics for a standalone HTML explainer page: inline CSS and SVG, no build step. Load once a page is warranted: three or more moving parts, comparisons, diagrams, or an explainer past 100 lines of prose."
 metadata:
   version: "1.0.0"
 ---

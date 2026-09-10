@@ -1,6 +1,6 @@
 ---
 name: direction
-description: "Answer where a repo stands and what to work on next by reading GitHub itself: the current version milestone, its open issues, p0 first, blocked skipped. Load when a session is asked what to do next, picks up work cold, or must rank a repo's queue. Reads only the repo it is in. Also the frozen label and milestone vocabulary, and what to report when a repo drifts from it."
+description: "Where a repo stands and what to work on next, read from GitHub itself: the version milestone, its open issues by priority, blocked skipped. Load when a session picks up work cold or must rank a queue. Also the frozen label and milestone vocabulary."
 ---
 
 # Direction
@@ -19,7 +19,7 @@ Bot labels (`dependencies`, `github_actions`, `javascript`, `autorelease:*`) and
 
 A milestone is titled with the version it ships, `0.5.0`. A repo has at most two open: current and next. Line one of the description is the done-when sentence. There is no number prefix, no due date, and no order across repos.
 
-Never create, rename or delete a label or a milestone. If the vocabulary lacks something, file an issue labelled `needs-operator` saying what and why.
+Never create, rename or delete a label or a milestone. If the vocabulary lacks something, file an issue labelled `needs-operator` saying what and why. On a repo's first run the operator installs the labels and milestones, the skill never does.
 
 ## Step 1: read the repo and report drift
 

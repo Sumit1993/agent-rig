@@ -1,0 +1,49 @@
+#!/bin/bash
+# Regression suite for gh-body-no-scratch.sh (PreToolUse Bash). Refs #123.
+set -u
+HOOK="$(cd "$(dirname "$0")/.." && pwd)/gh-body-no-scratch.sh"
+fails=0
+CWD=$(mktemp -d)
+TMPDIR_TEST=$(mktemp -d)
+cleanup() { rm -rf "$CWD" "$TMPDIR_TEST"; }
+trap cleanup EXIT
+
+check() { # name want_rc command_str
+  local name=$1 want=$2 cmd=$3 got
+  jq -n --arg cwd "$CWD" --arg cmd "$cmd" '{"cwd": $cwd, "tool_input": {"command": $cmd}}' | "$HOOK" >/dev/null 2>&1
+  got=$?
+  if [ "$got" = "$want" ]; then
+    echo "PASS: $name"
+  else
+    echo "FAIL: $name (want rc=$want, got rc=$got)"; fails=$((fails + 1))
+  fi
+}
+
+got=$(printf 'not json' | "$HOOK" >/dev/null 2>&1; echo $?)
+case "$got" in
+  0|2) echo "PASS: junk stdin exits $got" ;;
+  *) echo "FAIL: junk stdin rc=$got"; fails=$((fails + 1)) ;;
+esac
+
+echo "contains /tmp/claude-1000" > "$TMPDIR_TEST/dirty-file.txt"
+echo "clean report" > "$TMPDIR_TEST/clean-file.txt"
+
+check "inline body see ~/ai-context/x.md blocks" 2 'gh issue create --title "Issue" --body "see ~/ai-context/x.md"'
+
+heredoc_cmd=$(cat <<'BODYEOF'
+gh issue create --title "Heredoc" --body-file - <<'BODY'
+report in /tmp/claude-1000/report.md
+BODY
+BODYEOF
+)
+check "heredoc with /tmp/ blocks" 2 "$heredoc_cmd"
+
+check "body-file with dirty content blocks" 2 "gh issue create --title \"Dirty\" --body-file \"$TMPDIR_TEST/dirty-file.txt\""
+check "body-file with clean content under mktemp path passes" 0 "gh issue create --title \"Clean\" --body-file \"$TMPDIR_TEST/clean-file.txt\""
+check "clean inline body passes" 0 'gh issue create --title "Clean" --body "clean body"'
+check "SCRATCH_GATE=skip with dirty body passes" 0 'SCRATCH_GATE=skip gh issue create --title "Skip" --body "see ~/ai-context/x.md"'
+check "git commit -m ai-context passes" 0 'git commit -m "ai-context"'
+check "gh issue view passes" 0 'gh issue view 5'
+
+[ "$fails" -eq 0 ] && echo && echo "all gh-body-no-scratch hook tests passed"
+exit "$fails"

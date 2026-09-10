@@ -35,6 +35,19 @@ else
 fi
 echo
 
+echo "=== 4. rule load (report-only)"
+# Lines, and story lines (a date, a PR number, "tonight", "we learned") per always-loaded file
+# and per skill. Information, not a gate: length has no measured effect on compliance, rule
+# count does. Refs #123
+for f in dotfiles/AGENTS.md plugins/kit/skills/*/SKILL.md; do
+  [ -f "$f" ] || continue
+  lines=$(wc -l < "$f" | tr -d ' ')
+  story=$(grep -cE '20[0-9]{2}-[0-9]{2}|#[0-9]{2,4}\b|tonight|we learned|last week' "$f" || true)
+  printf '%5s lines %3s story  %s\n' "$lines" "$story" "$f"
+done
+echo "PASS: rule load reported"
+echo
+
 if [ "${#failed_steps[@]}" -eq 0 ]; then
   echo "All checks passed. Note: unslop-check is report-only; hit count is information, not a gate."
   exit 0

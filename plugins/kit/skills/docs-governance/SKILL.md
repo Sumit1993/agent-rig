@@ -1,6 +1,6 @@
 ---
 name: docs-governance
-description: "Audit and fix docs drift, then install prevention nets — the four-phase docs-governance playbook. Trigger: before merging a release PR on a repo whose registry entry has a `docs` block (the release gate points here), when the user asks for a docs audit/refresh, or when docs drift is suspected."
+description: "Audit and fix docs drift, then install prevention nets. Load before merging a release PR on a repo whose registry entry has a docs block, or when docs drift is suspected."
 metadata:
   version: "2.0.0"
 ---

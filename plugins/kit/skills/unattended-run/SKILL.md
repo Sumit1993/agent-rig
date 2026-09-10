@@ -1,21 +1,19 @@
 ---
 name: unattended-run
-description: "Rules for holding a long unattended run: arm the wake-up first, keep the organizer out of the files, catch stalls, treat a green check as nothing, verify every delegate claim, park what needs a human. Load BEFORE any session where the operator is away and the work will outlast their attention: an overnight run, a multi-hour delegation, a cron-driven organizer's first wake-up. Also load whenever a lane reports \"standing by\"."
+description: "Rules for holding a long unattended run: arm the wake-up first, keep the organizer out of the files, catch stalls, treat a green check as nothing, verify every delegate claim, park what needs a human. Load before any run that outlasts the operator's attention."
 metadata:
-  version: "3.0.0"
+  version: "3.1.0"
 ---
 
 # Unattended run: holding a long autonomous session
 
-One seat holds the goal across every wake-up. Every other seat is disposable. Each rule here came from a failure that cost hours of a real unattended window; the stories are in `docs/incidents.md`. Assumed and not repeated: `anti-stall` for how a wait is built, `agy-delegate` for the cheap executor, `pr-watch` for one PR's lifecycle.
+One seat holds the goal across every wake-up. Every other seat is disposable. Each rule here came from a failure in a real unattended window; git history holds the stories. Assumed and not repeated: `anti-stall` for how a wait is built, `agy-delegate` for the cheap executor, `pr-watch` for one PR's lifecycle.
 
 ## 0. The first tick: arm the wake-up, then write the plan file
 
-Nothing is dispatched until both exist.
-
 ### Arm the wake-up
 
-With no scheduled wake-up the run is one turn long.
+Nothing is dispatched until both exist. With no scheduled wake-up the run is one turn long.
 
 1. `CronCreate` is a deferred tool. Fetch it first: `ToolSearch("select:CronCreate,CronList,CronDelete")`. Nothing prompts you to, which is why this gets skipped.
 2. 30 minutes, off the :00 and :30 marks where every scheduled job lands: `7,37 * * * *`. Longer when the thing you wait on moves slower.
@@ -27,9 +25,7 @@ Three facts shape the plan. Jobs live in this session's memory only; end the ses
 
 ### Write the plan file
 
-`~/ai-context/<repo>-<task>-plan.md` is the source of truth. Scrollback does not survive compaction, a crash, or the operator resuming in a new session; the plan file does. It holds the standing rules, the lane table, the decisions waiting on the operator, verified environment facts, and a running log. Detail goes here, not the terminal (§11).
-
-If it does not exist, building it is the rest of the first tick. Read the queue without touching anything and group it into waves by what blocks what. Probe the environment rather than assuming it: which stacks are up, which worktrees exist, which repo owns which name. Write down the standing rules, including the ones the operator only said out loud, plus what is frozen and what must never be merged.
+`~/ai-context/<repo>-<task>-plan.md` is the source of truth. It holds standing rules, the lane table, decisions waiting on the operator, verified environment facts, and a running log. Detail goes here, not the terminal (§11). If it does not exist, building it is the rest of the first tick: read the queue without touching anything, group into waves by blockers, probe stacks and worktrees, and record standing rules and frozen paths.
 
 Respect the window. Never start a lane that cannot finish and be verified in the time left. Near the end, take work only to a state that is safe to leave: pushed, commented or parked. Never mid-merge or mid-rebase.
 
@@ -50,15 +46,13 @@ Every dispatch prompt says, in as many words:
 - What the lane may not do: merge, close, bypass, edit a frozen path.
 - The stall rule (§3).
 
-Never override a lane's brief with reasoning you invented on the spot. If you contradict a brief, cite what supersedes it. With no source, the brief wins, and a lane that refuses an unsourced order is behaving correctly (`unsourced-order-refused`).
+Never override a lane's brief with reasoning you invented on the spot. If you contradict a brief, cite what supersedes it. With no source, the brief wins, and a lane that refuses an unsourced order is behaving correctly.
 
 Workflows, subagents and todos are free to use; cost is the only limit. Do not ration agents to save money and do not do work by hand to avoid spawning one. This grant is about model choice and does not exempt bounded mechanical work from the delegation rule in `AGENTS.md`, which still sends that work to agy.
 
 ## 2. Delegate, then verify
 
-Send bulk reading, log triage, rebases, evidence gathering and repetitive per-PR work to the cheap executor. Never let its claims reach an artifact unchecked (`invented-button-label`). Cheap models gather and draft. Verification belongs to the organizer or a Claude handler, always against source at the exact SHA.
-
-Judgement work skips the cheap lane: security and crypto, anything users see, product semantics.
+Send bulk reading, log triage, rebases, evidence gathering and repetitive work to the cheap executor. Verification runs once per umbrella against the build, not once per unit. The seat does not re-run a gate the umbrella already proved; re-run only on a gap. Judgement skips the cheap lane: security, crypto, user-facing work, product semantics.
 
 ## 3. The stall rule: a wait has to hold the turn
 
@@ -73,20 +67,20 @@ Fix it at once and skip the acknowledgement. `SendMessage` the lane: "go read <t
 
 Some evidence has no shell poll. If the only way to read it is an MCP tool call, a cron tick into this session is the watch and its latency is the tick interval. Record it as a tick, never a monitor (`anti-stall` §2).
 
-The reverse failure is a watch that outlives its job. A monitor, a poller, a cron tick: anything armed to watch one piece of work is torn down the moment that work ends, whether merged, closed, moved or abandoned (`watcher-outlived-repurposed-pr`). Arming something durable creates a teardown obligation. Record it in the plan file's lane table beside the thing it watches, and disarm it when closing the lane.
+The reverse failure is a watch that outlives its job. A monitor, a poller, a cron tick: anything armed to watch one piece of work is torn down the moment that work ends, whether merged, closed, moved or abandoned. Arming something durable creates a teardown obligation. Record it in the plan file's lane table beside the thing it watches, and disarm it when closing the lane.
 
 ## 4. A green job proves nothing. Only a posted artifact does
 
-A workflow can report `success` having posted nothing, and does (`green-review-posted-nothing`).
+A workflow can report `success` having posted nothing, and does.
 
 - Read the job that produces the artifact, not the wrapper check. A green review step means the lane ran; only the thing it was supposed to post counts.
 - A green gate whose description names a retired producer is a leftover, not a pass. It flips red the moment anything re-evaluates it, and a status-only read cannot see that coming.
 
 ## 5. Check every delegate claim against live state
 
-A returned report is a guess until confirmed. Before it changes a decision, check it against the thing itself: the head SHA, the check's description string, the job log, the file at that SHA. A diff claimed as one line gets read. Two lanes agreeing raises no confidence, because they can share one stale input, and did (`two-lanes-shared-stale-green`).
+Check reports once per umbrella: verify provenance (worktree, SHA, raw output) and diff against the spec. The seat does not re-run a gate the umbrella proved, re-running only on a gap. Two lanes agreeing raises no confidence, because they can share one stale input.
 
-A PR body claiming what the PR does not do gets checked against the file list (`body-contradicted-its-diff`). Checking is cheap. A body that contradicts its diff is invisible afterwards.
+A PR body claiming what the PR does not do gets checked against the file list. Checking is cheap. A body that contradicts its diff is invisible afterwards.
 
 ## 6. Ask the planner seat when the call is a judgement
 
@@ -100,19 +94,19 @@ Architecture, security and crypto, product semantics, and any dilemma where two 
 
 ## 7. Gates and rulesets: flip the setting, do not build the machine
 
-A broken gate blocks every PR in the repo, including the PR that fixes it (`six-prs-through-their-own-gate`).
+A broken gate blocks every PR in the repo, including the PR that fixes it.
 
-- Ask whether the gate should exist at all before asking how to fix it. Decide per subsystem, not per hole (`four-rulings-one-gate`).
+- Ask whether the gate should exist at all before asking how to fix it. Decide per subsystem, not per hole.
 - Prefer a setting to a workflow. Rulesets are editable through the API, atomically, with no PR. One hand-built gate duplicated `required_review_thread_resolution`, already on in the same ruleset.
 - Never write a check that parses a vendor's text: comment bodies, review states, marker strings. None is a documented contract and anyone who can comment can trigger it. If you need a control, take the tool away from the agent instead.
 - Never ship a change whose own merge depends on the thing it is changing. Flip the setting first, then land the code. Nothing joins `required_status_checks` until one live PR has passed through it, watched. Product PRs never queue behind gate PRs.
-- Fail-closed is for security decisions, not plumbing (`unreadable-policy-blocked-repo`).
+- Fail-closed is for security decisions, not plumbing.
 
 ## 8. Merging: take it to green and leave it
 
 Mechanics are `pr-watch` Phase 3. Specific to unattended:
 
-- Never arm auto-merge. Reviewers cannot block a merge, so it fires the moment CI goes green, before the reviewer has finished, and `required_review_thread_resolution` has nothing left to block on (`prismalens-388-auto-merge`).
+- Never arm auto-merge. Reviewers cannot block a merge, so it fires the moment CI goes green, before the reviewer has finished, and `required_review_thread_resolution` has nothing left to block on.
 - An organizer that cannot merge with the operator present does not merge at all. Take the PR to green, report it ready, leave it (§10).
 - With a standing grant on a classic repo: one at a time, checking the gate after each. Every merge puts the other open PRs behind the base, auto-merge never updates a branch in that state, and nothing tells you. Go and look. Rebase the PRs you are parking at the end of the drain, not the start.
 
@@ -120,7 +114,7 @@ Mechanics are `pr-watch` Phase 3. Specific to unattended:
 
 When a gate blocks the only fix available, escalate. Waiting out a cooldown inside an eight hour window is cheap. A bypass cannot be undone.
 
-Tell a gate that is failing, where retrying is right, from one that cannot be satisfied, where retrying burns the run (`gate-demanded-impossible-evidence`). The tell: the same action gives the same empty result twice with no error. On the second, stop and escalate.
+Tell a gate that is failing, where retrying is right, from one that cannot be satisfied, where retrying burns the run. The tell: the same action gives the same empty result twice with no error. On the second, stop and escalate.
 
 The PR that repairs a gate is the worst candidate in the repo for skipping review. A gate change reviewed only by the model that wrote it is the failure independent review exists to catch (§7).
 
@@ -139,11 +133,9 @@ The PR that repairs a gate is the worst candidate in the repo for skipping revie
 
 Findings, decisions, evidence, SHAs, blockers. Do not restate the plan, narrate intent, or re-summarise logged work. Every dispatched agent gets the same instruction. A tick with no dispatch is a valid tick, one line with the reason.
 
-While the operator is away, the terminal has no reader, and the plan file is the record and the report. A tick that dispatched, verified and logged reports one line, or nothing at all. Spend the words on the plan file and the issue comments, which survive, rather than on scrollback, which does not. Full reporting resumes for the handback, which the operator does read.
+While the operator is away, the terminal has no reader, and the plan file is the record and the report. A tick that dispatched, verified and logged reports one line, or nothing at all. Spend the words on the plan file and issue comments rather than scrollback. Full reporting resumes for the handback. Plain sentences, identifiers and commands exact; compress the words, never the meaning.
 
-Short is length, not vocabulary. Plain sentences a reader who was not watching can follow, identifiers and commands exact. Compress the words, never the meaning.
-
-Lead with what landed, and the SHAs of anything merged or pushed, before anything pending (`merge-reported-as-waiting`). Saying nothing about a finished step reads as "it did not happen" and costs a verification round. A lane that refused an unsourced order goes in the report as correct, not as a failed dispatch.
+Lead with what landed, and the SHAs of anything merged or pushed, before anything pending. Saying nothing about a finished step reads as "it did not happen" and costs a verification round. A lane that refused an unsourced order goes in the report as correct, not as a failed dispatch.
 
 ## Wake-up checklist (each tick)
 

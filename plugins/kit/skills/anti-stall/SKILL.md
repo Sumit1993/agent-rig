@@ -1,13 +1,13 @@
 ---
 name: anti-stall
-description: "Doctrine for waiting on long-running work without dozing: sentinel-first launches, evidence-keyed waits held in the background by a main session and in the foreground by a handler subagent, batch scripts over agent-per-step, and killing a run without reaping your own shell. Load BEFORE launching any delegation, build, campaign, CI run, or command expected to outlive one turn, whenever a wait has gone quiet longer than expected, and before any pgrep/pkill against a job you launched."
+description: "How to wait on long-running work without dozing: sentinel-first launches, evidence-keyed foreground waits, batch scripts over agent-per-step, killing a run safely. Load before launching anything that outlives one turn."
 metadata:
   version: "2.0.0"
 ---
 
 # Anti-stall: waiting on long work
 
-Every stall had the same cause: the wait keyed on process liveness or a timer. Every wait keyed on durable evidence worked: a sentinel line, an artifact file, a commit. Stories are in `docs/incidents.md`.
+Every stall had the same cause: the wait keyed on process liveness or a timer. Every wait keyed on durable evidence worked: a sentinel line, an artifact file, a commit.
 
 ## 1. Sentinel first
 
@@ -49,7 +49,7 @@ Before arming a loop, ask whether the event you wait for could stop the exit con
 until [ "$(gh pr view 495 --json mergeStateStatus --jq .mergeStateStatus)" = "CLEAN" ]; do sleep 30; done
 ```
 
-An unresolved review thread pins `mergeStateStatus` at `BLOCKED`, so the posted finding is the event that guarantees this never exits (`prismalens-495-blocked-forever`).
+An unresolved review thread pins `mergeStateStatus` at `BLOCKED`, so the posted finding is the event that guarantees this never exits.
 
 - A PR wait keys on `reviewThreads` and comment IDs, never on merge state. Any increase is the event.
 - `BLOCKED` means "CI running" or "reviewer left findings", and the two want opposite responses. Query `reviewThreads`. Never guess.
