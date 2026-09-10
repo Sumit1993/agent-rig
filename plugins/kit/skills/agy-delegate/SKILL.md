@@ -7,7 +7,7 @@ metadata:
 
 # Delegating to Antigravity CLI (agy)
 
-Which model gets which task is `AGENTS.md`. Model choice inside an agy run is this skill's. How to wait on a run is `anti-stall`, assumed here and not repeated. Stories behind the rules are in `docs/incidents.md`.
+Which model gets which task is `AGENTS.md`. Model choice inside an agy run is this skill's. How to wait on a run is `anti-stall`, assumed here and not repeated.
 
 Verified against agy 1.1.27. Check `agy --version` before trusting a flag; `agy changelog` records what moved.
 
@@ -18,7 +18,7 @@ Verified against agy 1.1.27. Check `agy --version` before trusting a flag; `agy 
 - Lane count is derived, never a constant. Name the scarce resource and its scope first (a review counter, a serialising merge invariant, agy-Claude's weekly pool). A limit assumed per-repo can be org-wide or per-developer. Serialise inside that scope, run everything else wide.
 - agy meters two quota groups, not one lane per model. Gemini Flash and Gemini Pro share one pool. Claude Opus, Claude Sonnet and GPT-OSS share the other. `agy` with no arguments prints both, each with a weekly bar, a five-hour bar and a refresh time, and that screen is the only place the real numbers are visible.
 - Gemini dry ends the dispatch, it does not park the work. New work goes to a Claude subagent on `model: sonnet` holding the same prompt file, and a run you launched yourself with no wrapper goes the same way. Never a reset timer, and never the Claude and GPT group: that is agy's other weekly pool, not a spare Gemini lane.
-- Reference repo content is live refs, never a working tree. A prompt that copies or consults another repo's files fetches them with `gh api repos/<r>/contents/<path>`, or `git fetch` then `git show origin/main:<path>`, and says so explicitly. A checkout's files lag its refs (`stale-working-tree-seeds-canon-repo`).
+- Reference repo content is live refs, never a working tree. A prompt that copies or consults another repo's files fetches them with `gh api repos/<r>/contents/<path>`, or `git fetch` then `git show origin/main:<path>`, and says so explicitly. A checkout's files lag its refs.
 - Global standards for every run live in `~/.gemini/GEMINI.md` and agy loads them itself: evidence not narration, a new test must execute, verify both directions, never weaken a test, byte-exact commit messages. Prompts stay lean on those. You still verify agy's claims.
 
 ## Launch
@@ -106,7 +106,7 @@ The resumed turn keeps the same `conversation_id` and the full context. A fresh 
 - PID lost: `kill -9 $(pgrep -f "$SLUG")`. The slug is on agy's argv and nowhere else.
 - Every live run: `pgrep -x agy`, then `readlink /proc/<pid>/cwd` for its worktree.
 - Never derive the pattern from the prompt-file name. The launch expands `$(cat <file>)`, so agy's argv holds the prompt text. The file name matches only the wrappers, and killing on it leaves agy running.
-- agy processes are machine-global. `pkill -x agy`, `pkill -f agy`, `killall agy` and `pgrep -f "agy [-]-model"` are never acceptable, not even when every live run is yours (`claude-kit-kill-destroys-prismalens-run`). The `pre:bash:no-broad-agy-kill` hook blocks them; if it fires, you wanted a PID.
+- agy processes are machine-global. `pkill -x agy`, `pkill -f agy`, `killall agy` and `pgrep -f "agy [-]-model"` are never acceptable, not even when every live run is yours. The `pre:bash:no-broad-agy-kill` hook blocks them; if it fires, you wanted a PID.
 - Prove a PID is yours or kill nothing. Yours means `readlink /proc/<pid>/cwd` matches your worktree, or a `$!` you captured. "Cannot identify my run, not killing" is a correct outcome: a hung run of yours costs a timeout, the wrong kill costs someone else's unattended work.
 - A runtime slug also prevents the exit-144 self-kill: it did not exist when your ancestor shells started, so it cannot match their command lines. Bracketing helps but is not sufficient; see `anti-stall`.
 
@@ -134,7 +134,7 @@ The runner's section, not the dispatcher's. A handler owns its run end to end: l
 6. A run with no output that dies within about 30 seconds never started. Relaunch without charging the budget. Three in a row is an agy-side problem: change model.
 7. A quota wall hits the whole group, not one model. Flash and Pro share a pool, so relaunching on the other Gemini slug walks into the same wall. Gemini dry means agy is finished for this run, and you are not. You are a Sonnet agent already holding the prompt file and the worktree. Do the task yourself from that prompt, and say so in the report. Handing it on costs a re-read of everything you have. A weekly bar refreshes in days, so the reset timer is not a plan.
 8. Retry budget: 2 real relaunches. A resume on a surviving `conversation_id` is free, it is the same run. A quota wall costs no budget; it costs the group, and a dry Gemini group costs the agy run, not the task.
-9. Name any PR the lane opened: `gh pr list --head <branch> --json number,url`, URL in the report. Do not arm a watcher; a Monitor dies with your turn. The main session arms `pr-watch` on it (`gh-workflows-69-unwatched-pr`).
+9. Name any PR the lane opened: `gh pr list --head <branch> --json number,url`, URL in the report. Do not arm a watcher; a Monitor dies with your turn. The main session arms `pr-watch` on it.
 10. Preserve work before reporting. A change that passes the prompt's own verification gets committed on the lane's branch and said so. Stop there: no push, no PR, no merge.
 
 ### The three terminal reports
@@ -143,6 +143,6 @@ The runner's section, not the dispatcher's. A handler owns its run end to end: l
 2. A salvaged partial, with evidence of what landed and what did not.
 3. The relaunch budget spent on real failures, with the log tail, the worktree state, and what remains.
 
-Gemini going dry never produces report 3. It is not a terminal condition and it does not spend the step-8 budget, which counts relaunches. You finish the task on your own Sonnet and return report 1 or 2, saying which parts Gemini did and which you did (`quota-wall-reported-as-budget-spent`).
+Gemini going dry never produces report 3. It is not a terminal condition and it does not spend the step-8 budget, which counts relaunches. You finish the task on your own Sonnet and return report 1 or 2, saying which parts Gemini did and which you did.
 
 "Standing by", "still waiting on the agy run" and every other progress update is not a terminal report. Returning one ends the handler while the work is live.

@@ -7,7 +7,7 @@ metadata:
 
 # Anti-stall: waiting on long work
 
-Every stall had the same cause: the wait keyed on process liveness or a timer. Every wait keyed on durable evidence worked: a sentinel line, an artifact file, a commit. Stories are in `docs/incidents.md`.
+Every stall had the same cause: the wait keyed on process liveness or a timer. Every wait keyed on durable evidence worked: a sentinel line, an artifact file, a commit.
 
 ## 1. Sentinel first
 
@@ -49,7 +49,7 @@ Before arming a loop, ask whether the event you wait for could stop the exit con
 until [ "$(gh pr view 495 --json mergeStateStatus --jq .mergeStateStatus)" = "CLEAN" ]; do sleep 30; done
 ```
 
-An unresolved review thread pins `mergeStateStatus` at `BLOCKED`, so the posted finding is the event that guarantees this never exits (`prismalens-495-blocked-forever`).
+An unresolved review thread pins `mergeStateStatus` at `BLOCKED`, so the posted finding is the event that guarantees this never exits.
 
 - A PR wait keys on `reviewThreads` and comment IDs, never on merge state. Any increase is the event.
 - `BLOCKED` means "CI running" or "reviewer left findings", and the two want opposite responses. Query `reviewThreads`. Never guess.

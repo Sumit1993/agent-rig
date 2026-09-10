@@ -7,7 +7,7 @@ metadata:
 
 # The CodeRabbit review lane
 
-`coderabbitai[bot]` is the independent automated reviewer. `AGENTS.md` decides reviewer routing. `pr-watch` covers watching a PR this session raised, watcher lifecycles and merge mechanics. `claude-review-lane` covers `claude[bot]`. `autofix` applies PR-thread feedback with per-change approval. Process truth is `claude-kit/docs/pr-review-process.html`. Stories are in `docs/incidents.md`.
+`coderabbitai[bot]` is the independent automated reviewer. `AGENTS.md` decides reviewer routing. `pr-watch` covers watching a PR this session raised, watcher lifecycles and merge mechanics. `claude-review-lane` covers `claude[bot]`. `autofix` applies PR-thread feedback with per-change approval. Process truth is `claude-kit/docs/pr-review-process.html`.
 
 ## 1. Admission
 
@@ -23,7 +23,7 @@ A slot is a deliberate budget decision, never routine. Two cases:
 1. A sensitive surface: the CI and workflow surface itself, credential and crypto handling, the engine core, contract and schema changes.
 2. Independent validation: a Claude finding that wants a reviewer sharing no model, prompt or failure mode.
 
-A judgement call, not a path test. prismalens #415 retired `review-admit.yml` and the `review-evidence` gate, and neither file is on `main`; do not propose finishing them (`prismalens-415-retires-automatic-admission`). The hand-applied label is the whole mechanism. Hand admission exists because traffic outruns the counter (`traffic-outruns-counter-measurement`).
+A judgement call, not a path test. prismalens #415 retired `review-admit.yml` and the `review-evidence` gate, and neither file is on `main`; do not propose finishing them. The hand-applied label is the whole mechanism. Hand admission exists because traffic outruns the counter.
 
 `.coderabbit.yaml` path instructions still shape review quality and the Claude lane cannot see them, so they stay worth writing. They do not decide admission. `profile: chill` tames noise.
 
@@ -47,13 +47,13 @@ Essentials was formerly called Pro, and Team was formerly called Pro+.
 - Auto-pause is recoverable. A push past the limit pauses the lane on that PR and nothing arrives on its own. A bare `@coderabbitai resume` restarts it, and what follows is a real review of the final head that posts `Review completed`, so a PR paused by its own fix commits can still meet a merge condition requiring one. Resume deliberately; it spends a slot.
 - Batch fixes before requesting. Never spend a slot on a commit you are about to amend.
 - Remaining capacity is not readable. `@coderabbitai rate limit` returns documentation links.
-- The notice's stated wait is accurate. Obey it, because it is the same one-review-per-developer-per-hour Free limit measured directly, not a guess. It is the per-developer window anchored to the last accepted review, measured exact to within fifteen seconds. A flat 60 minutes from the refusal has the wrong anchor and lands about 21 minutes late (`flat-60-minute-wait-error`). `watch-coderabbit.sh` arms on the parsed figure and falls back to `CR_WATCH_COOLDOWN_SECONDS` (default 3600, a coincidental match to the hourly limit since this is the unparseable-notice fallback, not the limit itself) only when nothing parses; the event line names which it used. CodeRabbit has used at least three wordings, and the pattern once matched only the first (`claude-kit-28-rate-limit-wording-gap`):
+- The notice's stated wait is accurate. Obey it, because it is the same one-review-per-developer-per-hour Free limit measured directly, not a guess. It is the per-developer window anchored to the last accepted review, measured exact to within fifteen seconds. A flat 60 minutes from the refusal has the wrong anchor and lands about 21 minutes late. `watch-coderabbit.sh` arms on the parsed figure and falls back to `CR_WATCH_COOLDOWN_SECONDS` (default 3600, a coincidental match to the hourly limit since this is the unparseable-notice fallback, not the limit itself) only when nothing parses; the event line names which it used. CodeRabbit has used at least three wordings, and the pattern once matched only the first:
   - `Next review available in: **47 minutes**`
   - `**Next included review available in 30 minutes.**`
   - `Your next included review will be available in 23 minutes.`
 - The documented limit is one review per developer per hour on Free, rolling. The observed interval between an accepted review and the next runs about 55 to 57 minutes.
 - `review full` is not a way past the limit. Both forms draw the same budget. A success shortly after a refusal is the window rolling over. `review full` is for the different refusal, "does not re-review already reviewed commits"; the clock is for the limit.
-- CodeRabbit edits its reply in place, so a first read can show the opposite of the settled outcome. Read `updated_at`, wait for it to stop changing, classify on the settled body, and re-read before acting, not only before classifying (`settled-body-classification-trap`).
+- CodeRabbit edits its reply in place, so a first read can show the opposite of the settled outcome. Read `updated_at`, wait for it to stop changing, classify on the settled body, and re-read before acting, not only before classifying.
 
 ## 4. Triggers and polling
 

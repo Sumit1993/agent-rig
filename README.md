@@ -37,7 +37,6 @@ Plugin `kit`, path-independent via `${CLAUDE_PLUGIN_ROOT}`:
 | `hooks/vendored-skill-nudge.sh` | PreToolUse(Skill): nudges on handoff, to-tickets, research skills that records live in issues; on claude-api, that a price or model id needs only `shared/models.md` |
 | `hooks/session-budget.sh` | SessionStart: one line with the 5h and 7d percent from `~/.claude/metrics/usage.jsonl`, agy quota per group, and the cheap-mode policy |
 | `hooks/outside-view-nudge.sh` | PreToolUse(AskUserQuestion, EnterPlanMode, fable-planner spawn): get an outside view first. 1st time, then every 3rd per session |
-| `docs/incidents.md` | One paragraph per incident behind a rule, cited by slug from the skills |
 
 `dotfiles/AGENTS.md` loads on every turn in every project, so it carries routing and rules only. Procedure lives in a skill that loads on demand. It `@`-imports `skills/unslop/SKILL.md`, because writing rules must be loaded before the writing happens. Imports resolve relative to the file and nest; a nested import that points at nothing fails silently, so `install.sh` checks the target exists.
 
