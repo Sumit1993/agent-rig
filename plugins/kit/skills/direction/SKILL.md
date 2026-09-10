@@ -19,7 +19,7 @@ Bot labels (`dependencies`, `github_actions`, `javascript`, `autorelease:*`) and
 
 A milestone is titled with the version it ships, `0.5.0`. A repo has at most two open: current and next. Line one of the description is the done-when sentence. There is no number prefix, no due date, and no order across repos.
 
-Never create, rename or delete a label or a milestone. If the vocabulary lacks something, file an issue labelled `needs-operator` saying what and why.
+Never create, rename or delete a label or a milestone. If the vocabulary lacks something, file an issue labelled `needs-operator` saying what and why. On a repo's first run the operator installs the labels and milestones, the skill never does.
 
 ## Step 1: read the repo and report drift
 

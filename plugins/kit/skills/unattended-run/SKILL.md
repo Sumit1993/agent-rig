@@ -2,7 +2,7 @@
 name: unattended-run
 description: "Rules for holding a long unattended run: arm the wake-up first, keep the organizer out of the files, catch stalls, treat a green check as nothing, verify every delegate claim, park what needs a human. Load BEFORE any session where the operator is away and the work will outlast their attention: an overnight run, a multi-hour delegation, a cron-driven organizer's first wake-up. Also load whenever a lane reports \"standing by\"."
 metadata:
-  version: "3.0.0"
+  version: "3.1.0"
 ---
 
 # Unattended run: holding a long autonomous session
@@ -11,11 +11,9 @@ One seat holds the goal across every wake-up. Every other seat is disposable. Ea
 
 ## 0. The first tick: arm the wake-up, then write the plan file
 
-Nothing is dispatched until both exist.
-
 ### Arm the wake-up
 
-With no scheduled wake-up the run is one turn long.
+Nothing is dispatched until both exist. With no scheduled wake-up the run is one turn long.
 
 1. `CronCreate` is a deferred tool. Fetch it first: `ToolSearch("select:CronCreate,CronList,CronDelete")`. Nothing prompts you to, which is why this gets skipped.
 2. 30 minutes, off the :00 and :30 marks where every scheduled job lands: `7,37 * * * *`. Longer when the thing you wait on moves slower.
@@ -27,9 +25,7 @@ Three facts shape the plan. Jobs live in this session's memory only; end the ses
 
 ### Write the plan file
 
-`~/ai-context/<repo>-<task>-plan.md` is the source of truth. Scrollback does not survive compaction, a crash, or the operator resuming in a new session; the plan file does. It holds the standing rules, the lane table, the decisions waiting on the operator, verified environment facts, and a running log. Detail goes here, not the terminal (§11).
-
-If it does not exist, building it is the rest of the first tick. Read the queue without touching anything and group it into waves by what blocks what. Probe the environment rather than assuming it: which stacks are up, which worktrees exist, which repo owns which name. Write down the standing rules, including the ones the operator only said out loud, plus what is frozen and what must never be merged.
+`~/ai-context/<repo>-<task>-plan.md` is the source of truth. It holds standing rules, the lane table, decisions waiting on the operator, verified environment facts, and a running log. Detail goes here, not the terminal (§11). If it does not exist, building it is the rest of the first tick: read the queue without touching anything, group into waves by blockers, probe stacks and worktrees, and record standing rules and frozen paths.
 
 Respect the window. Never start a lane that cannot finish and be verified in the time left. Near the end, take work only to a state that is safe to leave: pushed, commented or parked. Never mid-merge or mid-rebase.
 
@@ -56,9 +52,7 @@ Workflows, subagents and todos are free to use; cost is the only limit. Do not r
 
 ## 2. Delegate, then verify
 
-Send bulk reading, log triage, rebases, evidence gathering and repetitive per-PR work to the cheap executor. Never let its claims reach an artifact unchecked (`invented-button-label`). Cheap models gather and draft. Verification belongs to the organizer or a Claude handler, always against source at the exact SHA.
-
-Judgement work skips the cheap lane: security and crypto, anything users see, product semantics.
+Send bulk reading, log triage, rebases, evidence gathering and repetitive work to the cheap executor (`invented-button-label`). Verification runs once per umbrella against the build, not once per unit. The seat does not re-run a gate the umbrella already proved; re-run only on a gap. Judgement skips the cheap lane: security, crypto, user-facing work, product semantics.
 
 ## 3. The stall rule: a wait has to hold the turn
 
@@ -84,7 +78,7 @@ A workflow can report `success` having posted nothing, and does (`green-review-p
 
 ## 5. Check every delegate claim against live state
 
-A returned report is a guess until confirmed. Before it changes a decision, check it against the thing itself: the head SHA, the check's description string, the job log, the file at that SHA. A diff claimed as one line gets read. Two lanes agreeing raises no confidence, because they can share one stale input, and did (`two-lanes-shared-stale-green`).
+Check reports once per umbrella: verify provenance (worktree, SHA, raw output) and diff against the spec. The seat does not re-run a gate the umbrella proved, re-running only on a gap (`two-lanes-shared-stale-green`).
 
 A PR body claiming what the PR does not do gets checked against the file list (`body-contradicted-its-diff`). Checking is cheap. A body that contradicts its diff is invisible afterwards.
 
@@ -139,9 +133,7 @@ The PR that repairs a gate is the worst candidate in the repo for skipping revie
 
 Findings, decisions, evidence, SHAs, blockers. Do not restate the plan, narrate intent, or re-summarise logged work. Every dispatched agent gets the same instruction. A tick with no dispatch is a valid tick, one line with the reason.
 
-While the operator is away, the terminal has no reader, and the plan file is the record and the report. A tick that dispatched, verified and logged reports one line, or nothing at all. Spend the words on the plan file and the issue comments, which survive, rather than on scrollback, which does not. Full reporting resumes for the handback, which the operator does read.
-
-Short is length, not vocabulary. Plain sentences a reader who was not watching can follow, identifiers and commands exact. Compress the words, never the meaning.
+While the operator is away, the terminal has no reader, and the plan file is the record and the report. A tick that dispatched, verified and logged reports one line, or nothing at all. Spend the words on the plan file and issue comments rather than scrollback. Full reporting resumes for the handback. Plain sentences, identifiers and commands exact; compress the words, never the meaning.
 
 Lead with what landed, and the SHAs of anything merged or pushed, before anything pending (`merge-reported-as-waiting`). Saying nothing about a finished step reads as "it did not happen" and costs a verification round. A lane that refused an unsourced order goes in the report as correct, not as a failed dispatch.
 

@@ -20,3 +20,7 @@ the verify commands. Ambiguity in your spec becomes rework downstream.
 If the ticket touches security-sensitive domains and you find yourself unable to answer
 (refusal), say so plainly so the orchestrator can reroute to Opus. Do not paraphrase
 around it.
+
+A spec leads with the deliverable list and verify commands and is shorter than the diff it asks for, or the seat sends it back.
+
+A verifier is told that a note or ADR whose provenance commit predates the ruling under test is evidence of the past, not the present.

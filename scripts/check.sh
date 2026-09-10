@@ -35,6 +35,38 @@ else
 fi
 echo
 
+echo "=== 4. length caps"
+# Cap dotfiles/AGENTS.md at 80 and skills at 150; autofix is vendored. Refs #123
+caps_failed=0
+
+if [ -f "dotfiles/AGENTS.md" ]; then
+  agents_lines=$(wc -l < "dotfiles/AGENTS.md" | tr -d ' ')
+  if [ "$agents_lines" -gt 80 ]; then
+    echo "dotfiles/AGENTS.md: $agents_lines lines (cap 80)"
+    caps_failed=1
+  fi
+fi
+
+for skill_file in plugins/kit/skills/*/SKILL.md; do
+  [ -f "$skill_file" ] || continue
+  case "$skill_file" in
+    */autofix/SKILL.md) continue ;;
+  esac
+  lines=$(wc -l < "$skill_file" | tr -d ' ')
+  if [ "$lines" -gt 150 ]; then
+    echo "$skill_file: $lines lines (cap 150)"
+    caps_failed=1
+  fi
+done
+
+if [ "$caps_failed" -eq 0 ]; then
+  echo "PASS: length caps"
+else
+  echo "FAIL: length caps"
+  failed_steps+=("length caps")
+fi
+echo
+
 if [ "${#failed_steps[@]}" -eq 0 ]; then
   echo "All checks passed. Note: unslop-check is report-only; hit count is information, not a gate."
   exit 0

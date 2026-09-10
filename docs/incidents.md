@@ -135,3 +135,23 @@ The dashboard now has `tests/test-verdict-kind-drift.py` holding it and the work
 A handler hit a Gemini quota wall, returned budget spent citing a rule against probing, and proposed a wait of over an hour. The rule it cited was real and lived in its own agent definition, contradicting step 7 of the skill. The report looked complete because it named a real error and a real reset time, so nothing in it read as wrong. Gemini going dry is a problem for agy, not for the task: the handler is a Sonnet agent already holding the prompt and the worktree, so it finishes the job itself.
 
 The first fix for this carried the wrong model of agy's limits, and so did `agy-quota.sh`, which keyed state per model slug. agy meters two groups: Gemini Flash with Gemini Pro, and Claude Opus with Claude Sonnet and GPT-OSS. Switching Gemini model to dodge a Gemini wall walks into the same wall, and the state file said the second slug was usable. `agy` with no arguments prints both groups' bars, and nothing in the skill had ever read that screen.
+
+## remedy-wrong-on-mid-revision-doc
+
+Measured on `Sumit1993/mage-memory#206`, a docs-only PR of 37 files: all 24 findings were true, and 4 of the 24 would have made the document worse applied verbatim. The prompt block resolves a contradiction toward the line it is anchored on, which on a mid-revision document is the older side about half the time. It prescribed marking ADR-0032 superseded when it had been amended, and adding `kb` to a scope enum when the correct fix was dropping `kb`. Each remedy would have left the thread green and the document wrong, and the verify round caught its own stale prompt twice and missed it once.
+
+## resolved-threads-are-not-coverage
+
+`Sumit1993/mage-memory#206` merged with 24 of 24 threads resolved while `sha=` still read `c2a48995`, so the 83 lines added after that head were never reviewed as a diff. Resolved threads describe findings, not coverage.
+
+## hung-comment-run-holds-the-seat
+
+The callee sets `timeout-minutes: 30` against a measured 5.03 minute mean and 12.72 peak, and its own comment notes that with `cancel-in-progress` false for comment events a hung run holds the PR's seat (`prismalens/gh-workflows#63`). Worst case on the reply path is half an hour of one run holding the group while each new reply evicts the one pending behind it.
+
+## announce-failed-comment-stale
+
+On `prismalens/gh-workflows#159`, the `announce` job failed while `review` succeeded, so the liveness comment kept older text claiming nothing was posted while findings were open and blocking the gate. The same run hit account usage limits that killed the action in under two seconds, leaving an empty conclusion shared by workflow self-skips and aborted tool denials.
+
+## prismalens-588-still-applies-misdirected
+
+On `prismalens/prismalens#588` a Critical claimed `@changesets/read` ignores `.changeset/pre/`; the re-check answered by citing `pre.json` and our own `validate-changesets.mjs`, which was the CI gate, while the finding was about the library. Line 29 of `@changesets/read@1.0.0` appends `pre/`, and running `changeset pre exit && changeset version` regenerated the release with 47 bullets. Test counter-evidence by running the real command before conceding a `still_applies`.

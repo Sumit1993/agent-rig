@@ -11,11 +11,14 @@ House style is the unslop skill, imported here because nothing else loads it.
 - One idea per sentence, 35 words at most. Plain words. If you could not say it out loud, rewrite it.
 - Paths, commands and numbers verbatim. Quote an error by its shortest decisive line, never the trace.
 - Cite an issue or PR with its title: `#279 - correlation idempotency fix`. Delegates too.
+- Length signals confidence it has not earned. Strip the jargon to expose the decisions; write in the fewest lines that let someone disagree.
 
 # Issues are the record
 An issue carries the decision, the evidence and the exact commands, and copies in any `~/ai-context` content it depends on. A link into `~/ai-context` is a broken link by definition.
+- One umbrella issue per unit of related work, one branch, one verification at the end. A lane gets the umbrella.
 - A ruling or design is finished when it sits in the issue it decided or in the repo's `docs/`.
 - Handoffs and morning summaries are issue comments, not files.
+- Where a vendored skill disagrees with this file on where a record lives, this file wins.
 - agy logs and prompts are telemetry. They are never cited.
 
 # Code
@@ -50,7 +53,7 @@ Claude models via the Agent or Workflow `model` parameter (`fable`, `opus`, `son
 # Delegation
 Delegable work goes to agy, never a Claude subagent. Delegable means bounded and mechanical, written as a procedure with verify commands: implementing to a spec, rebases, evidence collection, log and CI triage, smoke runs, per-item repetition, research, bulk reading. Load `agy-delegate` first.
 
-This is a cost rule. agy draws its own abundant quota, so a Claude subagent on that work spends the scarce pool for nothing. Using the Agent tool on delegable work needs a stated reason, and "simpler" is not one. Judgement stays on Claude: design, adjudication, spec conformance, anything whose answer is a ruling. Writing the spec is judgement too, and it goes to `fable-planner`, never to the seat doing the dispatching.
+This is a cost rule. agy spends its own quota, the one the agy bar shows, so a Claude subagent on that work spends the scarce pool for nothing. Using the Agent tool on delegable work needs a stated reason, and "simpler" is not one. Judgement stays on Claude: design, adjudication, spec conformance, anything whose answer is a ruling. Writing the spec is judgement too, and it goes to `fable-planner`, never to the seat doing the dispatching.
 
 The organizer does small, bounded, self-contained changes itself. A lane is for work whose spec is cheaper than the doing.
 

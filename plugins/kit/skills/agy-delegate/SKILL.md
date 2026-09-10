@@ -2,7 +2,7 @@
 name: agy-delegate
 description: "Load BEFORE any Agent tool call, to decide whether the work belongs on agy at all rather than on a Claude subagent. agy (Antigravity CLI: Gemini 3.8 Flash / Gemini 3.1 Pro / Opus 4.6 / Sonnet 4.6) draws a separate abundant quota. Applies whenever the work is expressible as a written procedure with verify commands: implementing to a spec, rebases, evidence collection, log or CI triage, smoke runs, repetitive per-item procedure, research, doc review, bulk reading. Dispatch is one step: write the task prompt to a file and spawn `subagent_type: \"agy-runner\"` with the path. Also load when an agy run returns empty or truncated output, or when a handler needs to kill, salvage or resume one."
 metadata:
-  version: "4.0.0"
+  version: "4.1.0"
 ---
 
 # Delegating to Antigravity CLI (agy)
@@ -116,10 +116,10 @@ The spec comes from a `fable-planner`, not from the seat that dispatches it. Han
 
 Write that spec to `~/ai-context/agy-prompts/<task>.md`, or into the repo, never `/tmp`. Spawn `subagent_type: "agy-runner"` with the path. That is the whole dispatch.
 
+- One lane per umbrella issue reused across its slices.
+- Verification once at the umbrella: lane runs the umbrella's verify commands and pastes raw output; handler checks provenance; seat reads the diff against the spec.
 - Reuse one planner inside the prompt-cache hour instead of spawning a fresh one per spec. A second spec asked inside that window re-reads a cached conversation, while a fresh agent pays for the whole context again. Past the hour it is stale anyway, so start a new one (`#79 - unattended-run: the prompt-cache TTL is a ceiling on the cron interval`).
-- This holds whether or not anyone is watching. A spec drafted by whatever model happens to hold the seat is the same spec in an unattended run and in a session with an operator at the keyboard.
-- The prompt goes in the file, not in the subagent's prompt. Inline pays for it twice, your output tokens and its input tokens; agy reads the file at shell level.
-- Do not brief the runner on how to run agy. It loads this skill for the launch line, slugs, kill, resume and the babysit loop. Path in, verified report out.
+- Prompt goes in the file, not the subagent's prompt; agy reads it at shell level. Do not brief the runner on how to run agy: path in, verified report out.
 - In Workflows, where `subagent_type` is unavailable: `agent(pathOnlyPrompt, {model: 'sonnet', effort: 'low', label: 'antigravity-gemini-3.8:<task>'})`, and the prompt says to load `agy-delegate` and `anti-stall` first. The `antigravity-<model>` label prefix is required; the UI shows the wrapper's Claude model, so the label is the only sign of who is working.
 
 ## Handler babysit loop
@@ -130,7 +130,7 @@ The runner's section, not the dispatcher's. A handler owns its run end to end: l
 2. Wait in the foreground with repeated bounded Bash calls and a long timeout. A handler never ends a turn while its run is alive: no Monitor, no `pgrep` liveness, no bare timer. Ending the turn destroys the context the wake would land in. The background until-loop in `anti-stall` is for the main session only.
 3. Kill on hang-after-report per the table, by PID.
 4. Empty output: check the worktree (`git status`, expected files) before assuming failure. Landed and passing its own verification is success; note the silent death.
-5. Verify before reporting. Run the prompt's verification commands yourself. Report evidence, not agy's claims.
+5. Check provenance before reporting, the pasted output names the worktree path and the head SHA and every verify command in the spec has output; re-run only where one is missing or contradicts the diff; report evidence, not agy's claims.
 6. A run with no output that dies within about 30 seconds never started. Relaunch without charging the budget. Three in a row is an agy-side problem: change model.
 7. A quota wall hits the whole group, not one model. Flash and Pro share a pool, so relaunching on the other Gemini slug walks into the same wall. Gemini dry means agy is finished for this run, and you are not. You are a Sonnet agent already holding the prompt file and the worktree. Do the task yourself from that prompt, and say so in the report. Handing it on costs a re-read of everything you have. A weekly bar refreshes in days, so the reset timer is not a plan.
 8. Retry budget: 2 real relaunches. A resume on a surviving `conversation_id` is free, it is the same run. A quota wall costs no budget; it costs the group, and a dry Gemini group costs the agy run, not the task.
