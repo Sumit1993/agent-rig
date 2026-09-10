@@ -78,7 +78,7 @@ A workflow can report `success` having posted nothing, and does (`green-review-p
 
 ## 5. Check every delegate claim against live state
 
-Check reports once per umbrella: verify provenance (worktree, SHA, raw output) and diff against the spec. The seat does not re-run a gate the umbrella proved, re-running only on a gap (`two-lanes-shared-stale-green`).
+Check reports once per umbrella: verify provenance (worktree, SHA, raw output) and diff against the spec. The seat does not re-run a gate the umbrella proved, re-running only on a gap. Two lanes agreeing raises no confidence, because they can share one stale input (`two-lanes-shared-stale-green`).
 
 A PR body claiming what the PR does not do gets checked against the file list (`body-contradicted-its-diff`). Checking is cheap. A body that contradicts its diff is invisible afterwards.
 
