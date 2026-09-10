@@ -16,7 +16,9 @@ raw/agy-envelopes/<slug>-<epoch>.json
 
 Append-only. `--immutable` makes rclone fail rather than overwrite an object whose
 size or time changed, which is the guard against a truncated local file replacing a
-good remote one.
+good remote one. `--min-age 2h` (override with `MIN_AGE`) keeps a transcript that is
+still being written out of the bucket, since the first upload of a growing file would
+freeze it truncated forever. A source's errors are printed and the next source still runs.
 
 `~/.gemini/antigravity-cli/conversations/*.db` is deliberately excluded: 2.2 GB of
 undocumented protobuf, superseded by the JSONL beside it.
