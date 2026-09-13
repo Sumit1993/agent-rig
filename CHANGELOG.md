@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.0](https://github.com/Sumit1993/claude-kit/compare/kit-v0.9.0...kit-v0.10.0) (2026-09-13)
+
+
+### Features
+
+* **kit:** [#128](https://github.com/Sumit1993/claude-kit/issues/128) adopt Claude Code internals: /autofix-pr first, limit log, resume cost line ([#129](https://github.com/Sumit1993/claude-kit/issues/129)) ([35bbc7e](https://github.com/Sumit1993/claude-kit/commit/35bbc7ee035676785591e46736967a863e7b576a))
+* **kit:** triage skill, six skill renames, and the rest of the [#123](https://github.com/Sumit1993/claude-kit/issues/123) rulings ([#132](https://github.com/Sumit1993/claude-kit/issues/132)) ([f1367c1](https://github.com/Sumit1993/claude-kit/commit/f1367c1fee75935e2e69976f7816772dee5b209a))
+
 ## [0.9.0](https://github.com/Sumit1993/claude-kit/compare/kit-v0.8.0...kit-v0.9.0) (2026-09-10)
 
 
