@@ -196,6 +196,17 @@
         ],
         "description": "A delegated lane's PR surfaces in the handler's report, not in this session's Bash output; nudge the main session, which is the only seat that can hold a watcher",
         "id": "post:agent:pr-created"
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/budget-nudge.sh\"",
+            "timeout": 10
+          }
+        ],
+        "description": "When the 5h window crosses 80% and 90%, tell the session to wind down and hand off on the umbrella issue",
+        "id": "post:any:budget-nudge"
       }
     ],
     "StopFailure": [
