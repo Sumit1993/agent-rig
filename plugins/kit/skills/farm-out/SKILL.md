@@ -1,5 +1,5 @@
 ---
-name: agy-delegate
+name: farm-out
 description: "Load before any Agent tool call: decides whether the work belongs on agy (Antigravity CLI, its own quota) instead of a Claude subagent, and how to dispatch, babysit, kill or resume an agy run."
 metadata:
   version: "4.1.0"
@@ -7,7 +7,7 @@ metadata:
 
 # Delegating to Antigravity CLI (agy)
 
-Which model gets which task is `AGENTS.md`. Model choice inside an agy run is this skill's. How to wait on a run is `anti-stall`, assumed here and not repeated.
+Which model gets which task is `AGENTS.md`. Model choice inside an agy run is this skill's. How to wait on a run is `no-doze`, assumed here and not repeated.
 
 Verified against agy 1.1.27. Check `agy --version` before trusting a flag; `agy changelog` records what moved.
 
@@ -108,7 +108,7 @@ The resumed turn keeps the same `conversation_id` and the full context. A fresh 
 - Never derive the pattern from the prompt-file name. The launch expands `$(cat <file>)`, so agy's argv holds the prompt text. The file name matches only the wrappers, and killing on it leaves agy running.
 - agy processes are machine-global. `pkill -x agy`, `pkill -f agy`, `killall agy` and `pgrep -f "agy [-]-model"` are never acceptable, not even when every live run is yours. The `pre:bash:no-broad-agy-kill` hook blocks them; if it fires, you wanted a PID.
 - Prove a PID is yours or kill nothing. Yours means `readlink /proc/<pid>/cwd` matches your worktree, or a `$!` you captured. "Cannot identify my run, not killing" is a correct outcome: a hung run of yours costs a timeout, the wrong kill costs someone else's unattended work.
-- A runtime slug also prevents the exit-144 self-kill: it did not exist when your ancestor shells started, so it cannot match their command lines. Bracketing helps but is not sufficient; see `anti-stall`.
+- A runtime slug also prevents the exit-144 self-kill: it did not exist when your ancestor shells started, so it cannot match their command lines. Bracketing helps but is not sufficient; see `no-doze`.
 
 ## Dispatch
 
@@ -121,21 +121,21 @@ Write that spec to `~/ai-context/agy-prompts/<task>.md`, or into the repo, never
 - Reuse one planner inside the prompt-cache hour instead of spawning a fresh one per spec. A second spec asked inside that window re-reads a cached conversation, while a fresh agent pays for the whole context again. Past the hour it is stale anyway, so start a new one (`#79 - unattended-run: the prompt-cache TTL is a ceiling on the cron interval`). Where SendMessage is unavailable, batch the hour's specs into one planner prompt, one file per spec.
 - A spec that points a lane at a path outside its project root says to read it with Bash or Read; context-mode refuses those paths.
 - Prompt goes in the file, not the subagent's prompt; agy reads it at shell level. Do not brief the runner on how to run agy: path in, verified report out. This holds whether or not anyone is watching: the spec is the same in an unattended run and with an operator at the keyboard.
-- In Workflows, where `subagent_type` is unavailable: `agent(pathOnlyPrompt, {model: 'sonnet', effort: 'low', label: 'antigravity-gemini-3.8:<task>'})`, and the prompt says to load `agy-delegate` and `anti-stall` first. The `antigravity-<model>` label prefix is required; the UI shows the wrapper's Claude model, so the label is the only sign of who is working.
+- In Workflows, where `subagent_type` is unavailable: `agent(pathOnlyPrompt, {model: 'sonnet', effort: 'low', label: 'antigravity-gemini-3.8:<task>'})`, and the prompt says to load `farm-out` and `no-doze` first. The `antigravity-<model>` label prefix is required; the UI shows the wrapper's Claude model, so the label is the only sign of who is working.
 
 ## Handler babysit loop
 
 The runner's section, not the dispatcher's. A handler owns its run end to end: launch, watch, kill on hang, salvage, retry. Never return "agy didn't respond" without having run this.
 
 1. Launch with `run-agy-watchdog.sh` from this skill's directory. It launches, reaps hang-after-report, records quota to `agy-quota.sh`, and writes the `AGY_EXITED` sentinel. A bare background launch (`(agy … > "$OUT" 2>"$OUT.err"; echo "AGY_EXITED rc=$?" >> "$ACTIVITY")`) is the shape the watchdog runs, not a second sanctioned path: taking it yourself loses both, so it must be followed by `agy-quota.sh record-from-envelope "$MODEL" "$OUT"`.
-2. Wait in the foreground with repeated bounded Bash calls and a long timeout. A handler never ends a turn while its run is alive: no Monitor, no `pgrep` liveness, no bare timer. Ending the turn destroys the context the wake would land in. The background until-loop in `anti-stall` is for the main session only.
+2. Wait in the foreground with repeated bounded Bash calls and a long timeout. A handler never ends a turn while its run is alive: no Monitor, no `pgrep` liveness, no bare timer. Ending the turn destroys the context the wake would land in. The background until-loop in `no-doze` is for the main session only.
 3. Kill on hang-after-report per the table, by PID.
 4. Empty output: check the worktree (`git status`, expected files) before assuming failure. Landed and passing its own verification is success; note the silent death.
 5. Check provenance before reporting, the pasted output names the worktree path and the head SHA and every verify command in the spec has output; re-run only where one is missing or contradicts the diff; report evidence, not agy's claims.
 6. A run with no output that dies within about 30 seconds never started. Relaunch without charging the budget. Three in a row is an agy-side problem: change model.
 7. A quota wall hits the whole group, not one model. Flash and Pro share a pool, so relaunching on the other Gemini slug walks into the same wall. Gemini dry means agy is finished for this run, and you are not. You are a Sonnet agent already holding the prompt file and the worktree. Do the task yourself from that prompt, and say so in the report. Handing it on costs a re-read of everything you have. A weekly bar refreshes in days, so the reset timer is not a plan.
 8. Retry budget: 2 real relaunches. A resume on a surviving `conversation_id` is free, it is the same run. A quota wall costs no budget; it costs the group, and a dry Gemini group costs the agy run, not the task.
-9. Name any PR the lane opened: `gh pr list --head <branch> --json number,url`, URL in the report. Do not arm a watcher; a Monitor dies with your turn. The main session arms `pr-watch` on it.
+9. Name any PR the lane opened: `gh pr list --head <branch> --json number,url`, URL in the report. Do not arm a watcher; a Monitor dies with your turn. The main session arms `pr-babysit` on it.
 10. Preserve work before reporting. A change that passes the prompt's own verification gets committed on the lane's branch and said so. Stop there: no push, no PR, no merge.
 
 ### The three terminal reports

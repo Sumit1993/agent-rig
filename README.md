@@ -9,14 +9,14 @@ Plugin `kit`, path-independent via `${CLAUDE_PLUGIN_ROOT}`:
 | Piece | One line |
 |---|---|
 | `skills/triage` | Before any issue write: search open and closed, fold or file, Goal / Done when / Pointers, link and close right |
-| `skills/direction` | Where the estate stands and what is next: goals are numbered milestones, `p0` orders inside one, the pick is one command |
-| `skills/anti-stall` | Wait on long work without dozing: sentinel first, evidence-keyed loops, batch scripts over agent-per-step |
-| `skills/unattended-run` | Hold a long unattended run: cron wake-up first, organizer never types, stall rule, green is not evidence, park what needs a human |
-| `skills/pr-watch` | Watch a PR this session raised: merge contract, seed and arm the reviewer/CI Monitor, route events as pointers, merge or enqueue |
+| `skills/compass` | Where the estate stands and what is next: goals are numbered milestones, `p0` orders inside one, the pick is one command |
+| `skills/no-doze` | Wait on long work without dozing: sentinel first, evidence-keyed loops, batch scripts over agent-per-step |
+| `skills/autopilot` | Hold a long unattended run: cron wake-up first, organizer never types, stall rule, green is not evidence, park what needs a human |
+| `skills/pr-babysit` | Watch a PR this session raised: merge contract, seed and arm the reviewer/CI Monitor, route events as pointers, merge or enqueue |
 | `skills/claude-review-lane` | How `claude[bot]` behaves: liveness verdicts, the ways it stays quiet, summon grammar, verify rounds, who resolves a thread |
 | `skills/coderabbit-lane` | How `coderabbitai[bot]` behaves: per-developer counter, hand admission by label, bare triggers, in-thread replies |
-| `skills/agy-delegate` | Antigravity CLI delegation: preflight probe, launch line, model choice, failure table, kill by PID, the runner's babysit loop |
-| `skills/docs-governance` | Four-phase docs-drift playbook plus the illustration standard |
+| `skills/farm-out` | Antigravity CLI delegation: preflight probe, launch line, model choice, failure table, kill by PID, the runner's babysit loop |
+| `skills/docs-drift` | Four-phase docs-drift playbook plus the illustration standard |
 | `skills/html-explainer` | Mechanics for a standalone HTML explainer page |
 | `skills/tweet` | Draft tweet options for @Desolatte from the session, voice and dedup from n8n |
 | `skills/no-comments` | Enforce the comment budget on a diff via `agents/comment-sicko`. Vendored from pstack, patched 2026-08-22 |
@@ -25,7 +25,7 @@ Plugin `kit`, path-independent via `${CLAUDE_PLUGIN_ROOT}`:
 | `skills/unslop` | Cut AI tells from writing. Vendored from pstack verbatim; imported by `AGENTS.md` so it loads every turn |
 | `skills/autofix` | CodeRabbit's autofix skill, patched 2026-07-12 so replies go in-thread |
 | `agents/comment-sicko` | The subagent `no-comments` spawns. Deletes comments, never code |
-| `hooks/pr-created.sh` | PostToolUse(Bash, Agent): a real PR URL injects "pick its watcher now": `/autofix-pr` by default, the pr-watch Monitor for a held round |
+| `hooks/pr-created.sh` | PostToolUse(Bash, Agent): a real PR URL injects "pick its watcher now": `/autofix-pr` by default, the pr-babysit Monitor for a held round |
 | `hooks/delegate-check.sh` | PreToolUse(Agent): blocks a Claude subagent on delegable work. Escape: name agy in the prompt |
 | `hooks/no-haiku.sh` | PreToolUse(Agent): blocks `model=haiku` |
 | `hooks/no-broad-agy-kill.sh` | PreToolUse(Bash): blocks a kill that targets agy by name; kill by PID or slug |

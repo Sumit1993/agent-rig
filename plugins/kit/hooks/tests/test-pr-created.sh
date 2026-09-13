@@ -77,11 +77,11 @@ case "$c" in
   *) fail "URL lost: $c" ;;
 esac
 case "$c" in
-  *"arm the pr-watch monitor"*) pass "watch reminder present" ;;
+  *"arm the pr-babysit monitor"*) pass "watch reminder present" ;;
   *) fail "reminder lost: $c" ;;
 esac
 case "$c" in
-  *"/autofix-pr"*"arm the pr-watch monitor"*) pass "autofix-pr is offered first, the Monitor second" ;;
+  *"/autofix-pr"*"arm the pr-babysit monitor"*) pass "autofix-pr is offered first, the Monitor second" ;;
   *) fail "watcher order wrong: $c" ;;
 esac
 
@@ -90,7 +90,7 @@ out=$(run "agy run --task raise-pr" "created $URL")
 valid_json "$out" && pass "PR URL from a delegated lane emits valid JSON" || fail "delegated lane missed: $out"
 c=$(printf '%s' "$out" | ctx)
 case "$c" in
-  *"PR #12"*"$URL"*"arm the pr-watch monitor"*) pass "delegated lane gets the same reminder as a direct create" ;;
+  *"PR #12"*"$URL"*"arm the pr-babysit monitor"*) pass "delegated lane gets the same reminder as a direct create" ;;
   *) fail "delegated lane reminder differs: $c" ;;
 esac
 

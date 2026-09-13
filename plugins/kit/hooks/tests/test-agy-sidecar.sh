@@ -1,7 +1,7 @@
 #!/bin/bash
 # Regression suite for agy watchdog sidecar and model sentinel attribution.
 set -u
-SRC="$(cd "$(dirname "$0")/../../skills/agy-delegate" && pwd)/run-agy-watchdog.sh"
+SRC="$(cd "$(dirname "$0")/../../skills/farm-out" && pwd)/run-agy-watchdog.sh"
 fails=0
 
 TMPDIR=$(mktemp -d)

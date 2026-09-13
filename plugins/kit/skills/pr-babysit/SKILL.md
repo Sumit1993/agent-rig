@@ -1,5 +1,5 @@
 ---
-name: pr-watch
+name: pr-babysit
 description: "Watch a PR raised in this session until its review round completes: seed seen-state, arm the reviewer and CI Monitor, route each event to the seat holding the diff, then merge. Load after any gh pr create or when asked to watch or merge a PR."
 metadata:
   version: "4.3.0"
@@ -15,7 +15,7 @@ Process truth is `claude-kit/docs/pr-review-process.html`. Whoever changes the p
 
 Reviews arrive on their own schedule: the Claude lane in 2 to 5 minutes, CodeRabbit in 3 to 5 after admission, CI in 5 to 10. Never poll with model turns. Never wait for the user to relay an event. Arm a deterministic watcher and process deltas.
 
-Scripts sit in `${CLAUDE_PLUGIN_ROOT}/skills/pr-watch/` when loaded as `kit:pr-watch`; shared ones (`cr-reply.sh`, `kit-meta.sh`) in `${CLAUDE_PLUGIN_ROOT}/scripts/`. Resolve both to absolute paths before handing them to a Monitor or a background Bash, which may not inherit the variable. Watch scripts read the repo off the cwd's origin remote; `--repo owner/name` overrides.
+Scripts sit in `${CLAUDE_PLUGIN_ROOT}/skills/pr-babysit/` when loaded as `kit:pr-babysit`; shared ones (`cr-reply.sh`, `kit-meta.sh`) in `${CLAUDE_PLUGIN_ROOT}/scripts/`. Resolve both to absolute paths before handing them to a Monitor or a background Bash, which may not inherit the variable. Watch scripts read the repo off the cwd's origin remote; `--repo owner/name` overrides.
 
 Per-repo facts come from the registry, never from memory. `kit-meta.sh current` reads `data/repo-meta.json` folded with runtime observations:
 
@@ -85,11 +85,11 @@ The session that owns the Monitor is a thin router. Read the sentinel line, then
 Per-event handling is in `references/events.md`.
 
 ery reviewer. The thread gate only blocks once a thread exists, and auto-merge can fire between a review landing and its fix commit. Order the round as review posted, then fix, then resolve, then merge, never the reverse. On queue repos "review posted" is read off the liveness comment.
-- Never wait on `mergeStateStatus`. An unresolved thread pins it at `BLOCKED`. Key on `reviewThreads` and comment IDs (`anti-stall` §3).
+- Never wait on `mergeStateStatus`. An unresolved thread pins it at `BLOCKED`. Key on `reviewThreads` and comment IDs (`no-doze` §3).
 - Watching is cheap: a shell poll every 75 seconds, zero tokens while quiet. Prefer over-watching to relaying.
 - Rate limits are invisible on both obvious channels. CodeRabbit posts the notice as an issue comment, so `/pulls/N/comments` misses it, and the `Review rate limited` check passes by design. `watch-coderabbit.sh` polls `/issues/N/comments` for the `rate limited by coderabbit.ai` marker, deduped on `updated_at` because CodeRabbit edits one summary comment in place.
 - `~/ai-context/state/cr-watch/` is durable across sessions. Re-arming is always safe.
 - A `git checkout` under a running watcher kills it. Bash reads a script incrementally, so switching branches rewrites `watch-coderabbit.sh` beneath the running shell, usually exit 144, with no event. Re-arm after any branch change, or run the watcher from a path that is not moving.
 - A watcher dies with its task, not the session. TaskStop it the moment its PR is merged, closed or handed off. The SessionEnd hook also kills watchers and SessionStart reaps orphans; re-arming after either is free.
-- `hooks/pr-created.sh` injects a reminder whenever a PR URL appears in a Bash or Agent tool result, and seeds the seen-state. Answer it by running Phase 1. It is a net, not a guarantee: an agy lane redirects output to a file, so the URL reaches no Bash result and arrives later in the handler's report, which is why the hook also runs on `Agent`. When you dispatch work that ends in a PR, expect the URL in the handler's report (`agy-delegate` babysit step 9) and arm on it.
+- `hooks/pr-created.sh` injects a reminder whenever a PR URL appears in a Bash or Agent tool result, and seeds the seen-state. Answer it by running Phase 1. It is a net, not a guarantee: an agy lane redirects output to a file, so the URL reaches no Bash result and arrives later in the handler's report, which is why the hook also runs on `Agent`. When you dispatch work that ends in a PR, expect the URL in the handler's report (`farm-out` babysit step 9) and arm on it.
 - Phase 3's cascade is a background Bash with a single completion, not a Monitor.

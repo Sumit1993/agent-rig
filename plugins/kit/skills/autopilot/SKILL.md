@@ -1,5 +1,5 @@
 ---
-name: unattended-run
+name: autopilot
 description: "Rules for holding a long unattended run: arm the wake-up first, keep the organizer out of the files, catch stalls, treat a green check as nothing, verify every delegate claim, park what needs a human. Load before any run that outlasts the operator's attention."
 metadata:
   version: "3.1.0"
@@ -7,7 +7,7 @@ metadata:
 
 # Unattended run: holding a long autonomous session
 
-One seat holds the goal across every wake-up. Every other seat is disposable. Each rule here came from a failure in a real unattended window; git history holds the stories. Assumed and not repeated: `anti-stall` for how a wait is built, `agy-delegate` for the cheap executor, `pr-watch` for one PR's lifecycle.
+One seat holds the goal across every wake-up. Every other seat is disposable. Each rule here came from a failure in a real unattended window; git history holds the stories. Assumed and not repeated: `no-doze` for how a wait is built, `farm-out` for the cheap executor, `pr-babysit` for one PR's lifecycle.
 
 ## 0. The first tick: arm the wake-up, then write the plan file
 
@@ -21,7 +21,7 @@ Nothing is dispatched until both exist. With no scheduled wake-up the run is one
 4. `CronList` after, to confirm. A cron that failed to arm looks like a quiet run.
 5. Record the job ID in the plan file beside the condition that ends it (§3).
 
-Three facts shape the plan. Jobs live in this session's memory only; end the session and the cron goes with it, leaving a plan file that still reads healthy. Jobs fire only while the REPL is idle, so a foreground wait (`anti-stall` §2) stays shorter than one interval. Recurring jobs expire after 7 days. `ScheduleWakeup` paces `/loop` and is not this; use `CronCreate`.
+Three facts shape the plan. Jobs live in this session's memory only; end the session and the cron goes with it, leaving a plan file that still reads healthy. Jobs fire only while the REPL is idle, so a foreground wait (`no-doze` §2) stays shorter than one interval. Recurring jobs expire after 7 days. `ScheduleWakeup` paces `/loop` and is not this; use `CronCreate`.
 
 ### Write the plan file
 
@@ -35,7 +35,7 @@ Dispatch and judge. Editing a file means the seat holding the goal spent its tur
 
 Lanes work in worktrees, never the main checkout. `AGENTS.md` sets which mechanism; a Claude subagent lane and an agy lane do not get the same one. The main checkout and its stack belong to the organizer. A lane that "restores" its branch takes the run down. The organizer creates or reuses the worktree and hands the lane an absolute path, with instructions to stop and report if it is missing.
 
-The organizer does not draft the spec either. `agy-delegate` §Dispatch sends that to a `fable-planner`: you supply the issue, the constraints and the worktree path, and you judge what comes back. Drafting is work, and this seat does not do work.
+The organizer does not draft the spec either. `farm-out` §Dispatch sends that to a `fable-planner`: you supply the issue, the constraints and the worktree path, and you judge what comes back. Drafting is work, and this seat does not do work.
 
 Every dispatch prompt says, in as many words:
 
@@ -60,12 +60,12 @@ A lane that returns saying "standing by", "waiting for" or "will be notified" ha
 
 A completion notification fires only when an agent has no live background children. The moment an agent launches something in the background and hands control back, that notification can never arrive. This keeps happening in lanes that were handed the rule, so treat it as a trap built into the tooling.
 
-- A wait is real only while the agent is still running inside its own turn: a foreground `until` loop keyed on durable evidence, loop length as the deadline (`anti-stall` §2).
+- A wait is real only while the agent is still running inside its own turn: a foreground `until` loop keyed on durable evidence, loop length as the deadline (`no-doze` §2).
 - A background launch followed by handing control back is a stall, every time.
 
 Fix it at once and skip the acknowledgement. `SendMessage` the lane: "go read <the concrete artifact: log path, PR check, SHA> now. Then wait in the foreground with a deadline. Do not return until the evidence resolves or the deadline expires." Never accept two "waiting" reports in a row; read the artifact yourself. Put this rule in every dispatch prompt.
 
-Some evidence has no shell poll. If the only way to read it is an MCP tool call, a cron tick into this session is the watch and its latency is the tick interval. Record it as a tick, never a monitor (`anti-stall` §2).
+Some evidence has no shell poll. If the only way to read it is an MCP tool call, a cron tick into this session is the watch and its latency is the tick interval. Record it as a tick, never a monitor (`no-doze` §2).
 
 The reverse failure is a watch that outlives its job. A monitor, a poller, a cron tick: anything armed to watch one piece of work is torn down the moment that work ends, whether merged, closed, moved or abandoned. Arming something durable creates a teardown obligation. Record it in the plan file's lane table beside the thing it watches, and disarm it when closing the lane.
 
@@ -90,7 +90,7 @@ Architecture, security and crypto, product semantics, and any dilemma where two 
 
 - Frame the consult around the subsystem, not the hole in front of you (§7).
 - One consult per decision. Past an hour, start a new one; a stale consult reasons from premises the run has since disproved.
-- Routine dispatch specs come from this same seat (`agy-delegate` §Dispatch), and from the same agent while it is inside that hour. The planner is not reserved for hard calls: it is where every spec is written.
+- Routine dispatch specs come from this same seat (`farm-out` §Dispatch), and from the same agent while it is inside that hour. The planner is not reserved for hard calls: it is where every spec is written.
 - Its ruling binds that decision, and what it explicitly deferred stays deferred.
 - A ruling you disagree with is still the ruling. Record the disagreement in the plan file and park it (§10).
 
@@ -106,7 +106,7 @@ A broken gate blocks every PR in the repo, including the PR that fixes it.
 
 ## 8. Merging: take it to green and leave it
 
-Mechanics are `pr-watch` Phase 3. Specific to unattended:
+Mechanics are `pr-babysit` Phase 3. Specific to unattended:
 
 - Never arm auto-merge. Reviewers cannot block a merge, so it fires the moment CI goes green, before the reviewer has finished, and `required_review_thread_resolution` has nothing left to block on.
 - An organizer that cannot merge with the operator present does not merge at all. Take the PR to green, report it ready, leave it (§10).

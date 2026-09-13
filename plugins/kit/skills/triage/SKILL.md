@@ -41,7 +41,7 @@ At most two lines.
 Files, `#N - title`, PRs. No summaries.
 ```
 
-No history and no evidence essay in the body. Evidence goes in a comment, copied in, because a scratch path is a broken link. Cite every issue or PR with its title. Labels and milestone come from the `direction` vocabulary; an issue with no milestone is not startable, so set one or say why not.
+No history and no evidence essay in the body. Evidence goes in a comment, copied in, because a scratch path is a broken link. Cite every issue or PR with its title. Labels and milestone come from the `compass` vocabulary; an issue with no milestone is not startable, so set one or say why not.
 
 ## 4. Keep it current
 

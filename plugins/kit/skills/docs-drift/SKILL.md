@@ -1,5 +1,5 @@
 ---
-name: docs-governance
+name: docs-drift
 description: "Audit and fix docs drift, then install prevention nets. Load before merging a release PR on a repo whose registry entry has a docs block, or when docs drift is suspected."
 metadata:
   version: "2.0.0"
@@ -45,7 +45,7 @@ One branch, one delegated coding run, one PR. `AGENTS.md` says how the worktree 
 - Prune, do not append. Rewrite each stale sentence to be currently true, never "but now also". Delete false claims.
 - Verify every claim against code before writing it: verb lists against the dispatcher, record fields against the serializer, defaults against the task runner. The coding agent skips with a reason rather than invents.
 - Verification gate: the docs-site build passes, and the diff holds only docs, comment and usage-string changes. Check every non-markdown file in the diff one by one; delegates smuggle behaviour changes into "docs-only" diffs.
-- Nothing local runs before the PR exists. `CI gate` and the conventional-commit title check are the only required checks, and unresolved review threads hold the merge (`pr-watch` Phase 0).
+- Nothing local runs before the PR exists. `CI gate` and the conventional-commit title check are the only required checks, and unresolved review threads hold the merge (`pr-babysit` Phase 0).
 
 ## Phase 3: retrofit the open backlog
 

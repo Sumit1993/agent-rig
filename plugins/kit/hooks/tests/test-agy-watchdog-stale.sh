@@ -3,7 +3,7 @@
 # test-retry-seconds.sh drives watch-coderabbit.sh's retry_seconds(): sourced without
 # running the rest of the script (which launches agy and needs a real worktree). Refs #82.
 set -u
-SRC="$(cd "$(dirname "$0")/../../skills/agy-delegate" && pwd)/run-agy-watchdog.sh"
+SRC="$(cd "$(dirname "$0")/../../skills/farm-out" && pwd)/run-agy-watchdog.sh"
 fails=0
 bash -n "$SRC" || { echo "FAIL: run-agy-watchdog.sh has a syntax error"; exit 1; }
 echo "PASS: run-agy-watchdog.sh syntax ok"

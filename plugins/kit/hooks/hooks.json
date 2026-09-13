@@ -182,7 +182,7 @@
             "timeout": 30
           }
         ],
-        "description": "After a successful `gh pr create`, inject a reminder to arm the pr-watch monitor",
+        "description": "After a successful `gh pr create`, inject a reminder to arm the pr-babysit monitor",
         "id": "post:bash:pr-created"
       },
       {
