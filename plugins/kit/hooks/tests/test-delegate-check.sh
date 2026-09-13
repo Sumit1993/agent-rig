@@ -53,5 +53,16 @@ check "research is not on the block list" 0 \
 check "mapping a surface is not mechanical" 0 \
   '{"tool_input":{"subagent_type":"general-purpose","description":"Map full UI surface"}}'
 
+# Guard reporting: when blocking, exits 2 even with mage absent, and stderr contains guard id
+err=$(printf '{"tool_input":{"subagent_type":"general-purpose","description":"Implement the parser"}}' \
+  | PATH=/usr/bin:/bin "$HOOK" 2>&1 >/dev/null)
+rc=$?
+if [ "$rc" -eq 2 ] && grep -q '^mage:kit/guard/delegate-check$' <<<"$err"; then
+  echo "PASS: blocks with exit 2 and guard id on stderr when mage absent"
+else
+  echo "FAIL: guard report check failed (rc=$rc, err=$err)"; fails=$((fails + 1))
+fi
+
 [ "$fails" -eq 0 ] && echo && echo "all delegate-check hook tests passed"
 exit "$fails"
+

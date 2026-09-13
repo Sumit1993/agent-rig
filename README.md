@@ -46,6 +46,61 @@ Claude Code does not read the name `AGENTS.md` on its own. `install.sh` writes `
 
 Dotfiles, what a plugin cannot carry: `AGENTS.md`, `statusline-command.sh`, `settings.fragment.json` (registers this repo as a marketplace and enables the plugin), `install.sh`, `dedupe.sh`.
 
+## Guard observation
+
+Hooks that block or rewrite tool calls report their firing to `mage observe`. This gives `mage why <id>` a key and records guard activations for learning.
+
+### Guard identifiers
+
+| Hook file | Guard id |
+|---|---|
+| `plugins/kit/hooks/delegate-check.sh` | `kit/guard/delegate-check` |
+| `plugins/kit/hooks/no-haiku.sh` | `kit/guard/no-haiku` |
+| `plugins/kit/hooks/no-broad-agy-kill.sh` | `kit/guard/no-broad-agy-kill` |
+| `plugins/kit/hooks/organizer-seat.sh` | `kit/guard/organizer-seat` |
+| `plugins/kit/hooks/release-docs-gate.sh` | `kit/guard/release-docs-gate` |
+
+Hooks that neither block nor rewrite (`pr-created.sh` and `reap-watchers.sh`) have no guard identifier.
+
+### Header convention and reporting
+
+Each blocking hook declares its identifier directly below the shebang line:
+
+```bash
+# mage:kit/guard/<slug>
+```
+
+Before exiting on a block decision, the hook calls the shared reporter:
+
+```bash
+report_guard "kit/guard/<slug>" "$tool" "$detail"
+```
+
+The reporter library is at `plugins/kit/hooks/lib/report-guard.sh`.
+
+### Fail-open contract
+
+The reporter is fire-and-forget and always fails open. If `mage` or `jq` is absent from PATH, the function returns 0. Calls to `mage observe` run with a 5 second timeout. Any error, non-zero exit, or timeout is ignored so the hook still exits with its block code. The reporter writes nothing to stdout because hook stdout is a protocol channel.
+
+### Worked example
+
+When an agent invokes `Agent` with `claude-haiku-4-5-20251001`, `plugins/kit/hooks/no-haiku.sh` blocks. The agent receives this message on stderr:
+
+```
+Blocked by routing doctrine (dotfiles/AGENTS.md): never use Haiku. Pick sonnet or above.
+mage:kit/guard/no-haiku
+```
+
+At the same time, `no-haiku.sh` pipes the following payload to `mage observe` on stdin:
+
+```json
+{
+  "guard_id": "kit/guard/no-haiku",
+  "tool": "Agent",
+  "detail": "claude-haiku-4-5-20251001"
+}
+```
+
 ## New machine
 
 ```bash

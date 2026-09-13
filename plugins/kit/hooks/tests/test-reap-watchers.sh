@@ -15,15 +15,15 @@ trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$TMP/other" "$TMP/orphan"
 export TMP HOOK
 
-for f in "$TMP/merge-cascade.sh" "$TMP/plain-worker.sh" "$TMP/other/merge-cascade.sh" \
-         "$TMP/orphan/merge-cascade.sh" "$TMP/orphan/plain-worker.sh"; do
+for f in "$TMP/watch-coderabbit.sh" "$TMP/plain-worker.sh" "$TMP/other/watch-coderabbit.sh" \
+         "$TMP/orphan/watch-coderabbit.sh" "$TMP/orphan/plain-worker.sh"; do
   printf '#!/bin/bash\nsleep 100\n' > "$f"; chmod +x "$f"
 done
 
 cat > "$TMP/claude" <<'EOF'
 #!/bin/bash
 set -u
-"$TMP/merge-cascade.sh" & echo $! > "$TMP/match_own.pid"
+"$TMP/watch-coderabbit.sh" & echo $! > "$TMP/match_own.pid"
 "$TMP/plain-worker.sh" & echo $! > "$TMP/nomatch_own.pid"
 sleep 0.3
 printf 'junk' | "$HOOK" end --dry > "$TMP/end.out" 2>&1
@@ -34,9 +34,9 @@ chmod +x "$TMP/claude"
 cat > "$TMP/inside.sh" <<'EOF'
 #!/bin/bash
 set -u
-"$TMP/other/merge-cascade.sh" & echo $! > "$TMP/match_other.pid"
+"$TMP/other/watch-coderabbit.sh" & echo $! > "$TMP/match_other.pid"
 "$TMP/claude" & echo $! > "$TMP/claude.pid"
-( "$TMP/orphan/merge-cascade.sh" & echo $! > "$TMP/match_orphan.pid" )
+( "$TMP/orphan/watch-coderabbit.sh" & echo $! > "$TMP/match_orphan.pid" )
 ( "$TMP/orphan/plain-worker.sh" & echo $! > "$TMP/nomatch_orphan.pid" )
 for i in $(seq 1 30); do [ -f "$TMP/end.rc" ] && break; sleep 0.2; done
 printf 'junk' | "$HOOK" start --dry > "$TMP/start.out" 2>&1
