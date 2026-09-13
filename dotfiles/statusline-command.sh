@@ -39,7 +39,7 @@ if [ -n "$five" ]; then
     secs=$(( reset_epoch - $(date +%s) ))
     [ "$secs" -gt 0 ] && left=" ↺$(( secs / 60 ))m"
   fi
-  extra="${extra} | 5h $(color_for $f)${f}%\033[00m${left} 7d $(color_for $w)${w}%\033[00m"
+  extra="${extra} | 5h $(color_for $f)${f}%\033[00m${left} | 7d $(color_for $w)${w}%\033[00m"
 fi
 
 # Per-model weekly caps (Fable) are not in the stdin payload. /api/oauth/usage has them; refresh a
@@ -55,7 +55,7 @@ if [ -z "$(find "$api" -mmin -5 2>/dev/null)" ]; then
 fi
 scoped=$(jq -c '[.limits[]? | select(.kind == "weekly_scoped") | {model: .scope.model.display_name, percent, severity, resets_at}]' "$api" 2>/dev/null)
 while IFS=$'\t' read -r name p; do
-  [ -n "$name" ] && extra="${extra} $(color_for "$p")${name} ${p}%\033[00m"
+  [ -n "$name" ] && extra="${extra} | ${name} $(color_for "$p")${p}%\033[00m"
 done < <(jq -r '.[] | "\(.model)\t\(.percent)"' <<<"${scoped:-[]}" 2>/dev/null)
 
 printf '%b' "${prompt}${extra}"
