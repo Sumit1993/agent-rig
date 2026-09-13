@@ -78,6 +78,18 @@
         "hooks": [
           {
             "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/gh-body-stamp.sh\"",
+            "timeout": 10
+          }
+        ],
+        "description": "Block gh issue/pr posts whose body carries no operator-stamp marker",
+        "id": "pre:bash:gh-body-stamp"
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
             "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/issue-create-nudge.sh\"",
             "timeout": 5
           }
