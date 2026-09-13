@@ -227,6 +227,8 @@ while [ ${#PRS[@]} -gt 0 ]; do
     [ -f "$rl_state" ] && IFS=$'\t' read -r prev_ts retry_at used < "$rl_state"
     case "$retry_at" in ''|*[!0-9]*) retry_at=0;; esac
     case "$used" in ''|*[!0-9]*) used=0;; esac
+    rl_pending_state="$STATE_DIR/$KEY-pr$pr.ratelimit.pending"
+    rl_pending=""; [ -f "$rl_pending_state" ] && rl_pending=$(cat "$rl_pending_state" 2>/dev/null)
 
     rl_raw=$(gh api "repos/$REPO/issues/$pr/comments?per_page=100" 2>/dev/null)
     if is_json_array <<<"$rl_raw" && rl=$(jq -r '[.[] | select(.user.login | test("coderabbit"))
@@ -238,6 +240,7 @@ while [ ${#PRS[@]} -gt 0 ]; do
       # and the branch reports the opposite of what happened.
       if [ "$rl" = "null" ] || [ -z "$rl" ]; then
         # Notice gone => a real review ran and replaced it. Existing thread poll covers the findings.
+        rm -f "$rl_pending_state"
         if [ -f "$rl_state" ]; then
           rm -f "$rl_state"
           echo "PR#$pr CODERABBIT RESUMED — rate-limit notice cleared, review ran"
@@ -259,7 +262,31 @@ while [ ${#PRS[@]} -gt 0 ]; do
         recover=0
         [ "$rl_first" = "1" ] && [ "$rl_ts" = "$prev_ts" ] && [ "$retry_at" = "0" ] \
           && [ "$used" = "0" ] && [ "$AUTORETRY" = "1" ] && recover=1
-        if [ "$rl_ts" != "$prev_ts" ] || [ "$recover" = "1" ]; then
+        # CodeRabbit edits this one summary comment in place, so updated_at alone still
+        # passes a transient body through as new (same trap as the already-reviewed
+        # notice, claude-kit#73). Require the same updated_at across two polls before
+        # treating it as new, then re-read once more right before acting. Refs #82.
+        settled=0
+        if [ "$rl_ts" != "$prev_ts" ]; then
+          if [ "$rl_ts" = "$rl_pending" ]; then
+            rl_recheck_raw=$(gh api "repos/$REPO/issues/$pr/comments?per_page=100" 2>/dev/null)
+            rl_ts2=""
+            is_json_array <<<"$rl_recheck_raw" && rl_ts2=$(jq -r '[.[] | select(.user.login | test("coderabbit"))
+                            | select(.body | test("rate limited by coderabbit\\.ai"))]
+                       | if length > 0 then last | .updated_at else empty end' <<<"$rl_recheck_raw" 2>/dev/null)
+            if [ "$rl_ts2" = "$rl_ts" ]; then
+              rm -f "$rl_pending_state"
+              settled=1
+            elif [ -n "$rl_ts2" ]; then
+              printf '%s' "$rl_ts2" > "$rl_pending_state"
+            else
+              rm -f "$rl_pending_state"
+            fi
+          else
+            printf '%s' "$rl_ts" > "$rl_pending_state"
+          fi
+        fi
+        if [ "$settled" = "1" ] || [ "$recover" = "1" ]; then
           retry_seconds "$rl_body"; secs=$RETRY_SECS
           if [ "$AUTORETRY" != "1" ]; then
             win_epoch=$(date -u -d "$rl_ts" +%s 2>/dev/null) || win_epoch=""
