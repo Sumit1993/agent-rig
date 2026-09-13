@@ -5,7 +5,8 @@ HOOK="$(cd "$(dirname "$0")/.." && pwd)/session-budget.sh"
 fails=0; T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 ctx() { jq -r '.hookSpecificOutput.additionalContext // ""' 2>/dev/null; }
 
-printf '{"ts":"%s","five_hour":{"used_percentage":63,"resets_at":1},"seven_day":{"used_percentage":36}}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$T/usage.jsonl"
+printf '{"ts":"%s","five_hour":{"used_percentage":63,"resets_at":%s},"seven_day":{"used_percentage":36}}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(( $(date +%s) + 3600 ))" > "$T/usage.jsonl"
+printf '{"ts":"2026-01-01T00:00:00Z","five_hour":{"used_percentage":97,"resets_at":1},"seven_day":{"used_percentage":79,"resets_at":%s}}\n' "$(( $(date +%s) + 86400 ))" > "$T/stale.jsonl"
 cat > "$T/quota.sh" <<'Q'
 #!/bin/bash
 case "$2" in gemini*) echo "exhausted: gemini until 2026-09-11T00:00Z";; *) echo "usable: $2 has no quota record";; esac
@@ -17,6 +18,9 @@ grep -q "5h window 63%, 7d 36%" <<<"$out" && echo "PASS: account percent from th
 grep -q "agy gemini: exhausted" <<<"$out" && echo "PASS: gemini group state" || { echo "FAIL: gemini ($out)"; fails=$((fails+1)); }
 grep -q "agy claude-gpt: usable" <<<"$out" && echo "PASS: claude-gpt group state" || { echo "FAIL: claude-gpt"; fails=$((fails+1)); }
 grep -q "Sonnet subagents only" <<<"$out" && echo "PASS: policy line present" || { echo "FAIL: policy"; fails=$((fails+1)); }
+
+out=$(echo '{}' | BUDGET_USAGE_LOG="$T/stale.jsonl" BUDGET_QUOTA_SH="$T/quota.sh" "$HOOK" | ctx)
+grep -q "5h window 0%, 7d 79%" <<<"$out" && echo "PASS: a 5h window whose resets_at passed reads 0, not the stale percent" || { echo "FAIL: stale window ($out)"; fails=$((fails+1)); }
 
 out=$(echo '{}' | BUDGET_USAGE_LOG="$T/none.jsonl" BUDGET_QUOTA_SH="$T/missing.sh" "$HOOK" | ctx)
 grep -q "no trace yet" <<<"$out" && grep -q "unknown" <<<"$out" && echo "PASS: missing trace and quota script degrade to words" || { echo "FAIL: missing inputs ($out)"; fails=$((fails+1)); }
