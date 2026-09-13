@@ -74,6 +74,15 @@ fi
 echo "→ statusline"
 cp "$HERE/statusline-command.sh" "$CLAUDE/statusline-command.sh"
 
+AGY="$HOME/.gemini/antigravity-cli"
+if [ -d "$AGY" ]; then
+  echo "→ agy statusline"
+  cp "$HERE/agy-statusline-command.sh" "$AGY/statusline.sh"; chmod +x "$AGY/statusline.sh"
+  s="$AGY/settings.json"; [ -f "$s" ] || echo '{}' > "$s"
+  jq --arg cmd "$AGY/statusline.sh" '.statusLine = ((.statusLine // {}) + {type: "command", command: $cmd, enabled: true})' "$s" > "$s.tmp" \
+    && jq -e . "$s.tmp" >/dev/null && mv "$s.tmp" "$s"
+fi
+
 echo "→ settings.json (deep-merge: fragment overlays existing; permissions.allow unions)"
 if [ -f "$CLAUDE/settings.json" ]; then
   cp "$CLAUDE/settings.json" "$CLAUDE/settings.json.bak-$(date +%s)"
