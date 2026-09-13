@@ -8,7 +8,7 @@
 # work that was fine.
 #
 #   ./replay-transcripts.sh            # 400 most recent calls per tool
-#   REPLAY_LIMIT=0 ./replay-transcripts.sh   # everything
+#   REPLAY_LIMIT=0 ./replay-transcripts.sh   # everything; run-all.sh gives this a 900s cap
 #   REPLAY_SHOW=1  ./replay-transcripts.sh   # print each blocked payload
 #
 # Sandboxed: state dirs are temporary and `gh` is stubbed, so a replayed PR URL cannot
