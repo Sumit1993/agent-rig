@@ -262,10 +262,8 @@ while [ ${#PRS[@]} -gt 0 ]; do
         recover=0
         [ "$rl_first" = "1" ] && [ "$rl_ts" = "$prev_ts" ] && [ "$retry_at" = "0" ] \
           && [ "$used" = "0" ] && [ "$AUTORETRY" = "1" ] && recover=1
-        # CodeRabbit edits this one summary comment in place, so updated_at alone still
-        # passes a transient body through as new (same trap as the already-reviewed
-        # notice, claude-kit#73). Require the same updated_at across two polls before
-        # treating it as new, then re-read once more right before acting. Refs #82.
+        # CodeRabbit edits this summary comment in place, so a new updated_at is only
+        # trusted once it holds across two polls, then re-read before acting. Refs #82, #73.
         settled=0
         if [ "$rl_ts" != "$prev_ts" ]; then
           if [ "$rl_ts" = "$rl_pending" ]; then
