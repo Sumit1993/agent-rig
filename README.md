@@ -45,7 +45,9 @@ Plugin `kit`, path-independent via `${CLAUDE_PLUGIN_ROOT}`:
 
 Claude Code does not read the name `AGENTS.md` on its own. `install.sh` writes `~/.claude/CLAUDE.md` as a one-line `@` import to this checkout, so there is one copy. Machine-local rules go below the import line. A plugin cannot carry this; Claude Code does not load a `CLAUDE.md` at a plugin root.
 
-Dotfiles, what a plugin cannot carry: `AGENTS.md`, `statusline-command.sh`, `settings.fragment.json` (registers this repo as a marketplace and enables the plugin), `install.sh`, `dedupe.sh`.
+Dotfiles, what a plugin cannot carry: `AGENTS.md`, `statusline-command.sh`, `agy-statusline-command.sh`, `settings.fragment.json` (registers this repo as a marketplace and enables the plugin), `install.sh`, `build-agy-plugin.sh`, `dedupe.sh`.
+
+Two harnesses, one source. `plugins/kit` is the Claude Code plugin. `install.sh` builds the agy plugin from it with `build-agy-plugin.sh` and runs `agy plugin install` on the result. Only skills whose frontmatter carries `metadata.harnesses: "claude agy"` cross; untagged means Claude-only. Hooks and agents never cross: agy's hooks read `toolCall.args` and answer with a `decision` field, and its agents take different model names. `hooks/tests/test-harness-split.sh` fails if a tagged skill names a Claude-only tool.
 
 ## Guard observation
 

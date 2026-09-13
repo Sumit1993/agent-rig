@@ -1,6 +1,8 @@
 ---
 name: compass
 description: "Where a repo stands and what to work on next, read from GitHub itself: the version milestone, its open issues by priority, blocked skipped. Load when a session picks up work cold or must rank a queue. Also the frozen label and milestone vocabulary."
+metadata:
+  harnesses: "claude agy"
 ---
 
 # Direction
