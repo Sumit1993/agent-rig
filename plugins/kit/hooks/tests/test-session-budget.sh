@@ -21,6 +21,11 @@ grep -q "Sonnet subagents only" <<<"$out" && echo "PASS: policy line present" ||
 out=$(echo '{}' | BUDGET_USAGE_LOG="$T/none.jsonl" BUDGET_QUOTA_SH="$T/missing.sh" "$HOOK" | ctx)
 grep -q "no trace yet" <<<"$out" && grep -q "unknown" <<<"$out" && echo "PASS: missing trace and quota script degrade to words" || { echo "FAIL: missing inputs ($out)"; fails=$((fails+1)); }
 
+out=$(echo '{"source":"resume","seconds_since_last_response":5400,"context_tokens":91000,"prompt_cache_likely_expired":true}' | BUDGET_USAGE_LOG="$T/usage.jsonl" BUDGET_QUOTA_SH="$T/quota.sh" "$HOOK" | ctx)
+grep -q "Resumed after 90m: 91000 context tokens re-sent, prompt cache likely expired" <<<"$out" && echo "PASS: resume cost line from the SessionStart fields" || { echo "FAIL: resume ($out)"; fails=$((fails+1)); }
+out=$(echo '{"source":"startup"}' | BUDGET_USAGE_LOG="$T/usage.jsonl" BUDGET_QUOTA_SH="$T/quota.sh" "$HOOK" | ctx)
+grep -q "Resumed" <<<"$out" && { echo "FAIL: startup claims a resume"; fails=$((fails+1)); } || echo "PASS: a fresh start says nothing about resuming"
+
 rc=$(printf 'junk' | BUDGET_USAGE_LOG="$T/none.jsonl" BUDGET_QUOTA_SH="$T/quota.sh" "$HOOK" >/dev/null 2>&1; echo $?)
 [ "$rc" -eq 0 ] && echo "PASS: junk stdin exits 0" || { echo "FAIL: junk rc=$rc"; fails=$((fails+1)); }
 

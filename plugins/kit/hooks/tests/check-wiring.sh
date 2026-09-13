@@ -27,8 +27,9 @@ while IFS=$'\t' read -r event id matcher cmd; do
   fi
   [ -x "$path" ] || note "$id -> $path is not executable"
 
-  # Every matcher alternative must be a real tool name.
-  if [ "$matcher" != "-" ]; then
+  # Every matcher alternative must be a real tool name, on the events whose matcher is a tool.
+  # StopFailure matches error types and Notification matches notification types.
+  if [ "$matcher" != "-" ] && grep -qE '^(PreToolUse|PostToolUse|PostToolUseFailure|PermissionRequest|PermissionDenied)$' <<<"$event"; then
     while IFS= read -r m; do
       [ -z "$m" ] && continue
       grep -qE "^($KNOWN)$" <<<"$m" || note "$id -> matcher names unknown tool '$m'"

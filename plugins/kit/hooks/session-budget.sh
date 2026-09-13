@@ -1,6 +1,7 @@
 #!/bin/bash
 # SessionStart hook: one line of budget the operator used to type by hand: the 5h and 7d
-# account percent from the statusline trace, and agy's quota state per group. Refs #123
+# account percent from the statusline trace, and agy's quota state per group. Refs #123.
+# On resume or fork, the resume-cost fields Claude Code sends (v2.1.251+) become one more sentence.
 set -u
 in=$(cat)
 log="${BUDGET_USAGE_LOG:-$HOME/.claude/metrics/usage.jsonl}"
@@ -24,6 +25,15 @@ g=$( [ -x "$quota" ] && "$quota" check gemini-3.8-flash-high 2>/dev/null | head 
 c=$( [ -x "$quota" ] && "$quota" check claude-opus-4.6 2>/dev/null | head -1 || echo "unknown")
 
 policy="Past 60% on the 5h window: Sonnet subagents only, no research fan-out, no planner respawn. A dry agy group means the Sonnet handler does the task itself from the prompt file and says so."
-msg="Budget: ${acct}. agy gemini: ${g}. agy claude-gpt: ${c}. ${policy}"
+resume=""
+src=$(jq -r '.source // empty' <<<"$in" 2>/dev/null)
+gap=$(jq -r '.seconds_since_last_response // empty' <<<"$in" 2>/dev/null)
+if [ -n "$gap" ] && { [ "$src" = "resume" ] || [ "$src" = "fork" ]; }; then
+  ctx_tok=$(jq -r '.context_tokens // "?"' <<<"$in" 2>/dev/null)
+  cold=$(jq -r '.prompt_cache_likely_expired // false' <<<"$in" 2>/dev/null)
+  [ "$cold" = "true" ] && cache="prompt cache likely expired, the first request rebuilds it" || cache="prompt cache likely warm"
+  resume=" Resumed after $((gap / 60))m: ${ctx_tok} context tokens re-sent, ${cache}."
+fi
+msg="Budget: ${acct}. agy gemini: ${g}. agy claude-gpt: ${c}.${resume} ${policy}"
 jq -n --arg ctx "$msg" '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":$ctx}}'
 exit 0

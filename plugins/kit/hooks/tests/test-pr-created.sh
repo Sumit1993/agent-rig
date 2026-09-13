@@ -77,6 +77,10 @@ case "$c" in
   *"arm the pr-watch monitor"*) pass "watch reminder present" ;;
   *) fail "reminder lost: $c" ;;
 esac
+case "$c" in
+  *"/autofix-pr"*"arm the pr-watch monitor"*) pass "autofix-pr is offered first, the Monitor second" ;;
+  *) fail "watcher order wrong: $c" ;;
+esac
 
 # --- A PR that did not come from `gh pr create` still arms ------------------
 out=$(run "agy run --task raise-pr" "created $URL")

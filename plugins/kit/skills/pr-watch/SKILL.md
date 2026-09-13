@@ -2,7 +2,7 @@
 name: pr-watch
 description: "Watch a PR raised in this session until its review round completes: seed seen-state, arm the reviewer and CI Monitor, route each event to the seat holding the diff, then merge. Load after any gh pr create or when asked to watch or merge a PR."
 metadata:
-  version: "4.2.0"
+  version: "4.3.0"
 ---
 
 # PR watch: the session-scoped review round
@@ -45,6 +45,8 @@ Never bypass the ruleset. Batch every fix before you push, not merely before you
 ## Phase 1: arm the watcher as soon as a PR this session caused exists
 
 The trigger is a PR existing that this session caused, whoever typed the command: a delegated lane, an agy run or a subagent in its own worktree can open it.
+
+Choose the watcher first. `/autofix-pr` on the PR branch spawns a cloud session subscribed to that PR; it fixes CI failures and review comments and replies in the threads under your account, and this session holds nothing. That is the default. The Monitor below is for a round this session must hold: the fix belongs in a seat that already has the diff, or CodeRabbit's rate limit needs tracking, which auto-fix does not see. Read from code.claude.com/docs/en/claude-code-on-the-web, "Auto-fix pull requests".
 
 Seed the seen-state first, both files, so existing comments never replay as `NEW`:
 

@@ -185,6 +185,34 @@
         "description": "A delegated lane's PR surfaces in the handler's report, not in this session's Bash output; nudge the main session, which is the only seat that can hold a watcher",
         "id": "post:agent:pr-created"
       }
+    ],
+    "StopFailure": [
+      {
+        "matcher": "rate_limit|overloaded",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/limit-log.sh\"",
+            "timeout": 5
+          }
+        ],
+        "description": "Log a rate-limit or overloaded turn end to ~/.claude/metrics/limits.jsonl (#124)",
+        "id": "stopfail:limit-log"
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "quota_auto_resume_fired|quota_auto_resume_stale|quota_auto_resume_disabled",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/limit-log.sh\"",
+            "timeout": 5
+          }
+        ],
+        "description": "Log usage-limit pauses and resumes to the same file (#124)",
+        "id": "notify:quota-resume-log"
+      }
     ]
   }
 }

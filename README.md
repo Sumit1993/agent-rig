@@ -24,7 +24,7 @@ Plugin `kit`, path-independent via `${CLAUDE_PLUGIN_ROOT}`:
 | `skills/unslop` | Cut AI tells from writing. Vendored from pstack verbatim; imported by `AGENTS.md` so it loads every turn |
 | `skills/autofix` | CodeRabbit's autofix skill, patched 2026-07-12 so replies go in-thread |
 | `agents/comment-sicko` | The subagent `no-comments` spawns. Deletes comments, never code |
-| `hooks/pr-created.sh` | PostToolUse(Bash, Agent): a real `gh pr create` injects "arm pr-watch now" |
+| `hooks/pr-created.sh` | PostToolUse(Bash, Agent): a real PR URL injects "pick its watcher now": `/autofix-pr` by default, the pr-watch Monitor for a held round |
 | `hooks/delegate-check.sh` | PreToolUse(Agent): blocks a Claude subagent on delegable work. Escape: name agy in the prompt |
 | `hooks/no-haiku.sh` | PreToolUse(Agent): blocks `model=haiku` |
 | `hooks/no-broad-agy-kill.sh` | PreToolUse(Bash): blocks a kill that targets agy by name; kill by PID or slug |
@@ -35,7 +35,8 @@ Plugin `kit`, path-independent via `${CLAUDE_PLUGIN_ROOT}`:
 | `hooks/subagent-no-stall.sh` | SubagentStop: blocks subagent returning stall phrasing; wait in foreground with deadline |
 | `hooks/issue-create-nudge.sh` | PreToolUse(Bash): nudges on third gh issue create this session to fold into an umbrella |
 | `hooks/vendored-skill-nudge.sh` | PreToolUse(Skill): nudges on handoff, to-tickets, research skills that records live in issues; on claude-api, that a price or model id needs only `shared/models.md` |
-| `hooks/session-budget.sh` | SessionStart: one line with the 5h and 7d percent from `~/.claude/metrics/usage.jsonl`, agy quota per group, and the cheap-mode policy |
+| `hooks/session-budget.sh` | SessionStart: one line with the 5h and 7d percent from `~/.claude/metrics/usage.jsonl`, agy quota per group, the resume cost on `--resume`, and the cheap-mode policy |
+| `hooks/limit-log.sh` | StopFailure(rate_limit, overloaded) and Notification(quota_auto_resume_*): one JSON line each in `~/.claude/metrics/limits.jsonl` |
 | `hooks/outside-view-nudge.sh` | PreToolUse(AskUserQuestion, EnterPlanMode, fable-planner spawn): get an outside view first. 1st time, then every 3rd per session |
 
 `dotfiles/AGENTS.md` loads on every turn in every project, so it carries routing and rules only. Procedure lives in a skill that loads on demand. It `@`-imports `skills/unslop/SKILL.md`, because writing rules must be loaded before the writing happens. Imports resolve relative to the file and nest; a nested import that points at nothing fails silently, so `install.sh` checks the target exists.
