@@ -23,7 +23,10 @@ if [ -n "${GH_STUB_404-}" ]; then
   case "$*" in *"${GH_STUB_404}"*) echo "gh: Not Found (HTTP 404)" >&2; exit 1 ;; esac
 fi
 if [ -n "${GH_STUB_OK-}" ]; then
-  case "$*" in *"${GH_STUB_OK}"*) echo 12; exit 0 ;; esac
+  case "$*" in
+    *"pr view"*) [ -n "${GH_STUB_PRVIEW-}" ] && { printf '%s' "$GH_STUB_PRVIEW"; exit 0; }; exit 1 ;;
+    *"${GH_STUB_OK}"*) echo 12; exit 0 ;;
+  esac
 fi
 exit 1
 STUB
@@ -158,6 +161,24 @@ case "$real" in
   *) fail "a real PR at a previously-404 number did not fire: ${real:0:80}" ;;
 esac
 rm -rf "$ghost_dir"
+
+# --- Closes #a, #b links only #a ---------------------------------------------
+# gh-workflows #140 claimed seven closes and linked one. The hook compares the body's
+# closing keywords against what GitHub actually linked and says so in the nudge.
+cl_dir=$(mktemp -d)
+PRV='{"body":"Closes #1, #2, #3\n\nFixes #4","closingIssuesReferences":[{"number":1},{"number":4}]}'
+c=$(GH_STUB_OK="pulls/50" GH_STUB_PRVIEW="$PRV" run "$CREATE_CMD" "https://github.com/acme/widget/pull/50" "$cl_dir" | ctx)
+case "$c" in
+  *"names 4 issue(s)"*"linked 2"*"closes #a, closes #b"*) pass "unlinked closes are counted and the fix is spelled out" ;;
+  *) fail "closes mismatch not reported: ${c:0:200}" ;;
+esac
+PRV='{"body":"closes #1, closes #2","closingIssuesReferences":[{"number":1},{"number":2}]}'
+c=$(GH_STUB_OK="pulls/51" GH_STUB_PRVIEW="$PRV" run "$CREATE_CMD" "https://github.com/acme/widget/pull/51" "$cl_dir" | ctx)
+case "$c" in
+  *"names "*) fail "a fully linked body still complained: ${c:0:200}" ;;
+  *) pass "a body whose closes all linked says nothing about it" ;;
+esac
+rm -rf "$cl_dir"
 
 # --- An existence check that itself fails must not suppress ------------------
 # No auth, no network, rate limit: unknown is not absent. A missed real PR costs more

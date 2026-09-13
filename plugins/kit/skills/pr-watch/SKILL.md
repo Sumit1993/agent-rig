@@ -40,6 +40,8 @@ Push freely; nothing runs pre-push. Escalate by risk, and never pay model tokens
 | One Opus 5 pass | Non-trivial PRs | Spec and ADR conformance, which the bots cannot see |
 | `/code-review ultra` | Rare | Engine core, security boundary, contract or schema changes |
 
+A PR body that closes several issues repeats the keyword per issue, `closes #a, closes #b`; GitHub links only the first number after one keyword. `pr-created.sh` reads `closingIssuesReferences` and says when the body names more than GitHub linked (gh-workflows #140 claimed seven, linked one).
+
 Never bypass the ruleset. Batch every fix before you push, not merely before you summon: a CodeRabbit slot spent on a commit you are about to amend is wasted. Where admission is automatic, the push is the request and there is no summon step to hold back; a lane cannot obey "don't trigger CodeRabbit" by pushing. `auto_pause_after_reviewed_commits: 1` limits the damage: the first push spends a slot, later pushes auto-pause and surface as `CODERABBIT AUTO-PAUSED`. Check `coderabbit_auto_review` before assuming you have a summon step (`coderabbit-lane` §1 and §3).
 
 ## Phase 1: arm the watcher as soon as a PR this session caused exists

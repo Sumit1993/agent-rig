@@ -104,15 +104,29 @@ while read -r url; do
 done <<< "$urls"
 [ -z "$fresh" ] && exit 0
 
+# GitHub links only the first number after a closing keyword; "Closes #1, #2" leaves #2 open.
+# Compare what the body names against closingIssuesReferences. Story: gh-workflows #140, #155.
+closes_note=""
+while read -r url; do
+  [ -z "$url" ] && continue
+  case "$fresh" in *"$url"*) ;; *) continue ;; esac
+  repo=${url#https://github.com/}; repo=${repo%%/pull/*}; num=${url##*/}
+  pv=$(gh pr view "$num" -R "$repo" --json body,closingIssuesReferences 2>/dev/null) || continue
+  named=$(jq -r '[.body // "" | match("(?i)\\b(close[sd]?|fix(e[sd])?|resolve[sd]?)\\b[^\\n]*"; "g").string | match("#[0-9]+"; "g").string] | unique | length' <<<"$pv" 2>/dev/null)
+  linked=$(jq -r '.closingIssuesReferences | length' <<<"$pv" 2>/dev/null)
+  [ -n "$named" ] && [ -n "$linked" ] && [ "$named" -gt "$linked" ] \
+    && closes_note="${closes_note}PR #${num} body names ${named} issue(s) after a closing keyword but GitHub linked ${linked}; repeat the keyword per issue (closes #a, closes #b) and edit the body. "
+done <<< "$urls"
+
 seed_note="seed the seen-state first (Phase 1) so existing comments are not replayed, then arm"
 [ "$seeded" = "1" ] && seed_note="seen-state is already seeded, so just arm"
 
 check_note="Each PR above was confirmed to exist through the GitHub API before this fired."
 [ "$unverified" = "1" ] && check_note="Each PR above was confirmed to exist through the GitHub API, except any marked UNVERIFIED: that check itself failed, so the URL could be a fixture from test data. Run gh pr view on it before arming."
 
-jq -n --arg fresh "${fresh%; }" --arg seed "$seed_note" --arg check "$check_note" \
+jq -n --arg fresh "${fresh%; }" --arg seed "$seed_note" --arg check "$check_note" --arg closes "$closes_note" \
   '{hookSpecificOutput:{hookEventName:"PostToolUse",additionalContext:(
-      "\($fresh) — in play in this session with no watcher armed. \($check) "
+      "\($fresh) — in play in this session with no watcher armed. \($check) \($closes)"
       + "If you raised it or are driving its review round, pick its watcher NOW. Default: run /autofix-pr on the PR branch; a cloud session subscribes to the PR and pushes fixes for CI failures and review comments, and this session holds nothing. Only when the fix must land in the seat that holds the diff, or CodeRabbit rate limits need tracking, arm the pr-watch monitor instead: invoke the pr-watch skill, \($seed) the Monitor with watch-coderabbit.sh. "
       + "If it is merged, closed, or someone else'"'"'s round, ignore this."
    )}}'
