@@ -120,6 +120,18 @@
         ],
         "description": "Nudge for an outside view when an agent asks, plans, or spawns the planner; 1st then every 3rd per session",
         "id": "pre:any:outside-view-nudge"
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/scoped-cap-gate.sh\"",
+            "timeout": 10
+          }
+        ],
+        "description": "Refuse a Fable spawn while Fable's own weekly cap reads critical in the usage cache the status line keeps",
+        "id": "pre:agent:scoped-cap-gate"
       }
     ],
     "SubagentStop": [

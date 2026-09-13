@@ -42,13 +42,29 @@ if [ -n "$five" ]; then
   extra="${extra} | 5h $(color_for $f)${f}%\033[00m${left} 7d $(color_for $w)${w}%\033[00m"
 fi
 
+# Per-model weekly caps (Fable) are not in the stdin payload. /api/oauth/usage has them; refresh a
+# cache in the background at most every 5 minutes and render from the cache. Undocumented, so any
+# failure just leaves the field off. Story: claude-kit#133.
+api=~/.claude/metrics/usage-api.json
+if [ -z "$(find "$api" -mmin -5 2>/dev/null)" ]; then
+  mkdir -p ~/.claude/metrics; touch "$api"
+  ( tok=$(jq -r '.claudeAiOauth.accessToken // empty' ~/.claude/.credentials.json 2>/dev/null)
+    [ -n "$tok" ] && curl -sf --max-time 8 https://api.anthropic.com/api/oauth/usage \
+      -H "Authorization: Bearer $tok" -H "anthropic-beta: oauth-2025-04-20" -o "$api.tmp" \
+      && jq -e '.limits' "$api.tmp" >/dev/null 2>&1 && mv "$api.tmp" "$api" ) >/dev/null 2>&1 &
+fi
+scoped=$(jq -c '[.limits[]? | select(.kind == "weekly_scoped") | {model: .scope.model.display_name, percent, severity, resets_at}]' "$api" 2>/dev/null)
+while IFS=$'\t' read -r name p; do
+  [ -n "$name" ] && extra="${extra} $(color_for "$p")${name} ${p}%\033[00m"
+done < <(jq -r '.[] | "\(.model)\t\(.percent)"' <<<"${scoped:-[]}" 2>/dev/null)
+
 printf '%b' "${prompt}${extra}"
 
 # Trace: one line per change of any tracked value, only when the account fields are present
 if [ -n "$five" ]; then
   log=~/.claude/metrics/usage.jsonl; mkdir -p ~/.claude/metrics
-  row=$(echo "$input" | jq -c '{session:.session_id, model:.model.id, ctx_pct:(.context_window.used_percentage|floor),
-      cost_usd:.cost.total_cost_usd, five_hour:.rate_limits.five_hour, seven_day:.rate_limits.seven_day}')
+  row=$(echo "$input" | jq -c --argjson scoped "${scoped:-[]}" '{session:.session_id, model:.model.id, ctx_pct:(.context_window.used_percentage|floor),
+      cost_usd:.cost.total_cost_usd, five_hour:.rate_limits.five_hour, seven_day:.rate_limits.seven_day, scoped:$scoped}')
   prev=$(tail -n 1 "$log" 2>/dev/null | jq -c 'del(.ts)' 2>/dev/null)
   [ "$row" != "$prev" ] && echo "$row" | jq -c --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '{ts:$ts} + .' >> "$log"
 fi

@@ -19,6 +19,10 @@ grep -q "agy gemini: exhausted" <<<"$out" && echo "PASS: gemini group state" || 
 grep -q "agy claude-gpt: usable" <<<"$out" && echo "PASS: claude-gpt group state" || { echo "FAIL: claude-gpt"; fails=$((fails+1)); }
 grep -q "Sonnet subagents only" <<<"$out" && echo "PASS: policy line present" || { echo "FAIL: policy"; fails=$((fails+1)); }
 
+printf '{"ts":"%s","five_hour":{"used_percentage":20,"resets_at":%s},"seven_day":{"used_percentage":82},"scoped":[{"model":"Fable","percent":100,"severity":"critical","resets_at":"2026-09-15T05:00:00.2+00:00"}]}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(( $(date +%s) + 3600 ))" > "$T/scoped.jsonl"
+out=$(echo '{}' | BUDGET_USAGE_LOG="$T/scoped.jsonl" BUDGET_QUOTA_SH="$T/quota.sh" "$HOOK" | ctx)
+grep -q "Fable weekly 100% (critical), resets 2026-09-15T05:00Z" <<<"$out" && echo "PASS: per-model weekly cap from the trace" || { echo "FAIL: scoped cap ($out)"; fails=$((fails+1)); }
+
 out=$(echo '{}' | BUDGET_USAGE_LOG="$T/stale.jsonl" BUDGET_QUOTA_SH="$T/quota.sh" "$HOOK" | ctx)
 grep -q "5h window 0%, 7d 79%" <<<"$out" && echo "PASS: a 5h window whose resets_at passed reads 0, not the stale percent" || { echo "FAIL: stale window ($out)"; fails=$((fails+1)); }
 
