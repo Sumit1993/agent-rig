@@ -2,7 +2,7 @@
 name: pr-watch
 description: "Watch a PR raised in this session until its review round completes: seed seen-state, arm the reviewer and CI Monitor, route each event to the seat holding the diff, then merge. Load after any gh pr create or when asked to watch or merge a PR."
 metadata:
-  version: "4.2.0"
+  version: "4.3.0"
 ---
 
 # PR watch: the session-scoped review round
@@ -40,11 +40,15 @@ Push freely; nothing runs pre-push. Escalate by risk, and never pay model tokens
 | One Opus 5 pass | Non-trivial PRs | Spec and ADR conformance, which the bots cannot see |
 | `/code-review ultra` | Rare | Engine core, security boundary, contract or schema changes |
 
+A PR body that closes several issues repeats the keyword per issue, `closes #a, closes #b`; GitHub links only the first number after one keyword. `pr-created.sh` reads `closingIssuesReferences` and says when the body names more than GitHub linked (gh-workflows #140 claimed seven, linked one).
+
 Never bypass the ruleset. Batch every fix before you push, not merely before you summon: a CodeRabbit slot spent on a commit you are about to amend is wasted. Where admission is automatic, the push is the request and there is no summon step to hold back; a lane cannot obey "don't trigger CodeRabbit" by pushing. `auto_pause_after_reviewed_commits: 1` limits the damage: the first push spends a slot, later pushes auto-pause and surface as `CODERABBIT AUTO-PAUSED`. Check `coderabbit_auto_review` before assuming you have a summon step (`coderabbit-lane` §1 and §3).
 
 ## Phase 1: arm the watcher as soon as a PR this session caused exists
 
 The trigger is a PR existing that this session caused, whoever typed the command: a delegated lane, an agy run or a subagent in its own worktree can open it.
+
+Choose the watcher first. `/autofix-pr` on the PR branch spawns a cloud session subscribed to that PR; it fixes CI failures and review comments and replies in the threads under your account, and this session holds nothing. That is the default. The Monitor below is for a round this session must hold: the fix belongs in a seat that already has the diff, or CodeRabbit's rate limit needs tracking, which auto-fix does not see. Read from code.claude.com/docs/en/claude-code-on-the-web, "Auto-fix pull requests".
 
 Seed the seen-state first, both files, so existing comments never replay as `NEW`:
 

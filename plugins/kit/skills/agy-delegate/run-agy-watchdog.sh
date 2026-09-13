@@ -78,15 +78,26 @@ agy --model "$MODEL" --log-file "$ACTIVITY" --output-format json \
 PID=$!
 echo "WATCHDOG: agy pid $PID slug $SLUG activity $ACTIVITY" >&2
 
+# Formats a staleness duration in seconds as "MmSs" (e.g. 192 -> "3m12s"). The watchdog
+# already computes this to decide the kill; printing it removes a recompute-from-mtime
+# step for whoever reads the activity log after. Refs #82.
+fmt_stale() {
+  local s=$1
+  printf '%dm%ds' "$((s / 60))" "$((s % 60))"
+}
+
 while kill -0 "$PID" 2>/dev/null; do
   sleep 60
   now=$(date +%s); mt=$(stat -c %Y "$ACTIVITY" 2>/dev/null || echo "$now")
-  if [ $((now - mt)) -gt 180 ]; then
+  stale=$((now - mt))
+  if [ "$stale" -gt 180 ]; then
     ahead=$(git -C "$WT" rev-list --count origin/main..HEAD 2>/dev/null || echo 0)
     dirty=$(git -C "$WT" status --porcelain 2>/dev/null | head -1)
     if [ "$ahead" -ge "$EXPECT" ] && [ -z "$dirty" ]; then
+      stale_fmt=$(fmt_stale "$stale")
+      echo "WATCHDOG: log stale $stale_fmt, killing agy (work complete: $ahead commits, clean tree)" >&2
       kill -9 "$PID" 2>/dev/null
-      echo "WATCHDOG: killed hung agy (work complete: $ahead commits, clean tree, log stale)" >> "$ACTIVITY"
+      echo "WATCHDOG: killed hung agy (work complete: $ahead commits, clean tree, log stale $stale_fmt)" >> "$ACTIVITY"
       break
     fi
   fi

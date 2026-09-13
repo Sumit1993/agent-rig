@@ -24,7 +24,7 @@ Plugin `kit`, path-independent via `${CLAUDE_PLUGIN_ROOT}`:
 | `skills/unslop` | Cut AI tells from writing. Vendored from pstack verbatim; imported by `AGENTS.md` so it loads every turn |
 | `skills/autofix` | CodeRabbit's autofix skill, patched 2026-07-12 so replies go in-thread |
 | `agents/comment-sicko` | The subagent `no-comments` spawns. Deletes comments, never code |
-| `hooks/pr-created.sh` | PostToolUse(Bash, Agent): a real `gh pr create` injects "arm pr-watch now" |
+| `hooks/pr-created.sh` | PostToolUse(Bash, Agent): a real PR URL injects "pick its watcher now": `/autofix-pr` by default, the pr-watch Monitor for a held round |
 | `hooks/delegate-check.sh` | PreToolUse(Agent): blocks a Claude subagent on delegable work. Escape: name agy in the prompt |
 | `hooks/no-haiku.sh` | PreToolUse(Agent): blocks `model=haiku` |
 | `hooks/no-broad-agy-kill.sh` | PreToolUse(Bash): blocks a kill that targets agy by name; kill by PID or slug |
@@ -32,10 +32,12 @@ Plugin `kit`, path-independent via `${CLAUDE_PLUGIN_ROOT}`:
 | `hooks/release-docs-gate.sh` | PreToolUse(Bash): blocks merging a release PR without a docs audit in 14 days. Escape: `DOCS_GATE=skip` |
 | `hooks/reap-watchers.sh` | SessionEnd kills watchers, SessionStart reaps orphans. Seen-state is durable so this is free |
 | `hooks/gh-body-no-scratch.sh` | PreToolUse(Bash): blocks gh issue/pr citing ai-context or /tmp. Escape: `SCRATCH_GATE=skip` |
+| `hooks/gh-body-stamp.sh` | PreToolUse(Bash): blocks gh issue/pr posts whose body carries no operator-stamp marker. Escape: `STAMP_GATE=skip` |
 | `hooks/subagent-no-stall.sh` | SubagentStop: blocks subagent returning stall phrasing; wait in foreground with deadline |
 | `hooks/issue-create-nudge.sh` | PreToolUse(Bash): nudges on third gh issue create this session to fold into an umbrella |
 | `hooks/vendored-skill-nudge.sh` | PreToolUse(Skill): nudges on handoff, to-tickets, research skills that records live in issues; on claude-api, that a price or model id needs only `shared/models.md` |
-| `hooks/session-budget.sh` | SessionStart: one line with the 5h and 7d percent from `~/.claude/metrics/usage.jsonl`, agy quota per group, and the cheap-mode policy |
+| `hooks/session-budget.sh` | SessionStart: one line with the 5h and 7d percent from `~/.claude/metrics/usage.jsonl`, agy quota per group, the resume cost on `--resume`, and the cheap-mode policy |
+| `hooks/limit-log.sh` | StopFailure(rate_limit, overloaded) and Notification(quota_auto_resume_*): one JSON line each in `~/.claude/metrics/limits.jsonl` |
 | `hooks/outside-view-nudge.sh` | PreToolUse(AskUserQuestion, EnterPlanMode, fable-planner spawn): get an outside view first. 1st time, then every 3rd per session |
 
 `dotfiles/AGENTS.md` loads on every turn in every project, so it carries routing and rules only. Procedure lives in a skill that loads on demand. It `@`-imports `skills/unslop/SKILL.md`, because writing rules must be loaded before the writing happens. Imports resolve relative to the file and nest; a nested import that points at nothing fails silently, so `install.sh` checks the target exists.
@@ -43,6 +45,61 @@ Plugin `kit`, path-independent via `${CLAUDE_PLUGIN_ROOT}`:
 Claude Code does not read the name `AGENTS.md` on its own. `install.sh` writes `~/.claude/CLAUDE.md` as a one-line `@` import to this checkout, so there is one copy. Machine-local rules go below the import line. A plugin cannot carry this; Claude Code does not load a `CLAUDE.md` at a plugin root.
 
 Dotfiles, what a plugin cannot carry: `AGENTS.md`, `statusline-command.sh`, `settings.fragment.json` (registers this repo as a marketplace and enables the plugin), `install.sh`, `dedupe.sh`.
+
+## Guard observation
+
+Hooks that block or rewrite tool calls report their firing to `mage observe`. This gives `mage why <id>` a key and records guard activations for learning.
+
+### Guard identifiers
+
+| Hook file | Guard id |
+|---|---|
+| `plugins/kit/hooks/delegate-check.sh` | `kit/guard/delegate-check` |
+| `plugins/kit/hooks/no-haiku.sh` | `kit/guard/no-haiku` |
+| `plugins/kit/hooks/no-broad-agy-kill.sh` | `kit/guard/no-broad-agy-kill` |
+| `plugins/kit/hooks/organizer-seat.sh` | `kit/guard/organizer-seat` |
+| `plugins/kit/hooks/release-docs-gate.sh` | `kit/guard/release-docs-gate` |
+
+Hooks that neither block nor rewrite (`pr-created.sh` and `reap-watchers.sh`) have no guard identifier.
+
+### Header convention and reporting
+
+Each blocking hook declares its identifier directly below the shebang line:
+
+```bash
+# mage:kit/guard/<slug>
+```
+
+Before exiting on a block decision, the hook calls the shared reporter:
+
+```bash
+report_guard "kit/guard/<slug>" "$tool" "$detail"
+```
+
+The reporter library is at `plugins/kit/hooks/lib/report-guard.sh`.
+
+### Fail-open contract
+
+The reporter is fire-and-forget and always fails open. If `mage` or `jq` is absent from PATH, the function returns 0. Calls to `mage observe` run with a 5 second timeout. Any error, non-zero exit, or timeout is ignored so the hook still exits with its block code. The reporter writes nothing to stdout because hook stdout is a protocol channel.
+
+### Worked example
+
+When an agent invokes `Agent` with `claude-haiku-4-5-20251001`, `plugins/kit/hooks/no-haiku.sh` blocks. The agent receives this message on stderr:
+
+```
+Blocked by routing doctrine (dotfiles/AGENTS.md): never use Haiku. Pick sonnet or above.
+mage:kit/guard/no-haiku
+```
+
+At the same time, `no-haiku.sh` pipes the following payload to `mage observe` on stdin:
+
+```json
+{
+  "guard_id": "kit/guard/no-haiku",
+  "tool": "Agent",
+  "detail": "claude-haiku-4-5-20251001"
+}
+```
 
 ## New machine
 

@@ -51,6 +51,14 @@ run() { # autoretry -> one poll of the real watcher
 }
 
 # --- A detect-only watcher records the notice and arms nothing -----------------
+# CodeRabbit edits its one summary comment in place, so the first sighting of a new
+# updated_at must settle across two polls before it is acted on (same trap the
+# already-reviewed notice hit; claude-kit#73). Refs #82.
+out=$(run 0)
+case "$out" in
+  *"RATE-LIMITED"*) fail "rate-limited fired on the first sighting, before it settled: $(printf '%s' "$out" | tr '\n' '|')" ;;
+  *) pass "rate-limited withheld on the first sighting" ;;
+esac
 out=$(run 0)
 case "$out" in
   *"RATE-LIMITED"*"auto-retry OFF"*) pass "detect-only records the notice, arms nothing" ;;

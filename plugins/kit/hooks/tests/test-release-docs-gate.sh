@@ -69,5 +69,17 @@ FAKE_PR_TITLE="chore: release 1.0.0"
 FAKE_DOCS_AUDIT_AT=$(date +%s)
 check "recent docs audit passes"       0 "gh pr merge 42 --squash"
 
+# Guard reporting: when blocking, exits 2 even with mage absent, and stderr contains guard id
+FAKE_HAS_DOCS=1 FAKE_DOCS_AUDIT_AT=0 FAKE_PR_TITLE="chore: release 1.0.0"
+err=$(printf '{"cwd":"%s","tool_input":{"command":"gh pr merge 42 --squash"}}' "$CWD" \
+  | PATH="$FAKEBIN:/usr/bin:/bin" "$HOOK" 2>&1 >/dev/null)
+rc=$?
+if [ "$rc" -eq 2 ] && grep -q '^mage:kit/guard/release-docs-gate$' <<<"$err"; then
+  echo "PASS: blocks with exit 2 and guard id on stderr when mage absent"
+else
+  echo "FAIL: guard report check failed (rc=$rc, err=$err)"; fails=$((fails + 1))
+fi
+
 [ "$fails" -eq 0 ] && echo && echo "all release-docs-gate hook tests passed"
 exit "$fails"
+

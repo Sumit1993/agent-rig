@@ -78,6 +78,18 @@
         "hooks": [
           {
             "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/gh-body-stamp.sh\"",
+            "timeout": 10
+          }
+        ],
+        "description": "Block gh issue/pr posts whose body carries no operator-stamp marker",
+        "id": "pre:bash:gh-body-stamp"
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
             "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/issue-create-nudge.sh\"",
             "timeout": 5
           }
@@ -184,6 +196,45 @@
         ],
         "description": "A delegated lane's PR surfaces in the handler's report, not in this session's Bash output; nudge the main session, which is the only seat that can hold a watcher",
         "id": "post:agent:pr-created"
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/budget-nudge.sh\"",
+            "timeout": 10
+          }
+        ],
+        "description": "When the 5h window crosses 80% and 90%, tell the session to wind down and hand off on the umbrella issue",
+        "id": "post:any:budget-nudge"
+      }
+    ],
+    "StopFailure": [
+      {
+        "matcher": "rate_limit|overloaded",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/limit-log.sh\"",
+            "timeout": 5
+          }
+        ],
+        "description": "Log a rate-limit or overloaded turn end to ~/.claude/metrics/limits.jsonl (#124)",
+        "id": "stopfail:limit-log"
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "quota_auto_resume_fired|quota_auto_resume_stale|quota_auto_resume_disabled",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/limit-log.sh\"",
+            "timeout": 5
+          }
+        ],
+        "description": "Log usage-limit pauses and resumes to the same file (#124)",
+        "id": "notify:quota-resume-log"
       }
     ]
   }
