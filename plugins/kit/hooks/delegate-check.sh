@@ -1,4 +1,5 @@
 #!/bin/bash
+# mage:kit/guard/delegate-check
 # PreToolUse(Agent) hook: the delegation rule in AGENTS.md is unenforceable as prose —
 # by the time you pick a subagent_type you have already decided who, and nothing
 # interrupts. This blocks a GENERIC subagent on work that reads as delegable.
@@ -6,6 +7,11 @@
 # choosing Claude anyway is allowed, silently deciding is not.
 set -u
 in=$(cat)
+
+_lib="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/hooks/lib/report-guard.sh"
+[ -f "$_lib" ] || _lib="$(cd "$(dirname "$0")" && pwd)/lib/report-guard.sh"
+[ -f "$_lib" ] && . "$_lib"
+type report_guard >/dev/null 2>&1 || report_guard() { :; }
 
 type=$(jq -r '.tool_input.subagent_type // ""' <<<"$in" 2>/dev/null) || exit 0
 # Match the DESCRIPTION, not the prompt. A long prompt mentions "implement" or "audit"
@@ -37,5 +43,8 @@ spawn subagent_type "agy-runner" with the path.
 
 If a Claude subagent is genuinely right — the answer is a ruling, not a procedure — say why
 in the prompt or description and re-issue. "Simpler to set up" is not a reason.
+mage:kit/guard/delegate-check
 MSG
+tool=$(jq -r '.tool_name // "Agent"' <<<"$in" 2>/dev/null)
+report_guard "kit/guard/delegate-check" "$tool" "$desc"
 exit 2

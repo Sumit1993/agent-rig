@@ -55,5 +55,15 @@ check "redirect before heredoc operator" 0 $'cat > x.md <<\'EOF\'\npkill -9 -x a
 check "dash heredoc tab-indented terminator" 0 $'cat <<-\'EOF\' > notes.txt\npkill -9 -x agy\n\tEOF'
 check "heredoc then gh pr create body-file" 0 $'cat <<\'EOF\' > body.md\npkill -9 -x agy\nEOF\ngh pr create --body-file body.md'
 
+# Guard reporting: when blocking, exits 2 even with mage absent, and stderr contains guard id
+err=$(jq -n --arg c 'pkill -9 -x agy' '{tool_input:{command:$c}}' | PATH=/usr/bin:/bin "$HOOK" 2>&1 >/dev/null)
+rc=$?
+if [ "$rc" -eq 2 ] && grep -q '^mage:kit/guard/no-broad-agy-kill$' <<<"$err"; then
+  echo "PASS: blocks with exit 2 and guard id on stderr when mage absent"
+else
+  echo "FAIL: guard report check failed (rc=$rc, err=$err)"; fails=$((fails + 1))
+fi
+
 [ "$fails" -eq 0 ] && echo && echo "all no-broad-agy-kill hook tests passed"
 exit "$fails"
+

@@ -44,5 +44,15 @@ check "absent model with general-purpose does not block" 0 \
 echo "-- allowed with stderr warning: junk stdin"
 check "junk stdin does not block and emits one stderr line" 0 'junk' 1
 
+# Guard reporting: when blocking, exits 2 even with mage absent, and stderr contains guard id
+err=$(printf '{"tool_input":{"model":"haiku"}}' | PATH=/usr/bin:/bin "$HOOK" 2>&1 >/dev/null)
+rc=$?
+if [ "$rc" -eq 2 ] && grep -q '^mage:kit/guard/no-haiku$' <<<"$err"; then
+  echo "PASS: blocks with exit 2 and guard id on stderr when mage absent"
+else
+  echo "FAIL: guard report check failed (rc=$rc, err=$err)"; fails=$((fails + 1))
+fi
+
 [ "$fails" -eq 0 ] && echo && echo "all no-haiku hook tests passed"
 exit "$fails"
+
