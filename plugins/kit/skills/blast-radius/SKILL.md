@@ -40,7 +40,7 @@ Any safety fact you can't get to step 4, say so out loud. Don't write it up as s
 5. Prove the one fact. Write a script or test that runs the real code, run it, and paste what happened. If you can't prove it cheaply, mark it unproven. Don't round up.
 6. For a big or wide change, ask several models the same question and merge the answers. Different
    models catch different real bugs. Use the `Workflow` tool's judge-panel shape for a Claude fan-out,
-   or hand the same question to a different family through the **agy-delegate** skill. Say which
+   or hand the same question to a different family through the **farm-out** skill. Say which
    models answered.
 
 ## What to hand back
@@ -63,6 +63,6 @@ Upstream is `cursor/plugins` `pstack/skills/blast-radius`, written for Cursor. C
 
 - The `how` / `why` / `unslop` / `arena` skill references become the concrete actions they stand
   for, since those pstack skills are not vendored: pull the PR and commits, the `Workflow`
-  judge-panel or **agy-delegate** for a multi-model pass, and the `AGENTS.md` writing rules.
+  judge-panel or **farm-out** for a multi-model pass, and the `AGENTS.md` writing rules.
 - "Solid versus React" becomes "server versus client", matching this stack.
 - Added the delegate-report warning, which is the failure this repo actually hit.

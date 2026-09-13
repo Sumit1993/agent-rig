@@ -1,7 +1,7 @@
 #!/bin/bash
 # Regression suite for agy-quota.sh and watchdog quota recording. Refs #108, #107.
 set -u
-SRC="$(cd "$(dirname "$0")/../../skills/agy-delegate" && pwd)"
+SRC="$(cd "$(dirname "$0")/../../skills/farm-out" && pwd)"
 AGY_QUOTA="$SRC/agy-quota.sh"
 WATCHDOG="$SRC/run-agy-watchdog.sh"
 fails=0

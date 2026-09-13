@@ -1,6 +1,6 @@
 #!/bin/bash
 # PostToolUse(Bash) hook: the first time a PR URL shows up in any Bash output,
-# inject a reminder to pick a watcher: /autofix-pr by default, the pr-watch Monitor for a
+# inject a reminder to pick a watcher: /autofix-pr by default, the pr-babysit Monitor for a
 # held round. Deduped per PR, so each one
 # prompts once and never again.
 # Silent (exit 0, no output) for every other Bash call.
@@ -127,6 +127,6 @@ check_note="Each PR above was confirmed to exist through the GitHub API before t
 jq -n --arg fresh "${fresh%; }" --arg seed "$seed_note" --arg check "$check_note" --arg closes "$closes_note" \
   '{hookSpecificOutput:{hookEventName:"PostToolUse",additionalContext:(
       "\($fresh) — in play in this session with no watcher armed. \($check) \($closes)"
-      + "If you raised it or are driving its review round, pick its watcher NOW. Default: run /autofix-pr on the PR branch; a cloud session subscribes to the PR and pushes fixes for CI failures and review comments, and this session holds nothing. Only when the fix must land in the seat that holds the diff, or CodeRabbit rate limits need tracking, arm the pr-watch monitor instead: invoke the pr-watch skill, \($seed) the Monitor with watch-coderabbit.sh. "
+      + "If you raised it or are driving its review round, pick its watcher NOW. Default: run /autofix-pr on the PR branch; a cloud session subscribes to the PR and pushes fixes for CI failures and review comments, and this session holds nothing. Only when the fix must land in the seat that holds the diff, or CodeRabbit rate limits need tracking, arm the pr-babysit monitor instead: invoke the pr-babysit skill, \($seed) the Monitor with watch-coderabbit.sh. "
       + "If it is merged, closed, or someone else'"'"'s round, ignore this."
    )}}'

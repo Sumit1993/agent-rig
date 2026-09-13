@@ -2,7 +2,7 @@
 # Usage: run-agy-watchdog.sh <worktree> <promptfile> <outfile> <expected_commits> <timeout> [model]
 # Runs agy headless; kills it if it hangs after completing its work
 # (activity log stale >3min AND >=expected commits ahead of origin/main AND clean tree).
-# Always appends the AGY_EXITED sentinel to <outfile>, wait on that, per the anti-stall skill.
+# Always appends the AGY_EXITED sentinel to <outfile>, wait on that, per the no-doze skill.
 set -u
 WT="$1"; PROMPT="$2"; OUT="$3"; EXPECT="$4"; TMOUT="$5"
 MODEL="${6:-gemini-3.8-flash-high}"

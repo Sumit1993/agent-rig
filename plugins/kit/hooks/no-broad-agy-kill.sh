@@ -3,7 +3,7 @@
 # PreToolUse(Bash) hook: block a kill that targets agy BY NAME rather than by run.
 # `pkill -x agy` / `pkill -f "agy --model"` / `killall agy` reap every agy process on the
 # machine, including other sessions' live runs, which surface there as rc=137 and read as
-# quota death. agy-delegate says kill by PID, or by this run's --log-file slug.
+# quota death. farm-out says kill by PID, or by this run's --log-file slug.
 set -u
 in=$(cat)
 
@@ -62,7 +62,7 @@ exactly that today.
 
 Kill by PID instead (\`kill -9 "\$AGY_PID"\`, captured as \$! at launch, or the pid
 run-agy-watchdog.sh prints). If the PID is lost, match this run's --log-file slug:
-\`kill -9 \$(pgrep -f "\$SLUG")\`. See agy-delegate, "Killing a run".
+\`kill -9 \$(pgrep -f "\$SLUG")\`. See farm-out, "Killing a run".
 
 To see what you would have hit: \`pgrep -a agy\`, then \`readlink /proc/<pid>/cwd\` to tell
 the runs apart by worktree.

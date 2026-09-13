@@ -1,5 +1,5 @@
 ---
-name: anti-stall
+name: no-doze
 description: "How to wait on long-running work without dozing: sentinel-first launches, evidence-keyed foreground waits, batch scripts over agent-per-step, killing a run safely. Load before launching anything that outlives one turn."
 metadata:
   version: "2.0.0"
@@ -32,12 +32,12 @@ for i in $(seq 1 N); do grep -q DONE "$LOG" && exit 0; sleep 15; done; echo WATC
 
 ### Evidence only an MCP tool can read
 
-When no shell can reach the evidence, the one poll left is a cron tick firing back into the session so the model calls the tool itself (`unattended-run` §0).
+When no shell can reach the evidence, the one poll left is a cron tick firing back into the session so the model calls the tool itself (`autopilot` §0).
 
 - Do not call it a monitor. In the plan file it is "cron tick every N min, calls `<tool>`". Latency is the full interval and nothing fires between ticks.
 - Set N from how fast the watched thing moves, and record the number beside the watch.
 - Look for a shell path once first. A missing credential is the usual reason there is none, and a secret in CI can sometimes be granted to the box.
-- A tick carries the same teardown duty as any watch (`unattended-run` §3): kill the cron when the thing resolves.
+- A tick carries the same teardown duty as any watch (`autopilot` §3): kill the cron when the thing resolves.
 
 Story: `gh-workflows-d1-cron-tick`.
 
@@ -91,5 +91,5 @@ Any `pgrep -f` or `pkill -f` whose pattern appears in your own shell's command l
 - `kill -9 "$PID"` preferred. `kill -9 $(pgrep -f "$SLUG")` as fallback, marker generated this run.
 - A shared binary's processes are machine-global. `pkill -x <name>` reaches every session on the host, and the runs you did not mean to touch die as an empty non-zero exit that reads as an internal failure where they were watched.
 - Prove a PID is yours, by a captured `$!` or a `readlink /proc/<pid>/cwd` you recognise, or kill nothing and say so.
-- Match a pattern that is on the target's argv. A shell expands `$(cat file)` before exec, so a prompt file's name reaches only the launching shell, and killing on it reaps the wrapper. `agy-delegate` has the worked example.
+- Match a pattern that is on the target's argv. A shell expands `$(cat file)` before exec, so a prompt file's name reaches only the launching shell, and killing on it reaps the wrapper. `farm-out` has the worked example.
 - Self-test at arm time: `pgrep -a "<pattern>"` once, and read what came back. It must be the process you mean. "Exactly one PID matched" is not the test; a wrapper alone satisfies it.

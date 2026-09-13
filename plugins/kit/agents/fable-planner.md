@@ -25,6 +25,8 @@ A spec leads with the deliverable list and verify commands and is shorter than t
 
 A verifier is told that a note or ADR whose provenance commit predates the ruling under test is evidence of the past, not the present.
 
+A cost or quota claim that carries a recommendation names its source or is labelled an assumption. Two tools drawing one pool are not independent.
+
 Every spec or ruling ends with two sections. `Sources`: the outside references read
 before ruling (a comparable tool, a primary doc, a paper), or "none found". `Objection`:
 the strongest case against your own recommendation, in two lines. The seat sends back a

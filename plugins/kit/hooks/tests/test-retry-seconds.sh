@@ -6,7 +6,7 @@
 # The figure is now obeyed rather than floored: it measures within 15 seconds of the real
 # per-developer window. The fallback covers only a notice with no figure in it. See claude-kit#28.
 set -u
-SRC="$(cd "$(dirname "$0")/../../skills/pr-watch" && pwd)/watch-coderabbit.sh"
+SRC="$(cd "$(dirname "$0")/../../skills/pr-babysit" && pwd)/watch-coderabbit.sh"
 fails=0
 fn=$(mktemp); sed -n '/^COOLDOWN_SECONDS=/,/^}$/p' "$SRC" > "$fn"
 trap 'rm -f "$fn"' EXIT

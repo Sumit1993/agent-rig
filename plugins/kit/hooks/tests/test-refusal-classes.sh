@@ -4,7 +4,7 @@
 # See claude-kit#28.
 set -u
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WATCHER="$SELF_DIR/../../skills/pr-watch/watch-coderabbit.sh"
+WATCHER="$SELF_DIR/../../skills/pr-babysit/watch-coderabbit.sh"
 FAILURES=0
 fail() { echo "FAIL: $1"; FAILURES=$((FAILURES + 1)); }
 pass() { echo "PASS: $1"; }

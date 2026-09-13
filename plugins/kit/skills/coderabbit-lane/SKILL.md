@@ -7,7 +7,7 @@ metadata:
 
 # The CodeRabbit review lane
 
-`coderabbitai[bot]` is the independent automated reviewer. `AGENTS.md` decides reviewer routing. `pr-watch` covers watching a PR this session raised, watcher lifecycles and merge mechanics. `claude-review-lane` covers `claude[bot]`. `autofix` applies PR-thread feedback with per-change approval. Process truth is `claude-kit/docs/pr-review-process.html`.
+`coderabbitai[bot]` is the independent automated reviewer. `AGENTS.md` decides reviewer routing. `pr-babysit` covers watching a PR this session raised, watcher lifecycles and merge mechanics. `claude-review-lane` covers `claude[bot]`. `autofix` applies PR-thread feedback with per-change approval. Process truth is `claude-kit/docs/pr-review-process.html`.
 
 ## 1. Admission
 
@@ -43,7 +43,7 @@ Essentials was formerly called Pro, and Team was formerly called Pro+.
 - **A draft is exempt, and that decides when to batch.** `reviews.auto_review.drafts` defaults to false, so on a draft the bot posts `Draft PR not reviewed` and stops without spending anything (`prismalens/gh-workflows#161`, 6 seconds after open). Three rules follow. A draft costs nothing to open and nothing to push to. A non-draft spends the slot at `gh pr create`. A draft spends it the moment it is marked ready. So open the draft first, push as often as the work wants, and mark ready once at the end. Holding commits back before the push only saves a slot on a pull request that is already ready.
 - **Do not read the plan off the bot.** CodeRabbit's run configuration reports a feature tier, and it printed "Plan: Team" on a repo that is rate-limited as Free, because open-source projects receive Team features without a subscription. The name the bot prints is not the row of the rate-limit table that applies.
 - The counter is per developer, not per repo, branch, session or subagent. `prismalens`, `sreforge` and `mage-memory` draw one pool. Run at most one review at a time across every repo you touch; parallel runs serialise and delay every lane.
-- Every run spends a slot: initial reviews, automatic incremental reviews after a push, manual `@coderabbitai review`. The label gates automatic review only; a manual summon on an unlabelled PR still spends the counter, which makes it the escape hatch when the Claude lane is down. Enabled repos set `auto_pause_after_reviewed_commits: 1` in `.coderabbit.yaml`: one review per PR, then batch fixes before re-requesting.
+- Every run spends a slot: initial reviews, automatic incremental reviews after a push, manual `@coderabbitai review`. The label gates automatic review only. The CLI's `coderabbit review --agent` posts to the PR regardless of labels (marker `coderabbit-cli-agent-hint`, recorded on `#123`). A manual summon on an unlabelled PR still spends the counter, which makes it the escape hatch when the Claude lane is down. Enabled repos set `auto_pause_after_reviewed_commits: 1` in `.coderabbit.yaml`: one review per PR, then batch fixes before re-requesting.
 - Auto-pause is recoverable. A push past the limit pauses the lane on that PR and nothing arrives on its own. A bare `@coderabbitai resume` restarts it, and what follows is a real review of the final head that posts `Review completed`, so a PR paused by its own fix commits can still meet a merge condition requiring one. Resume deliberately; it spends a slot.
 - Batch fixes before requesting. Never spend a slot on a commit you are about to amend.
 - Remaining capacity is not readable. `@coderabbitai rate limit` returns documentation links.

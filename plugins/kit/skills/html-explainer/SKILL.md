@@ -2,6 +2,7 @@
 name: html-explainer
 description: "Mechanics for a standalone HTML explainer page: inline CSS and SVG, no build step. Load once a page is warranted: three or more moving parts, comparisons, diagrams, or an explainer past 100 lines of prose."
 metadata:
+  harnesses: "claude agy"
   version: "1.0.0"
 ---
 

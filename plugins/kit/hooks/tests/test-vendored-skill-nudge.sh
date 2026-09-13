@@ -41,7 +41,7 @@ check_match "mattpocock-skills:research"
 out=$(jq -n '{"tool_input":{"skill":"claude-api"}}' | "$HOOK"); ctx=$(jq -r '.hookSpecificOutput.additionalContext // ""' <<<"$out" 2>/dev/null)
 if grep -q 'shared/models.md' <<<"$ctx"; then echo "PASS: claude-api fires with models.md pointer"; else echo "FAIL: claude-api (ctx=$ctx)"; fails=$((fails + 1)); fi
 
-check_silent "kit:agy-delegate"
+check_silent "kit:farm-out"
 check_silent "researcher"
 
 [ "$fails" -eq 0 ] && echo && echo "all vendored-skill-nudge hook tests passed"

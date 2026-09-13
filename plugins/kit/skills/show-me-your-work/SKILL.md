@@ -10,7 +10,7 @@ metadata:
 
 For work a human reviews after the fact, a decision trail lets them reconstruct what was decided, why, and on what evidence, without rerunning the work or reading the whole transcript. Keep one canonical log so the trail is consistent and a future agent can find it.
 
-This is the artifact the **unattended-run** skill's verify-every-claim rule needs. That skill says
+This is the artifact the **autopilot** skill's verify-every-claim rule needs. That skill says
 a delegate's claim is worthless without evidence; this one is where the evidence pointer gets
 written down at the moment the decision is made, instead of reconstructed from a transcript later.
 
@@ -78,7 +78,7 @@ Fix the log, not the story. If the work diverged from what a row claims, the row
 
 Before handing back, spawn a reviewer on a different model family from the one that did the work.
 Self-review is not a substitute; the point is fresh eyes you cannot bring yourself. Route it
-through the **agy-delegate** skill (Gemini 3.8 Flash is the cheap different family) or, staying in
+through the **farm-out** skill (Gemini 3.8 Flash is the cheap different family) or, staying in
 the Claude family, a tier you did not run the work on. The reviewer reads the audit trail and the
 run's transcript, then flags what the user should pay attention to. Not a redo of the work, a scan
 for what's suboptimal or risky.
@@ -96,7 +96,7 @@ Read top to bottom, follow the evidence pointers, spot-check. GitHub renders a c
 
 ## Composing this skill
 
-Other skills route their audit trail here instead of inventing one. Reference it by name and let it own the format; don't restate the columns. The **unattended-run** and **anti-stall** skills are the
+Other skills route their audit trail here instead of inventing one. Reference it by name and let it own the format; don't restate the columns. The **autopilot** and **no-doze** skills are the
 main callers: a lane that reports "standing by" with no new row since its last checkpoint is a
 stalled lane, and the log is where you see that without reading the transcript.
 
@@ -106,14 +106,14 @@ Upstream is `cursor/plugins` `pstack/skills/show-me-your-work`, written for Curs
 
 - The transcript path moves from Cursor's `agent-transcripts/` to Claude Code's
   `~/.claude/projects/<escaped-cwd>/*.jsonl`.
-- "Spawn a subagent on a different model family" names the actual route: **agy-delegate**, or a
+- "Spawn a subagent on a different model family" names the actual route: **farm-out**, or a
   different Claude tier, per the routing table in `AGENTS.md`.
 - The `encode-lessons-in-structure` reference becomes one plain sentence, since that pstack skill is
   not vendored. `unslop` is vendored here, so its reference stands.
 - Added the worktree rule, the public-repo scrub, and the composition note tying it to
-  **unattended-run** and **anti-stall**.
+  **autopilot** and **no-doze**.
 - Script and template paths resolve through `${CLAUDE_PLUGIN_ROOT}`. A skill runs with the project as
   cwd, not the skill directory, so upstream's bare `scripts/log.sh` would look inside whatever repo is
   open.
-- The description no longer claims "unattended runs" as a trigger. That is **unattended-run**'s, and two
+- The description no longer claims "unattended runs" as a trigger. That is **autopilot**'s, and two
   skills firing on one phrase is a coin toss over which one is read.

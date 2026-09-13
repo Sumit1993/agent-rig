@@ -74,6 +74,20 @@ fi
 echo "→ statusline"
 cp "$HERE/statusline-command.sh" "$CLAUDE/statusline-command.sh"
 
+AGY="$HOME/.gemini/antigravity-cli"
+if [ -d "$AGY" ]; then
+  echo "→ agy statusline"
+  cp "$HERE/agy-statusline-command.sh" "$AGY/statusline.sh"; chmod +x "$AGY/statusline.sh"
+  s="$AGY/settings.json"; [ -f "$s" ] || echo '{}' > "$s"
+  jq --arg cmd "$AGY/statusline.sh" '.statusLine = ((.statusLine // {}) + {type: "command", command: $cmd, enabled: true})' "$s" > "$s.tmp" \
+    && jq -e . "$s.tmp" >/dev/null && mv "$s.tmp" "$s"
+  if command -v agy >/dev/null 2>&1; then
+    echo "→ agy plugin (skills tagged harnesses: claude agy; no hooks, no agents)"
+    b="${XDG_DATA_HOME:-$HOME/.local/share}/claude-kit/agy-plugin"
+    bash "$HERE/build-agy-plugin.sh" "$b" >/dev/null && agy plugin install "$b"
+  fi
+fi
+
 echo "→ settings.json (deep-merge: fragment overlays existing; permissions.allow unions)"
 if [ -f "$CLAUDE/settings.json" ]; then
   cp "$CLAUDE/settings.json" "$CLAUDE/settings.json.bak-$(date +%s)"

@@ -8,7 +8,7 @@ fails=0
 ORGANIZER_SEAT_STATE_DIR=$(mktemp -d); export ORGANIZER_SEAT_STATE_DIR
 FAKEBIN=$(mktemp -d)
 # Kill only our own staged process. `pkill -x agy` would reap every real agy run on the
-# machine, including other sessions' — the generic-kill antipattern agy-delegate warns about.
+# machine, including other sessions' — the generic-kill antipattern farm-out warns about.
 FAKE_PID=""
 cleanup() { [ -n "$FAKE_PID" ] && kill -9 "$FAKE_PID" 2>/dev/null; rm -rf "$ORGANIZER_SEAT_STATE_DIR" "$FAKEBIN"; }
 trap cleanup EXIT

@@ -38,7 +38,7 @@ cat >&2 <<'MSG'
 Blocked by the delegation rule (AGENTS.md §Delegation): this reads as bounded, mechanical
 work, which belongs on agy (separate abundant quota), not a Claude subagent (scarce pool).
 
-Load the `agy-delegate` skill and dispatch instead: write the task prompt to a file, then
+Load the `farm-out` skill and dispatch instead: write the task prompt to a file, then
 spawn subagent_type "agy-runner" with the path.
 
 If a Claude subagent is genuinely right — the answer is a ruling, not a procedure — say why

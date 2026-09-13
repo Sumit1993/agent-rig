@@ -1,9 +1,9 @@
 #!/bin/bash
 # mage:kit/guard/release-docs-gate
-# PreToolUse(Bash) hook: docs-governance release gate. Merging a release PR on a
+# PreToolUse(Bash) hook: docs-drift release gate. Merging a release PR on a
 # repo whose registry entry has a `docs` block requires a docs audit
 # (kit-meta observed docs_audit_at) within the last 14 days — the kit
-# docs-governance skill's Phase 1 records the marker. Fail-open everywhere.
+# docs-drift skill's Phase 1 records the marker. Fail-open everywhere.
 # Escape hatch (user-approved only): DOCS_GATE=skip in the merge command.
 set -u
 in=$(cat)
@@ -30,7 +30,7 @@ grep -qiE '^chore(\(.+\))?: release' <<<"$title" || exit 0
 now=$(date +%s); ts=$("$KIT_META" get "$repo" docs_audit_at 2>/dev/null || echo 0)
 case "$ts" in ''|*[!0-9]*) ts=0;; esac
 [ $((now - ts)) -lt 1209600 ] && exit 0
-echo "Release gate: $repo is about to ship a release PR ('$title') with no docs audit in the last 14 days. Load the kit docs-governance skill and run Phase 1 (it records docs_audit_at via kit-meta observe), then retry the merge. If the user explicitly approved skipping the audit, include DOCS_GATE=skip in the merge command." >&2
+echo "Release gate: $repo is about to ship a release PR ('$title') with no docs audit in the last 14 days. Load the kit docs-drift skill and run Phase 1 (it records docs_audit_at via kit-meta observe), then retry the merge. If the user explicitly approved skipping the audit, include DOCS_GATE=skip in the merge command." >&2
 echo "mage:kit/guard/release-docs-gate" >&2
 tool=$(jq -r '.tool_name // "Bash"' <<<"$in" 2>/dev/null)
 report_guard "kit/guard/release-docs-gate" "$tool" "stale docs audit: $repo"
