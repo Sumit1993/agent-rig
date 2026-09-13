@@ -118,7 +118,8 @@ Write that spec to `~/ai-context/agy-prompts/<task>.md`, or into the repo, never
 
 - One lane per umbrella issue reused across its slices.
 - Verification once at the umbrella: lane runs the umbrella's verify commands and pastes raw output; handler checks provenance; seat reads the diff against the spec.
-- Reuse one planner inside the prompt-cache hour instead of spawning a fresh one per spec. A second spec asked inside that window re-reads a cached conversation, while a fresh agent pays for the whole context again. Past the hour it is stale anyway, so start a new one (`#79 - unattended-run: the prompt-cache TTL is a ceiling on the cron interval`).
+- Reuse one planner inside the prompt-cache hour instead of spawning a fresh one per spec. A second spec asked inside that window re-reads a cached conversation, while a fresh agent pays for the whole context again. Past the hour it is stale anyway, so start a new one (`#79 - unattended-run: the prompt-cache TTL is a ceiling on the cron interval`). Where SendMessage is unavailable, batch the hour's specs into one planner prompt, one file per spec.
+- A spec that points a lane at a path outside its project root says to read it with Bash or Read; context-mode refuses those paths.
 - Prompt goes in the file, not the subagent's prompt; agy reads it at shell level. Do not brief the runner on how to run agy: path in, verified report out. This holds whether or not anyone is watching: the spec is the same in an unattended run and with an operator at the keyboard.
 - In Workflows, where `subagent_type` is unavailable: `agent(pathOnlyPrompt, {model: 'sonnet', effort: 'low', label: 'antigravity-gemini-3.8:<task>'})`, and the prompt says to load `agy-delegate` and `anti-stall` first. The `antigravity-<model>` label prefix is required; the UI shows the wrapper's Claude model, so the label is the only sign of who is working.
 

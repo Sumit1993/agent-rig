@@ -80,6 +80,8 @@ A workflow can report `success` having posted nothing, and does.
 
 Check reports once per umbrella: verify provenance (worktree, SHA, raw output) and diff against the spec. The seat does not re-run a gate the umbrella proved, re-running only on a gap. Two lanes agreeing raises no confidence, because they can share one stale input.
 
+Read the delegate's full diff; a passing verify command is not evidence of behaviour. Suspect any added `continue`, `?? default`, `|| 0` or bare try/catch. A cast is proved on both halves: the runtime shape matches, and a deliberately invalid value still fails to compile.
+
 A PR body claiming what the PR does not do gets checked against the file list. Checking is cheap. A body that contradicts its diff is invisible afterwards.
 
 ## 6. Ask the planner seat when the call is a judgement

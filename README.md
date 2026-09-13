@@ -8,6 +8,7 @@ Plugin `kit`, path-independent via `${CLAUDE_PLUGIN_ROOT}`:
 
 | Piece | One line |
 |---|---|
+| `skills/triage` | Before any issue write: search open and closed, fold or file, Goal / Done when / Pointers, link and close right |
 | `skills/direction` | Where the estate stands and what is next: goals are numbered milestones, `p0` orders inside one, the pick is one command |
 | `skills/anti-stall` | Wait on long work without dozing: sentinel first, evidence-keyed loops, batch scripts over agent-per-step |
 | `skills/unattended-run` | Hold a long unattended run: cron wake-up first, organizer never types, stall rule, green is not evidence, park what needs a human |

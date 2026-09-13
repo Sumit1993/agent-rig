@@ -16,6 +16,7 @@ House style is the unslop skill, imported here because nothing else loads it.
 
 # Issues are the record
 An issue carries the decision, the evidence and the exact commands, and copies in any `~/ai-context` content it depends on. A link into `~/ai-context` is a broken link by definition. Handoffs and morning summaries are issue comments. agy logs and prompts are telemetry, never cited.
+- Every issue write starts with a search, open and closed. `triage` holds the procedure and the body shape.
 - One umbrella issue per unit of related work, one branch, one verification at the end. A lane gets the umbrella.
 - Never one gap per issue or one PR per issue. Triage the open queue by surface, the files touched, decide now versus later, and cram each surface into one draft PR under 100 files so it costs one CodeRabbit review.
 - `Closes #a, #b` links only #a. Repeat the keyword, `closes #a, closes #b`, then read `closingIssuesReferences` on the PR to confirm.

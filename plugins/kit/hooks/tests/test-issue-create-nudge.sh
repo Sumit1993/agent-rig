@@ -27,6 +27,9 @@ else
   echo "FAIL: gh issue view (rc=$rc, out=$out)"; fails=$((fails + 1))
 fi
 
+# A search first keeps the counting cases below free of the search nudge
+run_hook "sess1" 'gh search issues "quota lane" --owner Sumit1993' >/dev/null
+
 # Call 1: prints nothing
 out=$(run_hook "sess1" "gh issue create --title one")
 rc=$?
@@ -65,6 +68,7 @@ else
 fi
 
 # Different session starts at 1 (prints nothing on call 1)
+run_hook "sess2" "gh issue list --state all --search quota" >/dev/null
 out=$(run_hook "sess2" "gh issue create --title one")
 rc=$?
 if [ "$rc" -eq 0 ] && [ -z "$out" ]; then
@@ -72,6 +76,13 @@ if [ "$rc" -eq 0 ] && [ -z "$out" ]; then
 else
   echo "FAIL: different session call 1 (rc=$rc, out=$out)"; fails=$((fails + 1))
 fi
+
+# A create with no search this session nudges toward triage, once
+out=$(run_hook "sess3" "gh issue create --title unsearched")
+ctx=$(jq -r '.hookSpecificOutput.additionalContext // ""' <<<"$out" 2>/dev/null)
+grep -q 'Load triage' <<<"$ctx" && echo "PASS: create without a search nudges toward triage" || { echo "FAIL: search nudge (out=$out)"; fails=$((fails + 1)); }
+out=$(run_hook "sess3" "gh issue create --title again")
+[ -z "$out" ] && echo "PASS: the search nudge fires once per session" || { echo "FAIL: search nudge repeated (out=$out)"; fails=$((fails + 1)); }
 
 [ "$fails" -eq 0 ] && echo && echo "all issue-create-nudge hook tests passed"
 exit "$fails"
