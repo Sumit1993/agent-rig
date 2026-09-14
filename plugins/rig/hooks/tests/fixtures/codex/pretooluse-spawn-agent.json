@@ -1,0 +1,15 @@
+{
+  "session_id": "codex-sess-synthetic-2",
+  "turn_id": "codex-turn-synthetic-2",
+  "transcript_path": "/home/user/.codex/sessions/synthetic/rollout-synthetic-2.jsonl",
+  "cwd": "/home/user/ai-context/codex-demo/work",
+  "hook_event_name": "PreToolUse",
+  "model": "gpt-5.5",
+  "permission_mode": "bypassPermissions",
+  "tool_name": "spawn_agent",
+  "tool_input": {
+    "message": "Reply with exactly one line: the answer to 2+2.",
+    "fork_context": false
+  },
+  "tool_use_id": "call_synthetic0002"
+}

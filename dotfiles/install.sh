@@ -88,6 +88,25 @@ if [ -d "$AGY" ]; then
   fi
 fi
 
+if command -v codex >/dev/null 2>&1; then
+  echo "→ codex plugin (skills tagged codex; hooks proven under Codex; see build-codex-plugin.sh)"
+  codex_home="${CODEX_HOME:-$HOME/.codex}"
+  mkdir -p "$codex_home"  # marketplace add fails on a machine with no CODEX_HOME yet (#141)
+  cb="${XDG_DATA_HOME:-$HOME/.local/share}/agent-rig/codex-plugin"
+  bash "$HERE/build-codex-plugin.sh" "$cb" >/dev/null
+  codex plugin marketplace add "$cb" >/dev/null 2>&1 || echo "  WARN: codex plugin marketplace add $cb failed" >&2
+  codex plugin add rig@rig-local >/dev/null 2>&1 || echo "  WARN: codex plugin add rig@rig-local failed" >&2
+  echo "  open /hooks in Codex once to review and trust the rig hooks before they run."
+  # Codex reads AGENTS.md whole, with no @-import, so a symlink rather than CLAUDE.md's stub (#141).
+  if [ -L "$codex_home/AGENTS.md" ]; then
+    echo "→ $codex_home/AGENTS.md already a symlink, left as is"
+  elif [ -e "$codex_home/AGENTS.md" ]; then
+    echo "→ $codex_home/AGENTS.md is a regular file, left untouched"
+  else
+    ln -s "$src_root/dotfiles/AGENTS.md" "$codex_home/AGENTS.md" && echo "→ $codex_home/AGENTS.md -> dotfiles/AGENTS.md"
+  fi
+fi
+
 echo "→ settings.json (deep-merge: fragment overlays existing; permissions.allow unions)"
 if [ -f "$CLAUDE/settings.json" ]; then
   cp "$CLAUDE/settings.json" "$CLAUDE/settings.json.bak-$(date +%s)"

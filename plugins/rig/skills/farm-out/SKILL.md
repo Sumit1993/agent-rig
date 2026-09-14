@@ -2,7 +2,7 @@
 name: farm-out
 description: "Load before any Agent tool call: decides whether the work belongs on agy (Antigravity CLI, its own quota) instead of a Claude subagent, and how to dispatch, babysit, kill or resume an agy run."
 metadata:
-  version: "4.2.0"
+  version: "4.3.0"
 ---
 
 # Delegating to Antigravity CLI (agy)
@@ -63,7 +63,7 @@ AGY_PID=$!            # agy itself, no subshell in between
 - No `--effort` with an effort-suffixed slug; `--model gemini-3.8-flash-high --effort low` is rejected.
 - A valueless `-p` and a stray trailing argument are errors since 1.1.18.
 - Sidecar `$OUT.meta.json` records the model and launch parameters at start, because agy's envelope omits the model. The model field is the requested model, and launched says whether it ran.
-- `agy-quota.sh` records quota state and checks availability across runs, so dispatches avoid launching into a known-dead group. It keys on the group, not the slug: a wall recorded on `gemini-3.8-flash-high` reads as exhausted for `gemini-3.1-pro-high` too.
+- `agy-quota.sh` manages quota state across runs. `agy-quota.sh live` queries live group quota from `agy -p "/quota" --output-format json` without spending tokens (#133 - Every seat sees its quotas: that call returns `num_turns: 0` and zero tokens). It keys recorded walls on the quota group, not the model slug: a wall recorded on `gemini-3.8-flash-high` also marks `gemini-3.1-pro-high` exhausted.
 - `agy-quota.sh record-from-envelope <model> <envelope>` reads a finished envelope and records a quota wall from it, so any launch path can feed the state file. `run-agy-watchdog.sh` calls it for you.
 
 ## Models inside agy

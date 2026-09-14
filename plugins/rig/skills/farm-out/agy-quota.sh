@@ -182,16 +182,65 @@ cmd_record_from_envelope() {
   return 0
 }
 
+cmd_live() {
+  if ! command -v agy >/dev/null 2>&1; then
+    echo "live quota unavailable: agy command not found"
+    exit 0
+  fi
+  if ! command -v jq >/dev/null 2>&1; then
+    echo "live quota unavailable: jq command not found"
+    exit 0
+  fi
+  local timeout_sec="${AGY_QUOTA_TIMEOUT:-60}"
+  local raw_out rc=0
+  raw_out=$(timeout "$timeout_sec" agy -p "/quota" --output-format json 2>/dev/null) || rc=$?
+  if [ "$rc" -eq 124 ]; then
+    echo "live quota unavailable: agy timed out after ${timeout_sec}s"
+    exit 0
+  elif [ "$rc" -ne 0 ] || [ -z "$raw_out" ]; then
+    echo "live quota unavailable: agy command failed (rc=$rc)"
+    exit 0
+  fi
+  local parsed
+  parsed=$(printf '%s' "$raw_out" | jq -r '
+    .command.data.groups // empty |
+    if type != "array" or length == 0 then empty else
+      .[] |
+      def b(w): (.buckets[]? | select(.window == w or (.id? and (.id | endswith(w)))));
+      (b("5h") // null) as $b5 |
+      (b("weekly") // null) as $bw |
+      if $b5 == null or $bw == null then
+        "\((.name // "Unknown group")): unavailable (bucket missing)"
+      else
+        "\((.name // "Unknown group")): 5h \((($b5.remaining_fraction // 0) * 100) | round)% (resets \($b5.reset_time // "none")), weekly \((($bw.remaining_fraction // 0) * 100) | round)% (resets \($bw.reset_time // "none"))"
+      end
+    end' 2>/dev/null)
+  if [ -z "$parsed" ]; then
+    echo "live quota unavailable: unparseable quota json"
+    exit 0
+  fi
+  printf '%s\n' "$parsed"
+  exit 0
+}
+
 action="${1:-}"
+
+if [ "$action" = "live" ]; then
+  cmd_live
+fi
+
 model="${2:-}"
 
 if [ -z "$action" ] || [ -z "$model" ]; then
-  echo "Usage: agy-quota.sh record <model> [reset_at] | record-from-envelope <model> <file> | check <model> | clear <model>" >&2
+  echo "Usage: agy-quota.sh live | record <model> [reset_at] | record-from-envelope <model> <file> | check <model> | clear <model>" >&2
   echo "State is keyed by quota group: any gemini* slug is 'gemini', any claude*/gpt* slug is 'claude-gpt'." >&2
   exit 2
 fi
 
 case "$action" in
+  live)
+    cmd_live
+    ;;
   record)
     cmd_record "$model" "${3:-}"
     ;;
@@ -205,8 +254,8 @@ case "$action" in
     cmd_clear "$model"
     ;;
   *)
-    echo "Usage: agy-quota.sh record <model> [reset_at] | record-from-envelope <model> <file> | check <model> | clear <model>" >&2
-  echo "State is keyed by quota group: any gemini* slug is 'gemini', any claude*/gpt* slug is 'claude-gpt'." >&2
+    echo "Usage: agy-quota.sh live | record <model> [reset_at] | record-from-envelope <model> <file> | check <model> | clear <model>" >&2
+    echo "State is keyed by quota group: any gemini* slug is 'gemini', any claude*/gpt* slug is 'claude-gpt'." >&2
     exit 2
     ;;
 esac

@@ -26,4 +26,29 @@ else
   echo "SKIP: agy not installed, plugin validate not run"
 fi
 
+# Codex: codex-tagged skills, the five Bash PreToolUse gate hooks, and the four ported in
+# #141b (organizer-seat, subagent-no-stall, delegate-check, outside-view-nudge) cross.
+CODEX_ALLOWED_HOOKS="gh-body-no-scratch.sh gh-body-stamp.sh issue-create-nudge.sh no-broad-agy-kill.sh release-docs-gate.sh delegate-check.sh organizer-seat.sh outside-view-nudge.sh subagent-no-stall.sh"
+bash "$ROOT/dotfiles/build-codex-plugin.sh" "$T/codex" >/dev/null
+check ".codex-plugin/plugin.json valid, named rig" 'jq -e ".name == \"rig\"" "$T/codex/.codex-plugin/plugin.json" >/dev/null'
+check "no agents cross to codex" '[ ! -e "$T/codex/agents" ]'
+check "at least one skill crosses to codex" '[ -n "$(ls "$T/codex/skills")" ]'
+
+codex_hooks=$(find "$T/codex/hooks" -maxdepth 1 -name '*.sh' -exec basename {} \; | sort)
+check "every copied codex hook is in the allow list and nothing else" \
+  '[ "$codex_hooks" = "$(tr " " "\n" <<<"$CODEX_ALLOWED_HOOKS" | sort)" ]'
+
+# #141b widens this from Bash-only to the events and matchers the four ported hooks need.
+check "codex hooks.json has only PreToolUse and SubagentStop entries" \
+  'jq -e "(.hooks | keys | sort) == [\"PreToolUse\", \"SubagentStop\"]" "$T/codex/hooks/hooks.json" >/dev/null'
+check "codex PreToolUse matchers are restricted to Bash, Edit|Write|NotebookEdit, Agent" \
+  'jq -e "(.hooks.PreToolUse | all(.matcher == \"Bash\" or .matcher == \"Edit|Write|NotebookEdit\" or .matcher == \"Agent\"))" "$T/codex/hooks/hooks.json" >/dev/null'
+
+bad_codex=$(grep -rlwE 'Monitor|Workflow|SendMessage|TaskStop|ScheduleWakeup|CronCreate|subagent_type|EnterWorktree|AskUserQuestion|CLAUDE_PLUGIN_ROOT' "$T/codex/skills" 2>/dev/null)
+check "no codex skill names a Claude-only tool (${bad_codex:-none})" '[ -z "$bad_codex" ]'
+
+untagged_codex=$(for s in "$ROOT"/plugins/rig/skills/*/SKILL.md; do awk '/^---$/{n++; next} n==1' "$s" | grep -q 'harnesses:.*codex' || basename "$(dirname "$s")"; done | sort)
+crossed_codex=$(ls "$T/codex/skills" | sort)
+check "an untagged skill stays out of codex too" '[ -z "$(comm -12 <(echo "$untagged_codex") <(echo "$crossed_codex"))" ]'
+
 [ "$fails" -eq 0 ] && echo "all harness-split tests passed"; exit "$fails"

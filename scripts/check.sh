@@ -26,6 +26,21 @@ else
 fi
 echo
 
+echo "=== 2.5 query tests (test-queries)"
+qt_out=$(bash scripts/queries/tests/test-queries.sh 2>&1)
+qt_rc=$?
+printf '%s\n' "$qt_out"
+if printf '%s\n' "$qt_out" | grep -q '^SKIP: duckdb not installed'; then
+  # A missing duckdb exits 0, but that is not a pass: nothing ran (agent-rig#140, 4006888985).
+  echo "SKIP: query tests (duckdb not installed)"
+elif [ "$qt_rc" -eq 0 ]; then
+  echo "PASS: query tests (test-queries)"
+else
+  echo "FAIL: query tests (test-queries)"
+  failed_steps+=("query tests (test-queries)")
+fi
+echo
+
 echo "=== 3. unslop-check (report-only)"
 if bash plugins/rig/scripts/unslop-check.sh; then
   echo "PASS: unslop-check"

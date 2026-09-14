@@ -1,0 +1,14 @@
+{
+  "session_id": "codex-sess-synthetic-1",
+  "turn_id": "codex-turn-synthetic-1",
+  "transcript_path": "/home/user/.codex/sessions/synthetic/rollout-synthetic-1.jsonl",
+  "cwd": "/home/user/ai-context/codex-demo/work",
+  "hook_event_name": "PreToolUse",
+  "model": "gpt-5.5",
+  "permission_mode": "bypassPermissions",
+  "tool_name": "apply_patch",
+  "tool_input": {
+    "command": "*** Begin Patch\n*** Update File: seed.txt\n@@\n hello\n+edited by codex capture test\n*** End Patch\n"
+  },
+  "tool_use_id": "call_synthetic0001"
+}

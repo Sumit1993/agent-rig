@@ -13,12 +13,14 @@ _lib="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/hooks/lib/report-
 [ -f "$_lib" ] && . "$_lib"
 type report_guard >/dev/null 2>&1 || report_guard() { :; }
 
+# Codex spawns carry no subagent_type, so "" below is a generic spawn, not a missed field (#141).
 type=$(jq -r '.tool_input.subagent_type // ""' <<<"$in" 2>/dev/null) || exit 0
 # Match the DESCRIPTION, not the prompt. A long prompt mentions "implement" or "audit"
 # somewhere almost every time: replaying real Agent calls, prompt-matching blocked 52% of
 # them. The description is the task in the author's own words, so it is the honest signal.
-desc=$(jq -r '.tool_input.description // ""' <<<"$in" 2>/dev/null) || exit 0
-text=$(jq -r '[.tool_input.prompt // "", .tool_input.description // ""] | join(" ")' <<<"$in" 2>/dev/null) || exit 0
+# Codex's spawn_agent sends only tool_input.message, the task in the caller's words (#141).
+desc=$(jq -r '.tool_input.description // .tool_input.message // ""' <<<"$in" 2>/dev/null) || exit 0
+text=$(jq -r '[.tool_input.prompt // .tool_input.message // "", .tool_input.description // ""] | join(" ")' <<<"$in" 2>/dev/null) || exit 0
 
 # Purpose-built agents already encode their routing; only the catch-alls are in scope.
 case "$type" in

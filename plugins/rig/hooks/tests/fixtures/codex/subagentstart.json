@@ -1,0 +1,11 @@
+{
+  "session_id": "codex-sess-synthetic-2",
+  "turn_id": "codex-turn-synthetic-3",
+  "transcript_path": "/home/user/.codex/sessions/synthetic/rollout-synthetic-2.jsonl",
+  "cwd": "/home/user/ai-context/codex-demo/work",
+  "hook_event_name": "SubagentStart",
+  "model": "gpt-5.5",
+  "permission_mode": "bypassPermissions",
+  "agent_id": "codex-agent-synthetic-1",
+  "agent_type": "default"
+}
