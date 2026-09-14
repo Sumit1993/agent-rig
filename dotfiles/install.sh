@@ -88,6 +88,31 @@ if [ -d "$AGY" ]; then
   fi
 fi
 
+if command -v codex >/dev/null 2>&1; then
+  echo "→ codex plugin (skills tagged harnesses: ... codex; only the five Bash gate hooks)"
+  # codex resolves CODEX_HOME (default ~/.codex) before it will add a marketplace; a
+  # first-run machine with no ~/.codex yet fails that resolution, so create it first.
+  mkdir -p "${CODEX_HOME:-$HOME/.codex}"
+  cb="${XDG_DATA_HOME:-$HOME/.local/share}/agent-rig/codex-plugin"
+  bash "$HERE/build-codex-plugin.sh" "$cb" >/dev/null
+  codex plugin marketplace add "$cb" >/dev/null 2>&1 || true
+  codex plugin add rig@rig-local >/dev/null 2>&1 || true
+  echo "  open /hooks in Codex once to review and trust the rig hooks before they run."
+fi
+
+# A straight symlink, not the CLAUDE.md import-stub pattern above: Codex reads one
+# AGENTS.md file directly, no @-import expansion documented for it (agent-rig#141).
+codex_agents="$HOME/.codex/AGENTS.md"
+if [ -L "$codex_agents" ]; then
+  echo "→ ~/.codex/AGENTS.md already symlinked — left as is"
+elif [ -e "$codex_agents" ]; then
+  echo "→ ~/.codex/AGENTS.md exists as a regular file — left untouched, not overwritten"
+else
+  echo "→ ~/.codex/AGENTS.md (symlink → dotfiles/AGENTS.md)"
+  mkdir -p "$(dirname "$codex_agents")"
+  ln -s "$src_root/dotfiles/AGENTS.md" "$codex_agents"
+fi
+
 echo "→ settings.json (deep-merge: fragment overlays existing; permissions.allow unions)"
 if [ -f "$CLAUDE/settings.json" ]; then
   cp "$CLAUDE/settings.json" "$CLAUDE/settings.json.bak-$(date +%s)"
