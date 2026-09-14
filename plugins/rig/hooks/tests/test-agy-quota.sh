@@ -35,6 +35,10 @@ if [ "${STUB_AGY_MODE:-}" = "live-garbage" ]; then
   echo 'not-valid-json'
   exit 0
 fi
+if [ "${STUB_AGY_MODE:-}" = "live-missing-bucket" ]; then
+  echo '{"command":{"name":"usage","data":{"groups":[{"name":"Lone Bucket Group","buckets":[{"window":"5h","remaining_fraction":0.25,"reset_time":"2026-09-14T15:34:36Z"}]}]}}}'
+  exit 0
+fi
 exit 1
 STUB_AGY
 cat << 'STUB_SLEEP' > "$TMPDIR/bin/sleep"
@@ -261,6 +265,19 @@ case "$c15_out" in
   "live quota unavailable: unparseable quota json"*) c15_match=1 ;;
 esac
 check "live quota reports unparseable json and exits 0" '[ "$c15_rc" -eq 0 ] && [ "$c15_match" -eq 1 ]'
+
+echo "-- 16. Live quota reports a missing bucket as unavailable, never 0%"
+c16_out=$(STUB_AGY_MODE=live-missing-bucket bash "$AGY_QUOTA" live 2>&1)
+c16_rc=$?
+c16_match=0
+case "$c16_out" in
+  *"Lone Bucket Group: unavailable (bucket missing)"*) c16_match=1 ;;
+esac
+c16_no_zero=1
+case "$c16_out" in
+  *"0%"*) c16_no_zero=0 ;;
+esac
+check "a group with one bucket missing reports unavailable, never 0%" '[ "$c16_rc" -eq 0 ] && [ "$c16_match" -eq 1 ] && [ "$c16_no_zero" -eq 1 ]'
 
 [ "$fails" -eq 0 ] && echo && echo "all test-agy-quota tests passed"
 exit "$fails"

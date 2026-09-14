@@ -209,7 +209,9 @@ cmd_live() {
       def b(w): (.buckets[]? | select(.window == w or (.id? and (.id | endswith(w)))));
       (b("5h") // null) as $b5 |
       (b("weekly") // null) as $bw |
-      if $b5 == null and $bw == null then empty else
+      if $b5 == null or $bw == null then
+        "\((.name // "Unknown group")): unavailable (bucket missing)"
+      else
         "\((.name // "Unknown group")): 5h \((($b5.remaining_fraction // 0) * 100) | round)% (resets \($b5.reset_time // "none")), weekly \((($bw.remaining_fraction // 0) * 100) | round)% (resets \($bw.reset_time // "none"))"
       end
     end' 2>/dev/null)
