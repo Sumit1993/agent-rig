@@ -55,6 +55,16 @@ else
   check "tail block names errored command" 1
 fi
 
+# 4b. The same operator text sent twice, 3 minutes apart, prints twice: the dedupe
+# collapses a mid-turn queue-operation/attachment pair (seconds apart), not a genuine
+# repeat sent minutes apart (agent-rig#140, 4006888972).
+repeat_hits=$(echo "$sr_out" | grep -c 'Repeated operator text sent twice, three minutes apart' || true)
+if [ "$repeat_hits" -eq 2 ]; then
+  check "the same operator text sent 3 minutes apart prints twice" 0
+else
+  check "the same operator text sent 3 minutes apart prints twice" 1
+fi
+
 # 5. haiku-turns counts 1
 ht_out=$(bash "$RUN_SH" haiku-turns 2>&1)
 if echo "$ht_out" | grep -E '│ +1 +│ +1 +│' >/dev/null 2>&1; then

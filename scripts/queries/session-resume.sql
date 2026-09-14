@@ -62,35 +62,47 @@ tool_results AS (
     GROUP BY tool_res_id
 ),
 timeline AS (
-    -- Operator
+    -- Operator: one mid-turn message is written as both a queue-operation line and an
+    -- attachment line, ~0.03s apart on this repo's own transcripts (measured max gap
+    -- for a genuine same-event pair, vs. the next-closest real repeat at >60s away).
+    -- Collapse same text only within a 5s gap, so the same words sent twice minutes
+    -- apart stay two rows. Ref: agent-rig#140, 4006888972.
     SELECT
         min(ts) as ts,
         'operator' as kind,
         text as detail
     FROM (
-        SELECT ts, coalesce(json_extract_string(msg_content, '$'), content_str) as text
-        FROM raw_rows
-        WHERE line_type = 'user'
-          AND json_type(msg_content) != 'ARRAY'
-          AND coalesce(json_extract_string(msg_content, '$'), content_str) NOT LIKE '%<task-notification>%'
-          AND coalesce(json_extract_string(msg_content, '$'), content_str) NOT LIKE '%<cross-session-message>%'
-        UNION ALL
-        SELECT r.ts, json_extract_string(c, '$.text') as text
-        FROM raw_rows r,
-        LATERAL (SELECT unnest(from_json(r.msg_content, '["JSON"]')) as c)
-        WHERE r.line_type = 'user'
-          AND json_type(r.msg_content) = 'ARRAY'
-          AND json_extract_string(c, '$.type') = 'text'
-          AND json_extract_string(c, '$.text') NOT LIKE '%<task-notification>%'
-          AND json_extract_string(c, '$.text') NOT LIKE '%<cross-session-message>%'
-        UNION ALL
-        SELECT ts, coalesce(att_content, content_str) as text
-        FROM raw_rows
-        WHERE (att_type = 'queued_command' AND att_origin_kind = 'human')
-           OR (queue_op = 'enqueue' AND origin_kind = 'human')
-    ) op
-    WHERE text IS NOT NULL AND trim(text) != ''
-    GROUP BY text
+        SELECT ts, text,
+            sum(CASE WHEN prev_ts IS NULL OR epoch(ts) - epoch(prev_ts) > 5 THEN 1 ELSE 0 END)
+                OVER (PARTITION BY text ORDER BY ts ROWS UNBOUNDED PRECEDING) as cluster_id
+        FROM (
+            SELECT ts, text, lag(ts) OVER (PARTITION BY text ORDER BY ts) as prev_ts
+            FROM (
+                SELECT ts, coalesce(json_extract_string(msg_content, '$'), content_str) as text
+                FROM raw_rows
+                WHERE line_type = 'user'
+                  AND json_type(msg_content) != 'ARRAY'
+                  AND coalesce(json_extract_string(msg_content, '$'), content_str) NOT LIKE '%<task-notification>%'
+                  AND coalesce(json_extract_string(msg_content, '$'), content_str) NOT LIKE '%<cross-session-message>%'
+                UNION ALL
+                SELECT r.ts, json_extract_string(c, '$.text') as text
+                FROM raw_rows r,
+                LATERAL (SELECT unnest(from_json(r.msg_content, '["JSON"]')) as c)
+                WHERE r.line_type = 'user'
+                  AND json_type(r.msg_content) = 'ARRAY'
+                  AND json_extract_string(c, '$.type') = 'text'
+                  AND json_extract_string(c, '$.text') NOT LIKE '%<task-notification>%'
+                  AND json_extract_string(c, '$.text') NOT LIKE '%<cross-session-message>%'
+                UNION ALL
+                SELECT ts, coalesce(att_content, content_str) as text
+                FROM raw_rows
+                WHERE (att_type = 'queued_command' AND att_origin_kind = 'human')
+                   OR (queue_op = 'enqueue' AND origin_kind = 'human')
+            ) op
+            WHERE text IS NOT NULL AND trim(text) != ''
+        ) lagged
+    ) clustered
+    GROUP BY text, cluster_id
 
     UNION ALL
 
