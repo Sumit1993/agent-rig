@@ -22,15 +22,16 @@ flag="$state_dir/$session"
 : > "$flag" 2>/dev/null || exit 0
 
 live=$(pgrep -x agy | wc -l | tr -d ' ')
+# Codex reports file edits as tool_name "apply_patch", not "Edit" — name whichever tool it sent.
+tool=$(jq -r '.tool_name // "Edit"' <<<"$in" 2>/dev/null)
 cat >&2 <<MSG
 Blocked once (AGENTS.md §Orchestrator/Organizer/Manager): $live agy run(s) are live and you
-are editing files. The seat that keeps the whole goal in view decides what runs next and
-checks delegated claims against evidence. It does not type.
+are editing files via $tool. The seat that keeps the whole goal in view decides what runs next
+and checks delegated claims against evidence. It does not type.
 
 If this edit belongs to a lane, send it there. If you are verifying a delegate's claim, or
 this is small and yours, proceed — re-issue and it will pass. This fires once per session.
 mage:rig/guard/organizer-seat
 MSG
-tool=$(jq -r '.tool_name // "Edit"' <<<"$in" 2>/dev/null)
 report_guard "rig/guard/organizer-seat" "$tool" "$live live runs"
 exit 2

@@ -1,27 +1,29 @@
 #!/bin/bash
 # SubagentStop hook: refuse subagents returning stall phrasing instead of waiting.
 # Checks last_assistant_message first, then falls back to transcript file.
-# Refs #123
+# Codex expects valid JSON on stdout for every exit-0 SubagentStop run and treats plain
+# text there as invalid, so every pass-through path prints {} first. Refs #123, #141.
 set -u
 in=$(cat)
+pass() { echo '{}'; exit 0; }
 
-stop_active=$(jq -r '.stop_hook_active // false' <<<"$in" 2>/dev/null) || exit 0
-[ "$stop_active" = "true" ] && exit 0
+stop_active=$(jq -r '.stop_hook_active // false' <<<"$in" 2>/dev/null) || pass
+[ "$stop_active" = "true" ] && pass
 
-text=$(jq -r '.last_assistant_message // ""' <<<"$in" 2>/dev/null) || exit 0
+text=$(jq -r '.last_assistant_message // ""' <<<"$in" 2>/dev/null) || pass
 if [ -z "$text" ]; then
-  tpath=$(jq -r '.agent_transcript_path // .transcript_path // ""' <<<"$in" 2>/dev/null) || exit 0
+  tpath=$(jq -r '.agent_transcript_path // .transcript_path // ""' <<<"$in" 2>/dev/null) || pass
   if [ -n "$tpath" ] && [ -f "$tpath" ] && [ -r "$tpath" ]; then
     last_assistant_line=$(grep -E '"type"[[:space:]]*:[[:space:]]*"assistant"' "$tpath" 2>/dev/null | tail -1)
     if [ -n "$last_assistant_line" ]; then
-      text=$(jq -r '[.message.content[]? | select(.type=="text") | .text] | join("\n")' <<<"$last_assistant_line" 2>/dev/null) || exit 0
+      text=$(jq -r '[.message.content[]? | select(.type=="text") | .text] | join("\n")' <<<"$last_assistant_line" 2>/dev/null) || pass
     fi
   else
-    exit 0
+    pass
   fi
 fi
 
-[ -z "$text" ] && exit 0
+[ -z "$text" ] && pass
 
 if grep -qiE 'standing by|waiting for the (background|watcher)|will be notified|I.ll wait for' <<<"$text"; then
   cat >&2 <<'MSG'
@@ -32,4 +34,4 @@ MSG
   exit 2
 fi
 
-exit 0
+pass

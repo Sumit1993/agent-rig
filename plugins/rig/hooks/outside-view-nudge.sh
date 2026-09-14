@@ -8,8 +8,15 @@ tool=$(jq -r '.tool_name // ""' <<<"$in" 2>/dev/null) || exit 0
 case "$tool" in
   AskUserQuestion|EnterPlanMode) ;;
   Agent)
-    st=$(jq -r '.tool_input.subagent_type // ""' <<<"$in" 2>/dev/null) || exit 0
-    grep -qE '(^|:)fable-planner$' <<<"$st" || exit 0 ;;
+    # Claude names a purpose-built delegate (subagent_type); only fable-planner counts as
+    # reaching for an outside view. Codex's spawn_agent carries no such field at all — it
+    # has one generic agent shape, so every spawn is the "uncertain" moment this nudge is
+    # for (#141).
+    has_type=$(jq -r 'if (.tool_input | has("subagent_type")) then "yes" else "no" end' <<<"$in" 2>/dev/null) || exit 0
+    if [ "$has_type" = "yes" ]; then
+      st=$(jq -r '.tool_input.subagent_type // ""' <<<"$in" 2>/dev/null) || exit 0
+      grep -qE '(^|:)fable-planner$' <<<"$st" || exit 0
+    fi ;;
   *) exit 0 ;;
 esac
 
