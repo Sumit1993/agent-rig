@@ -11,7 +11,7 @@ run_query() {
   duckdb -dark-mode -box <<EOF
 SET VARIABLE projects = '$P'; SET VARIABLE agy_logs = '$L'; SET VARIABLE agy_brain = '$B';
 SET VARIABLE session_id = '${2:-}'; SET VARIABLE since = '${3:-}';
-.read $1
+.read "$1"
 EOF
 }
 
@@ -22,15 +22,15 @@ if [ $# -gt 0 ]; then
   [ "${3:-}" = "--since" ] && since="${4:-}"
   run_query "$q" "$sid" "$since"
   if [ "$(basename "$q")" = "session-resume.sql" ] && [ -n "$sid" ]; then
-    for wt in $(duckdb -dark-mode -noheader -csv -c "SET VARIABLE projects = '$P'; SET VARIABLE session_id = '$sid';
+    while IFS= read -r wt; do
+      [ -n "$wt" ] && [ -d "$wt" ] && echo "--- $wt ---" && git -C "$wt" status --short || true
+    done < <(duckdb -dark-mode -noheader -csv -c "SET VARIABLE projects = '$P'; SET VARIABLE session_id = '$sid';
       SELECT DISTINCT coalesce(
         regexp_extract(json::VARCHAR, '<worktreePath>([^<]+)</worktreePath>', 1),
         regexp_extract(json::VARCHAR, '\"path\"\\s*:\\s*\"([^\"\\n]+)\"', 1)
       )
       FROM read_ndjson_objects(getvariable('projects') || '/**/' || replace(getvariable('session_id'), '.jsonl', '') || '.jsonl')
-      WHERE json::VARCHAR LIKE '%worktree%'" 2>/dev/null || true); do
-      [ -n "$wt" ] && [ -d "$wt" ] && echo "--- $wt ---" && git -C "$wt" status --short || true
-    done
+      WHERE json::VARCHAR LIKE '%worktree%'" 2>/dev/null || true)
   fi
   exit 0
 fi
