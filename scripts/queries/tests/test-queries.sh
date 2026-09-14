@@ -63,12 +63,14 @@ else
   check "haiku-turns counts 1 turn" 1
 fi
 
-# 6. organizer-edits counts 1 edit while live
+# 6. organizer-edits counts 2 edits while live: the completed-agent edit, plus an edit
+# after an Agent with neither a notification nor a tool_result, live until the last
+# timestamp in its own session file (agent-rig#140, 4006888937).
 oe_out=$(bash "$RUN_SH" organizer-edits 2>&1)
-if echo "$oe_out" | grep -E '│ +1 +│ +1 +│ +100\.0 +│' >/dev/null 2>&1; then
-  check "organizer-edits counts 1 edit while live" 0
+if echo "$oe_out" | grep -E '│ +2 +│ +2 +│ +100\.0 +│' >/dev/null 2>&1; then
+  check "organizer-edits counts 2 edits while live" 0
 else
-  check "organizer-edits counts 1 edit while live" 1
+  check "organizer-edits counts 2 edits while live" 1
 fi
 
 # 7. reads-per-agent counts 2

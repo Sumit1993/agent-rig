@@ -32,15 +32,25 @@ agent_results AS (
     WHERE block_type = 'tool_result'
     GROUP BY filename, tool_res_id
 ),
+-- Last timestamp seen anywhere in each main-session file: the bound for an agent that
+-- got neither a task notification nor a tool_result before the transcript ends. Live
+-- until then, not forever and not never (agent-rig#140, 4006888937).
+session_ends AS (
+    SELECT filename, max(json_extract_string(json, '$.timestamp')::TIMESTAMP) as last_ts
+    FROM read_ndjson_objects(getvariable('projects') || '/**/*.jsonl', filename=true)
+    WHERE filename NOT LIKE '%/subagents/%'
+    GROUP BY filename
+),
 agents AS (
     SELECT
         a.filename,
         a.tool_id,
         a.ts as start_ts,
-        COALESCE(n.end_ts, r.end_ts) as end_ts
+        COALESCE(n.end_ts, r.end_ts, se.last_ts) as end_ts
     FROM blocks a
     LEFT JOIN agent_notifs n ON a.filename = n.filename AND a.tool_id = n.tool_id
     LEFT JOIN agent_results r ON a.filename = r.filename AND a.tool_id = r.tool_id
+    LEFT JOIN session_ends se ON a.filename = se.filename
     WHERE a.tool_name = 'Agent'
 ),
 edits AS (
