@@ -1,0 +1,91 @@
+#!/bin/bash
+# Regression suite for scripts/queries DuckDB SQL suite. Refs agent-rig#91, #130.
+set -u
+
+if ! command -v duckdb >/dev/null 2>&1; then
+  echo "SKIP: duckdb not installed"
+  exit 0
+fi
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RUN_SH="$DIR/../run.sh"
+PROJECTS="$DIR/fixtures/projects"
+AGY_LOGS="$DIR/fixtures/agy-logs"
+export PROJECTS AGY_LOGS
+
+fails=0
+check() {
+  if [ "$2" = "0" ]; then
+    echo "PASS: $1"
+  else
+    echo "FAIL: $1"
+    fails=$((fails + 1))
+  fi
+}
+
+# 1-4. session-resume assertions over fixture in folder starting with '-'
+sr_out=$(bash "$RUN_SH" session-resume session-fixture-123 2>&1)
+sr_rc=$?
+
+# 4. File under '-' folder is found
+if [ $sr_rc -eq 0 ] && [ -n "$sr_out" ]; then
+  check "fixture folder starting with '-' is found" 0
+else
+  check "fixture folder starting with '-' is found" 1
+fi
+
+# 1. Queued operator message appears as operator
+if echo "$sr_out" | grep -E '08:20:[0-9]{2}' | grep -q 'operator.*Queued human operator message'; then
+  check "queued operator message appears as operator" 0
+else
+  check "queued operator message appears as operator" 1
+fi
+
+# 2. Failed agent shows failed
+if echo "$sr_out" | grep -q 'agent.*-> failed:'; then
+  check "failed agent shows failed" 0
+else
+  check "failed agent shows failed" 1
+fi
+
+# 3. Tail block names errored command
+if echo "$sr_out" | grep -q 'Bash.*failing-command --flag'; then
+  check "tail block names errored command" 0
+else
+  check "tail block names errored command" 1
+fi
+
+# 5. haiku-turns counts 1
+ht_out=$(bash "$RUN_SH" haiku-turns 2>&1)
+if echo "$ht_out" | grep -E '│ +1 +│ +1 +│' >/dev/null 2>&1; then
+  check "haiku-turns counts 1 turn" 0
+else
+  check "haiku-turns counts 1 turn" 1
+fi
+
+# 6. organizer-edits counts 1 edit while live
+oe_out=$(bash "$RUN_SH" organizer-edits 2>&1)
+if echo "$oe_out" | grep -E '│ +1 +│ +1 +│ +100\.0 +│' >/dev/null 2>&1; then
+  check "organizer-edits counts 1 edit while live" 0
+else
+  check "organizer-edits counts 1 edit while live" 1
+fi
+
+# 7. reads-per-agent counts 2
+rpa_out=$(bash "$RUN_SH" reads-per-agent 2>&1)
+if echo "$rpa_out" | grep -E '│ +1 +│ +2\.0 +│' >/dev/null 2>&1; then
+  check "reads-per-agent counts 2 reads" 0
+else
+  check "reads-per-agent counts 2 reads" 1
+fi
+
+# 8. agy-dispatch-cost counts 1 run for fixture model
+adc_out=$(bash "$RUN_SH" agy-dispatch-cost 2>&1)
+if echo "$adc_out" | grep -E 'synthetic-fixture-model.*│ +1 +│' >/dev/null 2>&1; then
+  check "agy-dispatch-cost counts 1 run for fixture model" 0
+else
+  check "agy-dispatch-cost counts 1 run for fixture model" 1
+fi
+
+[ "$fails" -eq 0 ] && echo "all query tests passed"
+exit "$fails"

@@ -26,6 +26,15 @@ else
 fi
 echo
 
+echo "=== 2.5 query tests (test-queries)"
+if bash scripts/queries/tests/test-queries.sh; then
+  echo "PASS: query tests (test-queries)"
+else
+  echo "FAIL: query tests (test-queries)"
+  failed_steps+=("query tests (test-queries)")
+fi
+echo
+
 echo "=== 3. unslop-check (report-only)"
 if bash plugins/rig/scripts/unslop-check.sh; then
   echo "PASS: unslop-check"

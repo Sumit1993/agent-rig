@@ -1,0 +1,4 @@
+{"type":"assistant","timestamp":"2026-09-13T08:21:10.000Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_sub_read_1","name":"Read","input":{"file_path":"/synthetic/path/fileA.txt"}}]}}
+{"type":"user","timestamp":"2026-09-13T08:21:11.000Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_sub_read_1","content":"file content A"}]}}
+{"type":"assistant","timestamp":"2026-09-13T08:21:20.000Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_sub_read_2","name":"Read","input":{"file_path":"/synthetic/path/fileB.txt"}}]}}
+{"type":"user","timestamp":"2026-09-13T08:21:21.000Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_sub_read_2","content":"file content B"}]}}

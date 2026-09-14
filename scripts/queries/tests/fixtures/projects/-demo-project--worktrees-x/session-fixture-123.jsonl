@@ -1,0 +1,11 @@
+{"type":"user","timestamp":"2026-09-13T08:19:00.000Z","message":{"role":"user","content":"Initial prompt from operator"}}
+{"type":"queue-operation","operation":"enqueue","timestamp":"2026-09-13T08:20:08.000Z","sessionId":"session-fixture-123","content":"Queued human operator message"}
+{"type":"attachment","timestamp":"2026-09-13T08:20:08.000Z","attachment":{"type":"queued_command","origin":{"kind":"human"},"prompt":"Queued human operator message"}}
+{"type":"assistant","timestamp":"2026-09-13T08:21:00.000Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_agent_fixture","name":"Agent","input":{"description":"Fixture agent task","subagent_type":"test-runner","model":"sonnet","isolation":"worktree","prompt":"Run fixture agent tests"}}]}}
+{"type":"assistant","timestamp":"2026-09-13T08:21:30.000Z","message":{"role":"assistant","model":"claude-haiku-4-5-20251001","content":[{"type":"text","text":"Haiku response turn"}]}}
+{"type":"assistant","timestamp":"2026-09-13T08:22:00.000Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_edit_fixture","name":"Edit","input":{"file_path":"test.txt"}}]}}
+{"type":"user","timestamp":"2026-09-13T08:22:05.000Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_edit_fixture","content":"Edit applied"}]}}
+{"type":"queue-operation","operation":"enqueue","timestamp":"2026-09-13T08:23:00.000Z","sessionId":"session-fixture-123","content":"<task-notification>\n<task-id>agent-fixture-1</task-id>\n<tool-use-id>toolu_agent_fixture</tool-use-id>\n<status>failed</status>\n<summary>Agent failed on purpose</summary>\n</task-notification>"}
+{"type":"assistant","timestamp":"2026-09-13T08:24:00.000Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_bash_final","name":"Bash","input":{"command":"failing-command --flag"}}]}}
+{"type":"user","timestamp":"2026-09-13T08:24:05.000Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_bash_final","content":"Error: command exited with status 1","is_error":true}]}}
+{"type":"assistant","timestamp":"2026-09-13T08:24:10.000Z","message":{"role":"assistant","content":[{"type":"text","text":"The command failed with session limit."}]}}
