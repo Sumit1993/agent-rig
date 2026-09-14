@@ -73,12 +73,14 @@ else
   check "organizer-edits counts 2 edits while live" 1
 fi
 
-# 7. reads-per-agent counts 2
+# 7. reads-per-agent includes a subagent with zero Read calls in the agent set, not just
+# subagent transcripts that used Read (agent-rig#140, 4006888946). Two subagent
+# transcripts: agent-1 (2 reads), agent-2 (0 reads) -> agent_count=2, median_reads=1.0.
 rpa_out=$(bash "$RUN_SH" reads-per-agent 2>&1)
-if echo "$rpa_out" | grep -E '│ +1 +│ +2\.0 +│' >/dev/null 2>&1; then
-  check "reads-per-agent counts 2 reads" 0
+if echo "$rpa_out" | grep -E '│ +2 +│ +1\.0 +│' >/dev/null 2>&1; then
+  check "reads-per-agent counts 2 agents including the one with zero reads" 0
 else
-  check "reads-per-agent counts 2 reads" 1
+  check "reads-per-agent counts 2 agents including the one with zero reads" 1
 fi
 
 # 8. agy-dispatch-cost counts 1 run for fixture model
