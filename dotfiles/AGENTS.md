@@ -7,7 +7,7 @@ WSL on Windows. `~/ai-context/` is scratch for a live run and gets cleaned. Neve
 # Writing
 House style is the unslop skill, imported here because nothing else loads it.
 
-@../plugins/kit/skills/unslop/SKILL.md
+@../plugins/rig/skills/unslop/SKILL.md
 
 - A chat reply is 20 lines at most, written for someone who was not watching: what happened, what it means, what is open.
 - One idea per sentence, 35 words at most. Paths, commands and numbers verbatim. Quote an error by its shortest decisive line.

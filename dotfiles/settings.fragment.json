@@ -20,8 +20,8 @@
   "effortLevel": "high",
   "tui": "fullscreen",
   "extraKnownMarketplaces": {
-    "claude-kit": {
-      "source": { "source": "github", "repo": "Sumit1993/claude-kit" },
+    "agent-rig": {
+      "source": { "source": "github", "repo": "Sumit1993/agent-rig" },
       "autoUpdate": true
     },
     "mattpocock": {
@@ -30,7 +30,7 @@
     }
   },
   "enabledPlugins": {
-    "kit@claude-kit": true,
+    "rig@agent-rig": true,
     "mattpocock-skills@mattpocock": true
   }
 }

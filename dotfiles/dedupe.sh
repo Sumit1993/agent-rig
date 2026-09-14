@@ -1,6 +1,6 @@
 #!/bin/bash
-# Remove the loose ~/.claude copies that claude-kit's plugin now provides.
-# Run ONCE, after the plugin is confirmed loaded (skills show as kit:pr-babysit etc.).
+# Remove the loose ~/.claude copies that agent-rig's plugin now provides.
+# Run ONCE, after the plugin is confirmed loaded (skills show as rig:pr-babysit etc.).
 set -euo pipefail
 CLAUDE="$HOME/.claude"
 for s in pr-babysit farm-out autofix code-review; do

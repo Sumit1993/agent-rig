@@ -1,7 +1,7 @@
 #!/bin/bash
 # agy status line, the same shape as the Claude one: model | context | each quota bucket as percent used.
 # agy pipes .quota as {bucket-id: {remaining_fraction, reset_time, reset_in_seconds}}; gemini-* and 3p-*
-# are the two groups. Docs: antigravity.google/docs/cli/statusline. Story: claude-kit#133.
+# are the two groups. Docs: antigravity.google/docs/cli/statusline. Story: agent-rig#133.
 input=$(cat)
 command -v jq >/dev/null 2>&1 || { printf 'agy'; exit 0; }
 

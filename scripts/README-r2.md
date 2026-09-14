@@ -1,7 +1,7 @@
 # Raw run records in R2
 
 Durability for the files agent runs leave on disk, and the store the queries read.
-Why this shape rather than a pipeline: claude-kit#89.
+Why this shape rather than a pipeline: agent-rig#89.
 
 The lake is the bucket. The warehouse is DuckDB at query time. There is no loader, no
 D1 index and no Worker, and none gets added until a query is measurably slow.
@@ -65,7 +65,7 @@ Both return 126 Haiku turns, which is the transcript miner's figure. **Query loc
 treat the bucket as the durability copy.** Reach for `s3://` when the local corpus is
 gone or when you need a window longer than local retention. If an `s3://` query ever
 crosses a minute, convert the previous day's prefix to Parquet nightly; do not add an
-index (claude-kit#89).
+index (agent-rig#89).
 
 ## Setup notes that cost time once
 

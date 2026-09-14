@@ -12,22 +12,22 @@ reviews:
       - "WIP"
       - "chore(master): release"
   path_instructions:
-    - path: "plugins/kit/hooks/*.sh"
+    - path: "plugins/rig/hooks/*.sh"
       instructions: >-
         Claude Code hooks. stdin is JSON, stdout is a protocol channel. A hook must exit 0 or 2
         on any input, including junk and an empty object; never a stack trace. Exit 2 blocks with
         the stderr text as the reason. Flag any path where malformed input, a missing binary
         (jq, gh, mage) or a network failure could change the exit code or print non-JSON on stdout.
-    - path: "plugins/kit/hooks/tests/*.sh"
+    - path: "plugins/rig/hooks/tests/*.sh"
       instructions: >-
         Offline regression suites. Flag any test that reaches the network or the real state
         directories, any assertion that cannot fail, and any fixture that duplicates the hook's
         own logic instead of exercising it.
-    - path: "plugins/kit/skills/**/*.md"
+    - path: "plugins/rig/skills/**/*.md"
       instructions: >-
         Agent-facing procedure text. Flag a step an agent cannot execute as written, a command
         whose flags do not exist, and a claim about an external tool with no source named.
-    - path: "plugins/kit/skills/**/*.sh"
+    - path: "plugins/rig/skills/**/*.sh"
       instructions: >-
         Watcher and delegation scripts run unattended. Flag a computed value the script uses but
         never prints, a gate whose third outcome (could not determine) folds to permissive, and
