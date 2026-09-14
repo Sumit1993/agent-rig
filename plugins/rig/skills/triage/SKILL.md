@@ -2,7 +2,8 @@
 name: triage
 description: "Before any gh issue create, comment, edit or close: search what already exists, fold or file, shape the body, link and close it right."
 metadata:
-  harnesses: "claude agy"
+  harnesses: "claude agy codex"
+  version: "1.0.0"
 ---
 
 # Triage

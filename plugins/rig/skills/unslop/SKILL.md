@@ -2,8 +2,8 @@
 name: unslop
 description: Cut AI tells from any writing. Must always apply.
 metadata:
-  harnesses: "claude agy"
-  version: "1.0.0"
+  harnesses: "claude agy codex"
+  version: "1.0.1"
   upstream: "cursor/plugins pstack/skills/unslop"
   note: "Body is verbatim upstream. Only this metadata block was added."
 ---

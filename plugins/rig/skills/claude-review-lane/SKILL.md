@@ -2,8 +2,8 @@
 name: claude-review-lane
 description: "How the claude[bot] review lane behaves on any PR: liveness verdicts, why it stays quiet, summon grammar and model override, verification rounds, who resolves a thread. Load when a claude[bot] thread or liveness comment is in front of you."
 metadata:
-  harnesses: "claude agy"
-  version: "3.6.0"
+  harnesses: "claude agy codex"
+  version: "3.6.1"
 ---
 
 # The Claude review lane
