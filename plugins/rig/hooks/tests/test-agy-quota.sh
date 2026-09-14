@@ -23,6 +23,18 @@ if [ "${STUB_AGY_MODE:-}" = "ok" ]; then
   echo '{"status":"SUCCESS","conversation_id":"c123","num_turns":1,"response":"done"}'
   exit 0
 fi
+if [ "${STUB_AGY_MODE:-}" = "live-valid" ]; then
+  echo '{"command":{"name":"usage","data":{"groups":[{"name":"Gemini Models","buckets":[{"window":"5h","remaining_fraction":0.25,"reset_time":"2026-09-14T15:34:36Z"},{"window":"weekly","remaining_fraction":0.50,"reset_time":"2026-09-20T07:03:46Z"}]},{"name":"Claude and GPT models","buckets":[{"window":"5h","remaining_fraction":0.0,"reset_time":"2026-09-14T17:05:07Z"},{"window":"weekly","remaining_fraction":0.75,"reset_time":"2026-09-20T08:18:05Z"}]}]}}}'
+  exit 0
+fi
+if [ "${STUB_AGY_MODE:-}" = "live-timeout" ]; then
+  /bin/sleep 2
+  exit 0
+fi
+if [ "${STUB_AGY_MODE:-}" = "live-garbage" ]; then
+  echo 'not-valid-json'
+  exit 0
+fi
 exit 1
 STUB_AGY
 cat << 'STUB_SLEEP' > "$TMPDIR/bin/sleep"
@@ -218,6 +230,37 @@ esac
 c12_group_key=$(jq -r 'has("gemini")' "$TMPDIR/state/agy/quota.json" 2>/dev/null || echo false)
 c12_no_slug_key=$(jq -r 'has("gemini-3.8-flash-high") | not' "$TMPDIR/state/agy/quota.json" 2>/dev/null || echo false)
 check "a Gemini wall covers every Gemini slug and leaves the other group alone" '[ "$c12_pro_rc" -eq 1 ] && [ "$c12_pro_exhausted" -eq 1 ] && [ "$c12_claude_rc" -eq 0 ] && [ "$c12_claude_usable" -eq 1 ] && [ "$c12_group_key" = "true" ] && [ "$c12_no_slug_key" = "true" ]'
+
+echo "-- 13. Live quota returns group lines on valid output"
+c13_out=$(STUB_AGY_MODE=live-valid bash "$AGY_QUOTA" live 2>&1)
+c13_rc=$?
+c13_gemini=0
+case "$c13_out" in
+  *"Gemini Models: 5h 25% (resets 2026-09-14T15:34:36Z), weekly 50% (resets 2026-09-20T07:03:46Z)"*) c13_gemini=1 ;;
+esac
+c13_claude=0
+case "$c13_out" in
+  *"Claude and GPT models: 5h 0% (resets 2026-09-14T17:05:07Z), weekly 75% (resets 2026-09-20T08:18:05Z)"*) c13_claude=1 ;;
+esac
+check "live quota parses valid group output and exits 0" '[ "$c13_rc" -eq 0 ] && [ "$c13_gemini" -eq 1 ] && [ "$c13_claude" -eq 1 ]'
+
+echo "-- 14. Live quota handles timeout cleanly"
+c14_out=$(STUB_AGY_MODE=live-timeout AGY_QUOTA_TIMEOUT=1 bash "$AGY_QUOTA" live 2>&1)
+c14_rc=$?
+c14_match=0
+case "$c14_out" in
+  "live quota unavailable: agy timed out"*) c14_match=1 ;;
+esac
+check "live quota reports timeout and exits 0" '[ "$c14_rc" -eq 0 ] && [ "$c14_match" -eq 1 ]'
+
+echo "-- 15. Live quota handles garbage output cleanly"
+c15_out=$(STUB_AGY_MODE=live-garbage bash "$AGY_QUOTA" live 2>&1)
+c15_rc=$?
+c15_match=0
+case "$c15_out" in
+  "live quota unavailable: unparseable quota json"*) c15_match=1 ;;
+esac
+check "live quota reports unparseable json and exits 0" '[ "$c15_rc" -eq 0 ] && [ "$c15_match" -eq 1 ]'
 
 [ "$fails" -eq 0 ] && echo && echo "all test-agy-quota tests passed"
 exit "$fails"
