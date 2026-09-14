@@ -7,7 +7,9 @@ in=$(cat)
 tool=$(jq -r '.tool_name // ""' <<<"$in" 2>/dev/null) || exit 0
 case "$tool" in
   AskUserQuestion|EnterPlanMode) ;;
-  Agent)
+  # The hooks.json matcher "Agent" aliases Codex's spawn_agent, but the payload itself still
+  # reports tool_name: "spawn_agent" — match both (#141).
+  Agent|spawn_agent)
     # Claude names a purpose-built delegate (subagent_type); only fable-planner counts as
     # reaching for an outside view. Codex's spawn_agent carries no such field at all — it
     # has one generic agent shape, so every spawn is the "uncertain" moment this nudge is
