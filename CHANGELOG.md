@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.11.0](https://github.com/Sumit1993/agent-rig/compare/rig-v0.10.0...rig-v0.11.0) (2026-09-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* **rig:** the kit: skill prefix is now rig:, and kit@claude-kit is now rig@agent-rig.
+
+### Features
+
+* **rig:** DuckDB queries replace the miners; agy-quota live; Codex CLI as third harness ([#140](https://github.com/Sumit1993/agent-rig/issues/140)) ([716a010](https://github.com/Sumit1993/agent-rig/commit/716a0101aae51c229bba619e16c0c1ae4955a0e4))
+* **rig:** rename claude-kit to agent-rig and the kit plugin to rig ([#138](https://github.com/Sumit1993/agent-rig/issues/138)) ([cf7aabe](https://github.com/Sumit1993/agent-rig/commit/cf7aabe71ad0e4c17f18d7848476bd578ff1bfa6))
+
+
+### Bug Fixes
+
+* **rig:** hook gates read the posted body; hooks.json keys; review-lane docs from gh-workflows [#173](https://github.com/Sumit1993/agent-rig/issues/173) ([#137](https://github.com/Sumit1993/agent-rig/issues/137)) ([f732ce9](https://github.com/Sumit1993/agent-rig/commit/f732ce909de05180b602b651dde5c456acd95392)), closes [#136](https://github.com/Sumit1993/agent-rig/issues/136)
+
 ## [0.10.0](https://github.com/Sumit1993/claude-kit/compare/kit-v0.9.0...kit-v0.10.0) (2026-09-13)
 
 
