@@ -17,8 +17,8 @@ WITH blocks AS (
         json_extract_string(c, '$.tool_use_id') as tool_res_id,
         json_extract_string(c, '$.is_error') as is_error,
         coalesce(
-            json_extract_string(c, '$.content'),
-            json_extract_string(c, '$.content[0].text')
+            json_extract_string(c, '$.content[0].text'),
+            json_extract_string(c, '$.content')
         ) as text,
         c::VARCHAR as raw_text
     FROM read_ndjson_objects(getvariable('projects') || '/**/*.jsonl', filename=true),
@@ -65,8 +65,8 @@ WITH blocks AS (
         json_extract_string(c, '$.tool_use_id') as tool_res_id,
         json_extract_string(c, '$.is_error') as is_error,
         coalesce(
-            json_extract_string(c, '$.content'),
-            json_extract_string(c, '$.content[0].text')
+            json_extract_string(c, '$.content[0].text'),
+            json_extract_string(c, '$.content')
         ) as text,
         c::VARCHAR as raw_text
     FROM read_ndjson_objects(getvariable('projects') || '/**/*.jsonl', filename=true),

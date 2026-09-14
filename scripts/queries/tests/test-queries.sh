@@ -97,5 +97,13 @@ else
   check "hook-blocks counts exactly 1 refusal for rig/guard/test-fixture" 1
 fi
 
+# 10. hook-blocks counts a refusal whose content is an array of text blocks
+# (content[0].text), not just the plain-string shape (agent-rig#140, 4006888932).
+if echo "$hb_out" | grep -E 'rig/guard/test-array-fixture *│ +Bash +│ +1 +│' >/dev/null 2>&1; then
+  check "hook-blocks counts an array-content refusal for rig/guard/test-array-fixture" 0
+else
+  check "hook-blocks counts an array-content refusal for rig/guard/test-array-fixture" 1
+fi
+
 [ "$fails" -eq 0 ] && echo "all query tests passed"
 exit "$fails"
