@@ -89,7 +89,7 @@ if [ -d "$AGY" ]; then
 fi
 
 if command -v codex >/dev/null 2>&1; then
-  echo "→ codex plugin (skills tagged codex; the five Bash gate hooks)"
+  echo "→ codex plugin (skills tagged codex; hooks proven under Codex; see build-codex-plugin.sh)"
   codex_home="${CODEX_HOME:-$HOME/.codex}"
   mkdir -p "$codex_home"  # marketplace add fails on a machine with no CODEX_HOME yet (#141)
   cb="${XDG_DATA_HOME:-$HOME/.local/share}/agent-rig/codex-plugin"

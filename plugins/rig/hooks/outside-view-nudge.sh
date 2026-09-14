@@ -7,13 +7,9 @@ in=$(cat)
 tool=$(jq -r '.tool_name // ""' <<<"$in" 2>/dev/null) || exit 0
 case "$tool" in
   AskUserQuestion|EnterPlanMode) ;;
-  # The hooks.json matcher "Agent" aliases Codex's spawn_agent, but the payload itself still
-  # reports tool_name: "spawn_agent" — match both (#141).
+  # Codex's Agent matcher aliases spawn_agent, but the payload says spawn_agent (#141).
   Agent|spawn_agent)
-    # Claude names a purpose-built delegate (subagent_type); only fable-planner counts as
-    # reaching for an outside view. Codex's spawn_agent carries no such field at all — it
-    # has one generic agent shape, so every spawn is the "uncertain" moment this nudge is
-    # for (#141).
+    # Claude counts only fable-planner; Codex spawns have no subagent_type, so every one counts (#141).
     has_type=$(jq -r 'if (.tool_input | has("subagent_type")) then "yes" else "no" end' <<<"$in" 2>/dev/null) || exit 0
     if [ "$has_type" = "yes" ]; then
       st=$(jq -r '.tool_input.subagent_type // ""' <<<"$in" 2>/dev/null) || exit 0

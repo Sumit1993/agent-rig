@@ -22,7 +22,7 @@ flag="$state_dir/$session"
 : > "$flag" 2>/dev/null || exit 0
 
 live=$(pgrep -x agy | wc -l | tr -d ' ')
-# Codex reports file edits as tool_name "apply_patch", not "Edit" — name whichever tool it sent.
+# Codex reports file edits as apply_patch; name whichever tool arrived (#141).
 tool=$(jq -r '.tool_name // "Edit"' <<<"$in" 2>/dev/null)
 cat >&2 <<MSG
 Blocked once (AGENTS.md §Orchestrator/Organizer/Manager): $live agy run(s) are live and you

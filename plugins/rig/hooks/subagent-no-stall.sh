@@ -1,8 +1,7 @@
 #!/bin/bash
 # SubagentStop hook: refuse subagents returning stall phrasing instead of waiting.
 # Checks last_assistant_message first, then falls back to transcript file.
-# Codex expects valid JSON on stdout for every exit-0 SubagentStop run and treats plain
-# text there as invalid, so every pass-through path prints {} first. Refs #123, #141.
+# Codex rejects an exit-0 SubagentStop without JSON on stdout, so passes print {}. Refs #123, #141.
 set -u
 in=$(cat)
 pass() { echo '{}'; exit 0; }

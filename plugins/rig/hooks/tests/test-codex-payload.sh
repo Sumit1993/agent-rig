@@ -84,12 +84,11 @@ else
   else
     echo "FAIL: could not stage a fake agy run"; fails=$((fails + 1))
   fi
-  [ -n "$FAKE_PID" ] && kill -9 "$FAKE_PID" 2>/dev/null
+  [ -n "$FAKE_PID" ] && { kill -9 "$FAKE_PID" 2>/dev/null; wait "$FAKE_PID" 2>/dev/null; }
 fi
 rm -rf "$ORGSEAT_STATE" "$FAKEBIN"
 
-# delegate-check.sh: Codex's spawn_agent carries no subagent_type, only tool_input.message —
-# it stands in for description/prompt.
+# delegate-check.sh: Codex's spawn_agent sends only tool_input.message.
 check_stdin "delegate-check.sh refuses a bounded mechanical spawn_agent" delegate-check.sh 2 \
   <(jq '.tool_input.message = "Implement the retry parser to spec"' "$FIXTURES/pretooluse-spawn-agent.json")
 check_stdin "delegate-check.sh passes a spawn_agent naming agy" delegate-check.sh 0 \
