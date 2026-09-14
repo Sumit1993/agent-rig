@@ -1,10 +1,10 @@
-# claude-kit
+# agent-rig
 
 Sumit's portable Claude Code working style: one plugin plus dotfiles. A fresh machine behaves identically in two minutes.
 
 ## What's inside
 
-Plugin `kit`, path-independent via `${CLAUDE_PLUGIN_ROOT}`:
+Plugin `rig`, path-independent via `${CLAUDE_PLUGIN_ROOT}`:
 
 | Piece | One line |
 |---|---|
@@ -47,7 +47,7 @@ Claude Code does not read the name `AGENTS.md` on its own. `install.sh` writes `
 
 Dotfiles, what a plugin cannot carry: `AGENTS.md`, `statusline-command.sh`, `agy-statusline-command.sh`, `settings.fragment.json` (registers this repo as a marketplace and enables the plugin), `install.sh`, `build-agy-plugin.sh`, `dedupe.sh`.
 
-Two harnesses, one source. `plugins/kit` is the Claude Code plugin. `install.sh` builds the agy plugin from it with `build-agy-plugin.sh` and runs `agy plugin install` on the result. Only skills whose frontmatter carries `metadata.harnesses: "claude agy"` cross; untagged means Claude-only. Hooks and agents never cross: agy's hooks read `toolCall.args` and answer with a `decision` field, and its agents take different model names. `hooks/tests/test-harness-split.sh` fails if a tagged skill names a Claude-only tool.
+Two harnesses, one source. `plugins/rig` is the Claude Code plugin. `install.sh` builds the agy plugin from it with `build-agy-plugin.sh` and runs `agy plugin install` on the result. Only skills whose frontmatter carries `metadata.harnesses: "claude agy"` cross; untagged means Claude-only. Hooks and agents never cross: agy's hooks read `toolCall.args` and answer with a `decision` field, and its agents take different model names. `hooks/tests/test-harness-split.sh` fails if a tagged skill names a Claude-only tool.
 
 ## Guard observation
 
@@ -57,11 +57,11 @@ Hooks that block or rewrite tool calls report their firing to `mage observe`. Th
 
 | Hook file | Guard id |
 |---|---|
-| `plugins/kit/hooks/delegate-check.sh` | `kit/guard/delegate-check` |
-| `plugins/kit/hooks/no-haiku.sh` | `kit/guard/no-haiku` |
-| `plugins/kit/hooks/no-broad-agy-kill.sh` | `kit/guard/no-broad-agy-kill` |
-| `plugins/kit/hooks/organizer-seat.sh` | `kit/guard/organizer-seat` |
-| `plugins/kit/hooks/release-docs-gate.sh` | `kit/guard/release-docs-gate` |
+| `plugins/rig/hooks/delegate-check.sh` | `rig/guard/delegate-check` |
+| `plugins/rig/hooks/no-haiku.sh` | `rig/guard/no-haiku` |
+| `plugins/rig/hooks/no-broad-agy-kill.sh` | `rig/guard/no-broad-agy-kill` |
+| `plugins/rig/hooks/organizer-seat.sh` | `rig/guard/organizer-seat` |
+| `plugins/rig/hooks/release-docs-gate.sh` | `rig/guard/release-docs-gate` |
 
 Hooks that neither block nor rewrite (`pr-created.sh` and `reap-watchers.sh`) have no guard identifier.
 
@@ -70,16 +70,16 @@ Hooks that neither block nor rewrite (`pr-created.sh` and `reap-watchers.sh`) ha
 Each blocking hook declares its identifier directly below the shebang line:
 
 ```bash
-# mage:kit/guard/<slug>
+# mage:rig/guard/<slug>
 ```
 
 Before exiting on a block decision, the hook calls the shared reporter:
 
 ```bash
-report_guard "kit/guard/<slug>" "$tool" "$detail"
+report_guard "rig/guard/<slug>" "$tool" "$detail"
 ```
 
-The reporter library is at `plugins/kit/hooks/lib/report-guard.sh`.
+The reporter library is at `plugins/rig/hooks/lib/report-guard.sh`.
 
 ### Fail-open contract
 
@@ -87,18 +87,18 @@ The reporter is fire-and-forget and always fails open. If `mage` or `jq` is abse
 
 ### Worked example
 
-When an agent invokes `Agent` with `claude-haiku-4-5-20251001`, `plugins/kit/hooks/no-haiku.sh` blocks. The agent receives this message on stderr:
+When an agent invokes `Agent` with `claude-haiku-4-5-20251001`, `plugins/rig/hooks/no-haiku.sh` blocks. The agent receives this message on stderr:
 
 ```
 Blocked by routing doctrine (dotfiles/AGENTS.md): never use Haiku. Pick sonnet or above.
-mage:kit/guard/no-haiku
+mage:rig/guard/no-haiku
 ```
 
 At the same time, `no-haiku.sh` pipes the following payload to `mage observe` on stdin:
 
 ```json
 {
-  "guard_id": "kit/guard/no-haiku",
+  "guard_id": "rig/guard/no-haiku",
   "tool": "Agent",
   "detail": "claude-haiku-4-5-20251001"
 }
@@ -107,7 +107,7 @@ At the same time, `no-haiku.sh` pipes the following payload to `mage observe` on
 ## New machine
 
 ```bash
-git clone https://github.com/Sumit1993/claude-kit && ./claude-kit/dotfiles/install.sh
+git clone https://github.com/Sumit1993/agent-rig && ./agent-rig/dotfiles/install.sh
 ```
 
 ## Vendored skills and their updates
@@ -131,4 +131,4 @@ Not vendored: `mattpocock/skills`, subscribed as `mattpocock-skills@mattpocock` 
 
 Rule of thumb: if upstream ships a plugin, subscribe to it. Vendor a skill only when you patch it, and say so in the table. pstack is the exception: subscribing pulls 44 skills, about 20 of them one-idea `principle-*` files restating `AGENTS.md`, so three skills and one agent are vendored and patched, plus `unslop` verbatim.
 
-`bash plugins/kit/scripts/unslop-check.sh` reports what the house style still flags; what remains is deliberate. Frontmatter `description:` fields are exempt because they are auto-load triggers, and rewriting one changes when a skill fires.
+`bash plugins/rig/scripts/unslop-check.sh` reports what the house style still flags; what remains is deliberate. Frontmatter `description:` fields are exempt because they are auto-load triggers, and rewriting one changes when a skill fires.

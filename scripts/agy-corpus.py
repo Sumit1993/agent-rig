@@ -201,7 +201,7 @@ def main():
     args = parser.parse_args()
 
     all_prompt_files, md_prompt_files, prompt_samples = analyze_prompts(args.prompts_dir)
-    # Exclude in-flight self runs by mtime, plus any explicit slugs. Refs claude-kit#50.
+    # Exclude in-flight self runs by mtime, plus any explicit slugs. Refs agent-rig#50.
     exclude_slugs = tuple(s for s in (args.exclude_slug or []) if s)
     all_log_files = []
     skipped_newer = 0
@@ -347,7 +347,7 @@ def main():
         ("verify-62.md", "Lacks an explicit worktree or checkout path, relying on implicit repository context for verification.")
     ]
     
-    # Failed runs (excluding the script's own audit run). Refs claude-kit#50.
+    # Failed runs (excluding the script's own audit run). Refs agent-rig#50.
     failed_candidates = [
         "agy-ci-checks-1788231148",
         "agy-github-defaults-1788243221",

@@ -1,14 +1,14 @@
 {
-  "name": "claude-kit",
+  "name": "agent-rig",
   "owner": {
     "name": "Sumit Patel",
     "url": "https://github.com/Sumit1993"
   },
   "plugins": [
     {
-      "name": "kit",
-      "source": "./plugins/kit",
-      "description": "Personal working-style kit: no-doze waiting doctrine, post-PR watching, agy delegation with the agy-runner wrapper agent, comment-budget enforcement, blast-radius proof, decision trails, patched CodeRabbit skills, and hooks that enforce delegation routing, the organizer seat, safe agy kills and PR-babysit arming."
+      "name": "rig",
+      "source": "./plugins/rig",
+      "description": "Personal working-style rig: no-doze waiting doctrine, post-PR watching, agy delegation with the agy-runner wrapper agent, comment-budget enforcement, blast-radius proof, decision trails, patched CodeRabbit skills, and hooks that enforce delegation routing, the organizer seat, safe agy kills and PR-babysit arming."
     }
   ]
 }

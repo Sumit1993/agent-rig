@@ -1,5 +1,5 @@
 #!/bin/bash
-# claude-kit bootstrap for a new machine. Idempotent. Requires: jq, git, gh (authed).
+# agent-rig bootstrap for a new machine. Idempotent. Requires: jq, git, gh (authed).
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 CLAUDE="$HOME/.claude"
@@ -39,8 +39,8 @@ fi
 # AGENTS.md @-imports the unslop rules by a path relative to itself. An import that resolves
 # to nothing is dropped at launch with no warning, so the miss shows up as writing that
 # quietly stopped following house style. Check the target here instead.
-if [ ! -f "$src_root/plugins/kit/skills/unslop/SKILL.md" ]; then
-  echo "  ERROR: AGENTS.md imports plugins/kit/skills/unslop/SKILL.md, which is missing." >&2
+if [ ! -f "$src_root/plugins/rig/skills/unslop/SKILL.md" ]; then
+  echo "  ERROR: AGENTS.md imports plugins/rig/skills/unslop/SKILL.md, which is missing." >&2
   echo "  Restore it before installing; a broken import fails silently." >&2
   exit 1
 fi
@@ -67,7 +67,7 @@ else
       echo "  Re-add anything you still want BELOW the import line." >&2
     fi
   fi
-  printf '%s\n\nEdit the imported file in the claude-kit repo, not here. Anything below this line is machine-local.\n' \
+  printf '%s\n\nEdit the imported file in the agent-rig repo, not here. Anything below this line is machine-local.\n' \
     "$stub" > "$CLAUDE/CLAUDE.md"
 fi
 
@@ -83,7 +83,7 @@ if [ -d "$AGY" ]; then
     && jq -e . "$s.tmp" >/dev/null && mv "$s.tmp" "$s"
   if command -v agy >/dev/null 2>&1; then
     echo "→ agy plugin (skills tagged harnesses: claude agy; no hooks, no agents)"
-    b="${XDG_DATA_HOME:-$HOME/.local/share}/claude-kit/agy-plugin"
+    b="${XDG_DATA_HOME:-$HOME/.local/share}/agent-rig/agy-plugin"
     bash "$HERE/build-agy-plugin.sh" "$b" >/dev/null && agy plugin install "$b"
   fi
 fi
@@ -91,7 +91,8 @@ fi
 echo "→ settings.json (deep-merge: fragment overlays existing; permissions.allow unions)"
 if [ -f "$CLAUDE/settings.json" ]; then
   cp "$CLAUDE/settings.json" "$CLAUDE/settings.json.bak-$(date +%s)"
-  jq -s '.[0] as $cur | .[1] as $frag | ($cur * $frag)
+  # The repo was claude-kit with plugin kit until #134; drop those keys or both marketplaces load.
+  jq -s '(.[0] | del(.enabledPlugins["kit@claude-kit"], .extraKnownMarketplaces["claude-kit"])) as $cur | .[1] as $frag | ($cur * $frag)
          | .permissions.allow = (($cur.permissions.allow // []) + ($frag.permissions.allow // []) | unique)' \
     "$CLAUDE/settings.json" "$HERE/settings.fragment.json" > /tmp/settings.merged.json
   jq -e . /tmp/settings.merged.json >/dev/null
@@ -100,6 +101,6 @@ else
   cp "$HERE/settings.fragment.json" "$CLAUDE/settings.json"
 fi
 
-echo "→ done. Restart Claude Code; the claude-kit marketplace + kit plugin load from settings."
-echo "   Skills arrive under the kit: prefix, one per directory in plugins/kit/skills/."
+echo "→ done. Restart Claude Code; the agent-rig marketplace + rig plugin load from settings."
+echo "   Skills arrive under the rig: prefix, one per directory in plugins/rig/skills/."
 echo "   If migrating FROM a machine with loose copies in ~/.claude/skills/, run dedupe.sh next."

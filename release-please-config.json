@@ -1,24 +1,49 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "last-release-sha": "aa40603bc6683d59f8a2393521cb0303fc74f19d",
   "packages": {
     ".": {
       "release-type": "simple",
-      "package-name": "kit",
+      "package-name": "rig",
       "bump-minor-pre-major": true,
       "changelog-sections": [
-        { "type": "feat", "section": "Features" },
-        { "type": "fix", "section": "Bug Fixes" },
-        { "type": "docs", "section": "Documentation" },
-        { "type": "refactor", "section": "Code Refactoring" },
-        { "type": "test", "section": "Tests" },
-        { "type": "build", "section": "Build System" },
-        { "type": "ci", "section": "Continuous Integration" },
-        { "type": "chore", "section": "Miscellaneous Chores" }
+        {
+          "type": "feat",
+          "section": "Features"
+        },
+        {
+          "type": "fix",
+          "section": "Bug Fixes"
+        },
+        {
+          "type": "docs",
+          "section": "Documentation"
+        },
+        {
+          "type": "refactor",
+          "section": "Code Refactoring"
+        },
+        {
+          "type": "test",
+          "section": "Tests"
+        },
+        {
+          "type": "build",
+          "section": "Build System"
+        },
+        {
+          "type": "ci",
+          "section": "Continuous Integration"
+        },
+        {
+          "type": "chore",
+          "section": "Miscellaneous Chores"
+        }
       ],
       "extra-files": [
         {
           "type": "json",
-          "path": "plugins/kit/.claude-plugin/plugin.json",
+          "path": "plugins/rig/.claude-plugin/plugin.json",
           "jsonpath": "$.version"
         }
       ]

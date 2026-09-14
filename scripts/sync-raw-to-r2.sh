@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Append-only sync of agent run records to R2. Layout is raw/<source>/<date>/<file>,
-# so DuckDB httpfs can read a prefix directly. Ruling: claude-kit#89.
+# so DuckDB httpfs can read a prefix directly. Ruling: agent-rig#89.
 set -euo pipefail
 
 BUCKET="${R2_BUCKET:-agent-raw}"
@@ -13,7 +13,7 @@ command -v rclone >/dev/null || { echo "rclone not found: see scripts/README-r2.
 # Sources are named, never globbed from a parent: agy's conversations/*.db is 2.2 GB of
 # protobuf superseded by the JSONL beside it, and must never be picked up by accident.
 # A transcript still being appended to is skipped (--min-age) and a source whose rclone
-# fails does not stop the next source. Story: claude-kit#124.
+# fails does not stop the next source. Story: agent-rig#124.
 sync_one() {
   local label="$1" src="$2" filter="$3"
   [ -d "$src" ] || { echo "skip $label: $src absent"; return 0; }
