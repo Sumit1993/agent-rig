@@ -66,27 +66,42 @@ check_stdin() { # name hook want_rc payload_file [extra_env=]
   fi
 }
 
-# organizer-seat.sh: fires only while an agy run is alive. Same fake-process technique as
-# test-organizer-seat.sh — a staged `agy` on PATH, never a real run.
-ORGSEAT_STATE=$(mktemp -d)
-FAKEBIN=$(mktemp -d)
-printf '#!/bin/bash\nsleep 30\n' > "$FAKEBIN/agy"; chmod +x "$FAKEBIN/agy"
-FAKE_PID=""
-if pgrep -x agy >/dev/null 2>&1; then
-  echo "SKIP: organizer-seat blocks apply_patch while agy is live (a real agy run is active)"
-else
-  "$FAKEBIN/agy" >/dev/null 2>&1 &
-  FAKE_PID=$!
-  sleep 1
-  if pgrep -x agy >/dev/null; then
-    check_stdin "organizer-seat.sh blocks an apply_patch while a fake agy run is live" \
-      organizer-seat.sh 2 "$FIXTURES/pretooluse-apply-patch.json" "ORGANIZER_SEAT_STATE_DIR=$ORGSEAT_STATE"
-  else
-    echo "FAIL: could not stage a fake agy run"; fails=$((fails + 1))
+# organizer-seat.sh: fires only while an agy run is alive. A stubbed `pgrep` ahead of the
+# hook's own PATH answers its "-x agy" query directly, so the assertion always runs whether
+# or not a real agy process happens to be alive on this machine — never skipped, never a
+# staged fake process (#140).
+PGREPBIN=$(mktemp -d)
+cat > "$PGREPBIN/pgrep" <<'EOF'
+#!/bin/bash
+if [ "$1" = "-x" ] && [ "$2" = "agy" ]; then
+  if [ "${STUB_PGREP_AGY_LIVE:-1}" = "1" ]; then
+    echo 424242
+    exit 0
   fi
-  [ -n "$FAKE_PID" ] && { kill -9 "$FAKE_PID" 2>/dev/null; wait "$FAKE_PID" 2>/dev/null; }
+  exit 1
 fi
-rm -rf "$ORGSEAT_STATE" "$FAKEBIN"
+exec /usr/bin/pgrep "$@"
+EOF
+chmod +x "$PGREPBIN/pgrep"
+
+# check_stdin splits its env_kv arg on whitespace (#140 also fixes that pattern in run.sh),
+# and this machine's real PATH contains space-bearing entries, so prepend the stub via the
+# shell's own PATH rather than through env_kv.
+REALPATH=$PATH
+export PATH="$PGREPBIN:$REALPATH"
+
+ORGSEAT_STATE=$(mktemp -d)
+check_stdin "organizer-seat.sh blocks an apply_patch while agy is live (stubbed pgrep)" \
+  organizer-seat.sh 2 "$FIXTURES/pretooluse-apply-patch.json" \
+  "ORGANIZER_SEAT_STATE_DIR=$ORGSEAT_STATE STUB_PGREP_AGY_LIVE=1"
+rm -rf "$ORGSEAT_STATE"
+
+ORGSEAT_STATE2=$(mktemp -d)
+check_stdin "organizer-seat.sh passes an apply_patch when agy is not live (stubbed pgrep)" \
+  organizer-seat.sh 0 "$FIXTURES/pretooluse-apply-patch.json" \
+  "ORGANIZER_SEAT_STATE_DIR=$ORGSEAT_STATE2 STUB_PGREP_AGY_LIVE=0"
+rm -rf "$ORGSEAT_STATE2" "$PGREPBIN"
+export PATH="$REALPATH"
 
 # delegate-check.sh: Codex's spawn_agent sends only tool_input.message.
 check_stdin "delegate-check.sh refuses a bounded mechanical spawn_agent" delegate-check.sh 2 \
