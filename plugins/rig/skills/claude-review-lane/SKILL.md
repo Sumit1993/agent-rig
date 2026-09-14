@@ -3,7 +3,7 @@ name: claude-review-lane
 description: "How the claude[bot] review lane behaves on any PR: liveness verdicts, why it stays quiet, summon grammar and model override, verification rounds, who resolves a thread. Load when a claude[bot] thread or liveness comment is in front of you."
 metadata:
   harnesses: "claude agy"
-  version: "3.5.0"
+  version: "3.6.0"
 ---
 
 # The Claude review lane
@@ -25,13 +25,16 @@ gh api repos/prismalens/gh-workflows/contents/README.md --jq .content | base64 -
 Every run that reaches the reviewer upserts one comment by `github-actions[bot]`:
 
 ```
-<!-- claude-review-liveness rounds=N sha=<40-hex> -->
+<!-- claude-review-liveness rounds=N sha=<40-hex> patch=<64-hex> paused=1 paused_by=<login> -->
 **Claude review lane** — [run](...): <verdict>
 ```
 
-Match prefix `<!-- claude-review-liveness`. `rounds=` counts automatic review rounds. `sha=` is the last head with posted output; compare it to the merge head (if different, newer commits were never reviewed as a diff).
+Match prefix `<!-- claude-review-liveness`. Every field after `rounds=` is optional.
+- `rounds=` counts automatic review rounds. `sha=` is the last head with posted output; compare it to the merge head (if different, newer commits were never reviewed as a diff).
+- `patch=` fingerprints the PR's own patch at `sha=`. A rebase or restack push whose patch matches it skips as `unchanged-patch`. A summon never skips on it.
+- An `api-error` round advances neither `sha=` nor `rounds=`, so the head it failed on still reads as unreviewed.
 
-Fourteen `verdict_kind` values exist; only the two `reviewed <sha> ...` forms mean the head was reviewed. Any other text: read `references/verdicts.md` beside this file for what it means and what to do.
+Nineteen `verdict_kind` values exist, read from `claude-code-review.yml` at gh-workflows 1b1c597. Only the two `reviewed <sha> ...` forms mean the head was reviewed. For any other text, read `references/verdicts.md` beside this file.
 
 No liveness comment means the PR was never admitted; a watcher waiting for one waits forever.
 
@@ -55,6 +58,12 @@ Five ways a PR gets no review. Whether each leaves a liveness comment is noted w
 3. Fork head. Never machine-reviewed: GitHub withholds secrets from fork code and the lane avoids `pull_request_target`. A `fork-notice` job upserts a comment marked `<!-- claude-review-fork-notice -->` pointing at `coderabbit_review`. A summon does not override this. Read-only tokens fall back to a workflow warning annotation.
 4. Self-skip on the workflow itself. A PR that edits `.github/workflows/claude-code-review.yml` is never reviewed: `claude-code-action` self-skips on workflow-validation mismatch. A security control, and the one case a summon cannot fix; label the PR `coderabbit_review`. A self-skip leaves the action's conclusion empty, which shares an empty conclusion with tool denials and account limits; run duration and logs separate them.
 5. Auto-paused. After `auto_pause_rounds` automatic rounds (default 5) the lane posts the auto-paused verdict instead of reviewing. A paused PR is not reviewed on push, so a wait keyed on push has no end. A summon resets the counter, but only when the round posts review output.
+
+### Credentials, stacks and context
+
+- The callee takes `CLAUDE_CODE_OAUTH_TOKEN`. When that secret is empty it passes `ANTHROPIC_API_KEY` instead; the action gives the two inputs no precedence of its own. With neither, the verdict is `no-token`.
+- A stacked PR is measured against its own base, which makes a stack the supported way to review a change over `max_reviewable_lines`. Each PR in a stack keeps its own round budget and its own `@claude pause`.
+- `review.context` in a repo's own config lists up to 3 public repositories the reviewer may read as reference. Each entry needs `repository`, `ref` and 1 to 20 relative `paths`. The lane checks `private == false` and skips anything else, clones under `.claude-context/`, and never reviews that code. An org-level `review.context` is ignored.
 
 ### Refusal versus cancellation
 

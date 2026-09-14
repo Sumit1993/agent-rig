@@ -2,7 +2,7 @@
 
 Every `verdict_kind` the lane can post, whether it means the head was reviewed, and what to do. Read this when a liveness comment is in front of you and its text is not one of the two `reviewed <sha> ...` forms.
 
-Fourteen `verdict_kind` values (fifteen rows below); only the first two mean the head was reviewed:
+Nineteen `verdict_kind` values, read from `claude-code-review.yml` at gh-workflows 1b1c597. Only the first two rows mean the head was reviewed:
 
 | Verdict text | Reviewed? | What to do |
 |---|---|---|
@@ -19,5 +19,10 @@ Fourteen `verdict_kind` values (fifteen rows below); only the first two mean the
 | `did not run at <sha>: the diff is below this repo's min_diff_lines floor` | No | No machine review on record. Summon if the diff deserves one anyway |
 | `did not run at <sha>: the head moved during the debounce window, so this round would have reviewed a stale diff` | No | This head has no review. Whether the newer head gets one depends on its own run, which this round cannot see |
 | `not reviewed at <sha>: the pull request is a draft, and nothing reviews a draft — summons included` | No | Mark it ready for review and the lane takes the whole diff in one round |
-| `did not run at <sha>: no CLAUDE_CODE_OAUTH_TOKEN reached this lane` | No | The stub failed to map the secret across the owner boundary. Fix the stub; `secrets: inherit` does not cross owners, so the mapping must be explicit |
+| `did not run at <sha>: neither CLAUDE_CODE_OAUTH_TOKEN nor ANTHROPIC_API_KEY reached this lane` | No | The stub failed to map a secret across the owner boundary. Fix the stub; `secrets: inherit` does not cross owners, so the mapping must be explicit |
 | `no new commits since <sha> was last reviewed; nothing to re-review` | No | Nothing; the prior review stands |
+| `did not run at <sha>: the push changed no line of this PR's own patch, so no round ran.` (`unchanged-patch`) | No, but the patch was | A rebase or restack whose patch matches `patch=` on the marker. The earlier review covers this content; summon only if the base change matters |
+| `refused at <sha>: N reviewable line(s), above the ...` (`refused-size`) | No | The diff is over `max_reviewable_lines`. Split it into a stack, or `@claude full review` to override for one round |
+| `finished on <sha> (job result: ...) and this job could not read back ...` (`counts-unread`) | Unknown | The round may have posted. Read the PR's `claude[bot]` threads before summoning again |
+| `ran a verification round on <sha> and could not read back what it posted` (`verify-unread`) | No, threads only | Read the thread replies directly |
+| `did not review <sha>: ...` (`api-error`) | No | The text names the class. `account-limit`: wait for the reset it names. `rate-limited` or `api-unavailable`: transient, summon again. `auth-failed`: an admin replaces the credential, retrying will not help. `billing`: fix billing, then summon. `model-unavailable`: pick an allowed `review.default_model`. `request-too-large`: split the PR or narrow `path_filters`. Any other error: read the run log. The job concludes `failure`, so read this text before assuming a code problem. A trailing sentence says whether findings were posted before the failure |
