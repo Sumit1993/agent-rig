@@ -43,6 +43,23 @@ check "body-file with clean content under mktemp path passes" 0 "gh issue create
 check "clean inline body passes" 0 'gh issue create --title "Clean" --body "clean body"'
 check "SCRATCH_GATE=skip with dirty body passes" 0 'SCRATCH_GATE=skip gh issue create --title "Skip" --body "see ~/ai-context/x.md"'
 check "git commit -m ai-context passes" 0 'git commit -m "ai-context"'
+
+# Misfires seen 2026-09-13/14 (#136, #123): a scratch path elsewhere in the Bash call, not in the body.
+check "scratch path in a command before gh, clean body file, passes" 0 \
+  "sed 's/a/b/' /tmp/claude-1000/src.md > \"$TMPDIR_TEST/clean-file.txt\"; gh issue comment 5 --body-file \"$TMPDIR_TEST/clean-file.txt\""
+check "scratch path in a command after gh passes" 0 \
+  "gh issue comment 5 --body-file \"$TMPDIR_TEST/clean-file.txt\" && echo done >> ~/ai-context/plan.md"
+check "body file named through a variable is read, clean passes" 0 \
+  "B=\"$TMPDIR_TEST/clean-file.txt\"; gh pr edit 5 --body-file \$B"
+check "body file named through a variable is read, dirty blocks" 2 \
+  "B=\"$TMPDIR_TEST/dirty-file.txt\"; gh pr edit 5 --body-file \"\$B\""
+check "inline body is still read to the end of the call" 2 \
+  'gh pr comment 5 --body "line one; see /tmp/claude-1000/x.md"'
+# CodeRabbit on #137: quoted gh text earlier in the call, and a reassignment after gh.
+check "a quoted gh command in an earlier argument is not the gh call" 0 \
+  "printf '%s' 'gh issue create --body \"see ~/ai-context/x.md\"'; gh issue comment 5 --body \"clean body\""
+check "a reassignment after gh does not change the file read" 2 \
+  "B=\"$TMPDIR_TEST/dirty-file.txt\"; gh issue comment 5 --body-file \"\$B\"; B=\"$TMPDIR_TEST/clean-file.txt\""
 check "gh issue view passes" 0 'gh issue view 5'
 
 [ "$fails" -eq 0 ] && echo && echo "all gh-body-no-scratch hook tests passed"

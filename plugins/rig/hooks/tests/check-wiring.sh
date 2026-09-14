@@ -57,7 +57,8 @@ while IFS=$'\t' read -r event id matcher cmd; do
     label=""; [ "$matcher" != "-" ] && label=", matcher $matcher"
   echo "PASS: $id wired ($(basename "$path")$label)"
 done < <(jq -r '.hooks | to_entries[] | .key as $e | .value[] |
-                [$e, .id, (.matcher // "-"), .hooks[0].command] | @tsv' "$JSON")
+                [$e, ($e + ":" + (.hooks[0].command | sub(".*/"; "") | sub("\\.sh.*"; ""))),
+                 (.matcher // "-"), .hooks[0].command] | @tsv' "$JSON")
 
 # Every hook script in the directory should be reachable from hooks.json, or it is dead.
 for f in "$ROOT"/plugins/rig/hooks/*.sh; do

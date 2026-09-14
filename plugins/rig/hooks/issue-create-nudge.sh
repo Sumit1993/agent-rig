@@ -16,7 +16,10 @@ flag="$state_dir/$session"
 if grep -qE 'gh[[:space:]]+search[[:space:]]+issues|gh[[:space:]]+issue[[:space:]]+list.*(--search|-S)' <<<"$cmd"; then
   touch "$flag.searched" 2>/dev/null
 fi
-grep -qE 'gh[[:space:]]+issue[[:space:]]+create\b' <<<"$cmd" || exit 0
+_lib="$(cd "$(dirname "$0")" && pwd)/lib/gh-command.sh"
+[ -f "$_lib" ] || exit 0
+. "$_lib"
+printf '%s' "$cmd" | gh_scan prefix 'gh\s+issue\s+create\b' >/dev/null || exit 0
 
 count=0
 if [ -f "$flag" ]; then
