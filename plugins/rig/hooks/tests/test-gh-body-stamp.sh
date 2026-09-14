@@ -62,6 +62,42 @@ check "heredoc via --body-file - without marker blocks" 2 "$heredoc_cmd_no"
 
 check "short body passes" 0 'gh issue comment 5 --body "too short"'
 
+# Misfires seen 2026-09-13/14 (#136, #123).
+subst_cmd=$(cat <<'CMDEOF'
+gh pr create --title X --body "$(cat <<'EOF'
+The loader prints `unknown keys "description"` and ignores them, a long body.
+
+Posted by an agent under the operator's account.
+EOF
+)"
+CMDEOF
+)
+check "command-substituted heredoc with inner quotes and marker passes" 0 "$subst_cmd"
+
+commit_then_pr=$(cat <<'CMDEOF'
+git commit -q -F - <<'EOF'
+fix: a commit message long enough to be read as a body by mistake
+EOF
+gh pr create --title X --body-file - <<'BODY'
+a pull request body long enough to matter, through a heredoc.
+Posted by an agent under the operator's account.
+BODY
+CMDEOF
+)
+check "git commit -F - before gh is not read as the gh body" 0 "$commit_then_pr"
+
+check "marker with a shell-split apostrophe passes" 0 \
+  "gh issue comment 5 --body 'a long enough body sent in single quotes. Posted by an agent under the operator'\\''s account.'"
+
+unstamped_subst=$(cat <<'CMDEOF'
+gh pr create --title X --body "$(cat <<'EOF'
+A body with "quotes" in it and no marker, long enough to be judged.
+EOF
+)"
+CMDEOF
+)
+check "command-substituted heredoc without marker still blocks" 2 "$unstamped_subst"
+
 check "at-mention body passes" 0 'gh pr comment 5 --body "@coderabbitai review"'
 
 check "pr create with the Claude Code footer passes" 0 \

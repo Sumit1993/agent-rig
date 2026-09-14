@@ -84,5 +84,22 @@ grep -q 'Load triage' <<<"$ctx" && echo "PASS: create without a search nudges to
 out=$(run_hook "sess3" "gh issue create --title again")
 [ -z "$out" ] && echo "PASS: the search nudge fires once per session" || { echo "FAIL: search nudge repeated (out=$out)"; fails=$((fails + 1)); }
 
+# Only a create in command position counts, not the words inside a body (#123).
+run_hook "sess4" 'gh search issues "x" --owner Sumit1993' >/dev/null
+mention=$(cat <<'CMDEOF'
+gh issue comment 5 --body-file - <<'BODY'
+gh issue create
+gh issue create
+BODY
+CMDEOF
+)
+run_hook "sess4" "$mention" >/dev/null
+run_hook "sess4" 'gh pr comment 5 --body "run gh issue create after the search"' >/dev/null
+[ ! -f "$ISSUE_NUDGE_STATE_DIR/sess4" ] && echo "PASS: gh issue create inside a body is not counted" \
+  || { echo "FAIL: body text counted as a create ($(cat "$ISSUE_NUDGE_STATE_DIR/sess4"))"; fails=$((fails + 1)); }
+run_hook "sess4" 'cd repo && GH_REPO=a/b gh issue create --title real' >/dev/null
+[ "$(cat "$ISSUE_NUDGE_STATE_DIR/sess4" 2>/dev/null)" = "1" ] && echo "PASS: a create after && with an env prefix counts" \
+  || { echo "FAIL: chained create not counted"; fails=$((fails + 1)); }
+
 [ "$fails" -eq 0 ] && echo && echo "all issue-create-nudge hook tests passed"
 exit "$fails"

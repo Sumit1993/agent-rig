@@ -16,7 +16,12 @@ flag="$state_dir/$session"
 if grep -qE 'gh[[:space:]]+search[[:space:]]+issues|gh[[:space:]]+issue[[:space:]]+list.*(--search|-S)' <<<"$cmd"; then
   touch "$flag.searched" 2>/dev/null
 fi
-grep -qE 'gh[[:space:]]+issue[[:space:]]+create\b' <<<"$cmd" || exit 0
+_lib="$(cd "$(dirname "$0")" && pwd)/lib/gh-command.sh"
+[ -f "$_lib" ] || exit 0
+. "$_lib"
+# Command position only: line start or after a separator, past any VAR=value prefixes.
+create_ere='(^|[;&|(`])[[:space:]]*([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*gh[[:space:]]+issue[[:space:]]+create\b'
+gh_strip_heredocs "$cmd" | grep -qE "$create_ere" || exit 0
 
 count=0
 if [ -f "$flag" ]; then

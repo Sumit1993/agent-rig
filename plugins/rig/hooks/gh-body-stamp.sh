@@ -19,19 +19,23 @@ fi
 
 grep -q 'STAMP_GATE=skip' <<<"$cmd" && exit 0
 
-cwd=$(jq -r '.cwd // ""' <<<"$in" 2>/dev/null) || cwd=""
+_lib="$(cd "$(dirname "$0")" && pwd)/lib/gh-command.sh"
+[ -f "$_lib" ] || exit 0
+. "$_lib"
 
-resolve_path() {
-  local f="$1"
-  case "$f" in
-    \~/*|\~) f="$HOME${f#\~}" ;;
-  esac
-  case "$f" in
-    /*) ;;
-    *) [ -n "$cwd" ] && f="$cwd/$f" ;;
-  esac
-  printf '%s' "$f"
-}
+cwd=$(jq -r '.cwd // ""' <<<"$in" 2>/dev/null) || cwd=""
+marker="Posted by an agent under the operator's account."
+footer='Generated with [Claude Code]'
+
+# A marker anywhere in the call counts: a body file written earlier in the same call
+# does not exist yet when this runs, so only the command text can show it.
+norm=$(gh_normalize_quotes "$cmd")
+grep -qF "$marker" <<<"$norm" && exit 0
+footer_ok() { [ "$sub" = "pr" ] && { [ "$verb" = "create" ] || [ "$verb" = "edit" ]; }; }
+footer_ok && grep -qF "$footer" <<<"$norm" && exit 0
+
+cmd=$(gh_from_invocation "$cmd" "gh[[:space:]]+$sub[[:space:]]+$verb") || exit 0
+resolve_path() { gh_resolve_path "$cwd" "$(gh_expand_var "$norm" "$1")"; }
 
 # The body from a heredoc passed as `--body-file -`: find its opening `<<[-]TAG`
 # and return the lines up to the line that is just TAG.
@@ -53,6 +57,8 @@ body_pat="(--body)[[:space:]=]+(\"([^\"]*)\"|'([^']*)'|([^[:space:]]+))"
 short_pat="(^|[[:space:]])-b[[:space:]=]+(\"([^\"]*)\"|'([^']*)'|([^[:space:]]+))"
 if [[ "$cmd" =~ $body_pat ]]; then
   body="${BASH_REMATCH[3]}${BASH_REMATCH[4]}${BASH_REMATCH[5]}"
+  # --body "$(cat <<EOF ...)": the regex stops at the first inner quote; read the heredoc.
+  case "$body" in '$('*) body=$(heredoc_body "$cmd") || body="" ;; esac
   found_source=1
 elif [[ "$cmd" =~ $short_pat ]]; then
   body="${BASH_REMATCH[3]}${BASH_REMATCH[4]}${BASH_REMATCH[5]}"
@@ -84,10 +90,8 @@ fi
 first=$(sed -E 's/^[[:space:]]+//' <<<"$body" | head -c1)
 [ "$first" = "@" ] && exit 0
 
-grep -qF "Posted by an agent under the operator's account." <<<"$body" && exit 0
-if [ "$sub" = "pr" ] && { [ "$verb" = "create" ] || [ "$verb" = "edit" ]; }; then
-  grep -qF 'Generated with [Claude Code]' <<<"$body" && exit 0
-fi
+grep -qF "$marker" <<<"$body" && exit 0
+footer_ok && grep -qF "$footer" <<<"$body" && exit 0
 
 cat >&2 <<'MSG'
 Blocked by rig/guard/gh-body-stamp: agent-posted text carries no marker. Append this line to the body: Posted by an agent under the operator's account. Bypass with STAMP_GATE=skip.
