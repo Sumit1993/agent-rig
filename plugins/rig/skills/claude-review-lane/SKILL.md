@@ -63,7 +63,7 @@ Five ways a PR gets no review. Whether each leaves a liveness comment is noted w
 
 - The callee takes `CLAUDE_CODE_OAUTH_TOKEN`. When that secret is empty it passes `ANTHROPIC_API_KEY` instead; the action gives the two inputs no precedence of its own. With neither, the verdict is `no-token`.
 - A stacked PR is measured against its own base, which makes a stack the supported way to review a change over `max_reviewable_lines`. Each PR in a stack keeps its own round budget and its own `@claude pause`.
-- `review.context` in a repo's own config lists up to 3 public repositories the reviewer may read as reference. Each entry needs `repository`, `ref` and 1 to 20 relative `paths`. The lane checks `private == false` and skips anything else, clones under `.claude-context/`, and never reviews that code. An org-level `review.context` is ignored.
+- `review.context` in a repo's own config lists up to 3 public repositories the reviewer may read as reference. Each entry needs `repository`, `ref` and 1 to 20 relative `paths`. The lane reads it from the config on the base branch, never the head, so a PR cannot add its own context. It checks `private == false` and skips anything else, clones under `.claude-context/`, and never reviews that code. An org-level `review.context` is ignored.
 
 ### Refusal versus cancellation
 

@@ -98,6 +98,14 @@ CMDEOF
 )
 check "command-substituted heredoc without marker still blocks" 2 "$unstamped_subst"
 
+# CodeRabbit on #137: the marker must be in the body, not elsewhere in the call.
+check "marker in an unrelated echo does not stamp an unstamped body" 2 \
+  "echo \"Posted by an agent under the operator's account.\"; gh issue create --title X --body \"this is a long enough body without the marker in it at all\""
+check "footer in an unrelated echo does not stamp a pr create" 2 \
+  "echo 'Generated with [Claude Code]'; gh pr create --title X --body \"this is a long enough body without the marker in it at all\""
+check "a body file not written yet cannot be seen, so it passes" 0 \
+  "gh issue comment 5 --body-file \"$CWD/not-yet.md\""
+
 check "at-mention body passes" 0 'gh pr comment 5 --body "@coderabbitai review"'
 
 check "pr create with the Claude Code footer passes" 0 \

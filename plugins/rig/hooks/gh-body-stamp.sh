@@ -7,82 +7,49 @@ in=$(cat)
 cmd=$(jq -r '.tool_input.command // ""' <<<"$in" 2>/dev/null) || exit 0
 [ -n "$cmd" ] || exit 0
 
-issue_pat='gh[[:space:]]+issue[[:space:]]+(comment|create|edit)\b'
-pr_pat='gh[[:space:]]+pr[[:space:]]+(comment|create|edit|review)\b'
-if [[ "$cmd" =~ $issue_pat ]]; then
-  verb="${BASH_REMATCH[1]}"; sub="issue"
-elif [[ "$cmd" =~ $pr_pat ]]; then
-  verb="${BASH_REMATCH[1]}"; sub="pr"
-else
-  exit 0
-fi
-
+grep -qE 'gh[[:space:]]+(issue|pr)[[:space:]]' <<<"$cmd" || exit 0
 grep -q 'STAMP_GATE=skip' <<<"$cmd" && exit 0
 
 _lib="$(cd "$(dirname "$0")" && pwd)/lib/gh-command.sh"
 [ -f "$_lib" ] || exit 0
 . "$_lib"
 
+gh_re='gh\s+(?:issue\s+(?:comment|create|edit)|pr\s+(?:comment|create|edit|review))\b'
+words=()
+while IFS= read -r -d '' w; do words+=("$w"); done < <(printf '%s' "$cmd" | gh_scan words "$gh_re")
+[ "${#words[@]}" -ge 3 ] || exit 0
+sub=${words[1]} verb=${words[2]}
+
 cwd=$(jq -r '.cwd // ""' <<<"$in" 2>/dev/null) || cwd=""
 marker="Posted by an agent under the operator's account."
 footer='Generated with [Claude Code]'
 
-# A marker anywhere in the call counts: a body file written earlier in the same call
-# does not exist yet when this runs, so only the command text can show it.
-norm=$(gh_normalize_quotes "$cmd")
-grep -qF "$marker" <<<"$norm" && exit 0
-footer_ok() { [ "$sub" = "pr" ] && { [ "$verb" = "create" ] || [ "$verb" = "edit" ]; }; }
-footer_ok && grep -qF "$footer" <<<"$norm" && exit 0
-
-cmd=$(gh_from_invocation "$cmd" "gh[[:space:]]+$sub[[:space:]]+$verb") || exit 0
-resolve_path() { gh_resolve_path "$cwd" "$(gh_expand_var "$norm" "$1")"; }
-
-# The body from a heredoc passed as `--body-file -`: find its opening `<<[-]TAG`
-# and return the lines up to the line that is just TAG.
-heredoc_body() {
-  local text="$1" open tag
-  open=$(grep -oE "<<-?[\"']?[A-Za-z_][A-Za-z0-9_]*[\"']?" <<<"$text" | head -1)
-  [ -n "$open" ] || return 1
-  tag=$(sed -E "s/^<<-?[\"']?//; s/[\"']?\$//" <<<"$open")
-  awk -v tag="$tag" '
-    found && $0 ~ ("^[[:space:]]*" tag "[[:space:]]*$") { exit }
-    found { print; next }
-    !found && $0 ~ ("<<-?[\"'"'"']?" tag) { found=1 }
-  ' <<<"$text"
-}
-
 body=""; found_source=0
+for ((i = 3; i < ${#words[@]}; i++)); do
+  w=${words[i]} val=""
+  case "$w" in
+    --body|-b|--body-file|-F) val=${words[i + 1]:-}; i=$((i + 1)) ;;
+    --body=*|--body-file=*) val=${w#*=}; w=${w%%=*} ;;
+    *) continue ;;
+  esac
+  case "$w" in
+    --body|-b)
+      body=$val; found_source=1
+      # --body "$(cat <<EOF ...)": the word is the substitution; its heredoc is the body.
+      case "$body" in '$('*) body=$(gh_heredoc_body "$body") || body="" ;; esac ;;
+    *)
+      if [ "$val" = "-" ]; then
+        body=$(gh_heredoc_body "$(printf '%s' "$cmd" | gh_scan tail "$gh_re")") && [ -n "$body" ] && found_source=1
+      else
+        f=$(gh_resolve_path "$cwd" "$(gh_expand_var "$(printf '%s' "$cmd" | gh_scan prefix "$gh_re")" "$val")")
+        # A file written earlier in this same call does not exist yet; that is text we cannot see.
+        [ -f "$f" ] && [ -r "$f" ] && body=$(cat "$f" 2>/dev/null) && found_source=1
+      fi ;;
+  esac
+done
 
-body_pat="(--body)[[:space:]=]+(\"([^\"]*)\"|'([^']*)'|([^[:space:]]+))"
-short_pat="(^|[[:space:]])-b[[:space:]=]+(\"([^\"]*)\"|'([^']*)'|([^[:space:]]+))"
-if [[ "$cmd" =~ $body_pat ]]; then
-  body="${BASH_REMATCH[3]}${BASH_REMATCH[4]}${BASH_REMATCH[5]}"
-  # --body "$(cat <<EOF ...)": the regex stops at the first inner quote; read the heredoc.
-  case "$body" in '$('*) body=$(heredoc_body "$cmd") || body="" ;; esac
-  found_source=1
-elif [[ "$cmd" =~ $short_pat ]]; then
-  body="${BASH_REMATCH[3]}${BASH_REMATCH[4]}${BASH_REMATCH[5]}"
-  found_source=1
-else
-  file_pat="(--body-file|-F)[[:space:]=]+(\"([^\"]*)\"|'([^']*)'|([^[:space:]]+))"
-  if [[ "$cmd" =~ $file_pat ]]; then
-    bf="${BASH_REMATCH[3]}${BASH_REMATCH[4]}${BASH_REMATCH[5]}"
-    if [ "$bf" = "-" ]; then
-      if body=$(heredoc_body "$cmd") && [ -n "$body" ]; then
-        found_source=1
-      fi
-    else
-      resolved=$(resolve_path "$bf")
-      if [ -f "$resolved" ] && [ -r "$resolved" ]; then
-        body=$(cat "$resolved" 2>/dev/null)
-        found_source=1
-      fi
-    fi
-  fi
-fi
-
-# No --body/-b and no --body-file/-F: an --editor session or the web flow. Cannot see
-# the text, so let it through rather than block blind.
+# No readable body: an --editor session, the web flow, or a file not written yet. Cannot
+# see the text, so let it through rather than block blind.
 [ "$found_source" = "1" ] || exit 0
 
 [ "${#body}" -ge 40 ] || exit 0
@@ -91,7 +58,9 @@ first=$(sed -E 's/^[[:space:]]+//' <<<"$body" | head -c1)
 [ "$first" = "@" ] && exit 0
 
 grep -qF "$marker" <<<"$body" && exit 0
-footer_ok && grep -qF "$footer" <<<"$body" && exit 0
+if [ "$sub" = "pr" ] && { [ "$verb" = "create" ] || [ "$verb" = "edit" ]; }; then
+  grep -qF "$footer" <<<"$body" && exit 0
+fi
 
 cat >&2 <<'MSG'
 Blocked by rig/guard/gh-body-stamp: agent-posted text carries no marker. Append this line to the body: Posted by an agent under the operator's account. Bypass with STAMP_GATE=skip.

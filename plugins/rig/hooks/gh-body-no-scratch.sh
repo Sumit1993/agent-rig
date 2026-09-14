@@ -1,47 +1,41 @@
 #!/bin/bash
 # PreToolUse(Bash) hook: block gh issue/pr create/comment/edit/review citing scratch paths.
-# Strips --body-file/-F token pairs so paths themselves never trigger false matches.
+# Reads the gh call's own words and body files, never a --body-file path itself.
 # Refs #123
 set -u
 in=$(cat)
 cmd=$(jq -r '.tool_input.command // ""' <<<"$in" 2>/dev/null) || exit 0
 [ -n "$cmd" ] || exit 0
 
-gh_ere='gh[[:space:]]+(issue|pr)[[:space:]]+(create|comment|edit|review)\b'
-grep -qE "$gh_ere" <<<"$cmd" || exit 0
+grep -qE 'gh[[:space:]]+(issue|pr)[[:space:]]+(create|comment|edit|review)\b' <<<"$cmd" || exit 0
 grep -q 'SCRATCH_GATE=skip' <<<"$cmd" && exit 0
 
 _lib="$(cd "$(dirname "$0")" && pwd)/lib/gh-command.sh"
 [ -f "$_lib" ] || exit 0
 . "$_lib"
 
+gh_re='gh\s+(?:issue|pr)\s+(?:create|comment|edit|review)\b'
+words=()
+while IFS= read -r -d '' w; do words+=("$w"); done < <(printf '%s' "$cmd" | gh_scan words "$gh_re")
+[ "${#words[@]}" -ge 3 ] || exit 0
+
 cwd=$(jq -r '.cwd // ""' <<<"$in" 2>/dev/null) || cwd=""
 
-# Judge only the gh call: drop commands before it, and after it too when the body
-# comes from a file, since then nothing past the first separator is body text.
-full="$cmd"
-cmd=$(gh_from_invocation "$cmd" "$gh_ere") || exit 0
-if ! grep -qE '(--body|-b)[[:space:]=]|<<' <<<"$cmd"; then
-  cmd=$(head -n1 <<<"$cmd" | sed -E 's/(&&|\|\||;|\|).*//')
-fi
-
-files=()
-stripped="$cmd"
-pat="(--body-file|-F)[[:space:]=]+(\"([^\"]*)\"|\x27([^\x27]*)\x27|([^[:space:]]+))"
-while [[ "$stripped" =~ $pat ]]; do
-  match="${BASH_REMATCH[0]}"
-  arg="${BASH_REMATCH[3]}${BASH_REMATCH[4]}${BASH_REMATCH[5]}"
-  files+=("$arg")
-  stripped="${stripped/"$match"/}"
-done
-
-body_text="$stripped"
-for f in "${files[@]}"; do
-  [ "$f" = "-" ] && continue
-  f=$(gh_resolve_path "$cwd" "$(gh_expand_var "$full" "$f")")
+body_text=""
+for ((i = 3; i < ${#words[@]}; i++)); do
+  w=${words[i]} f=""
+  case "$w" in
+    --body-file|-F) f=${words[i + 1]:-}; i=$((i + 1)) ;;
+    --body-file=*) f=${w#*=} ;;
+    *) body_text+="$w"$'\n'; continue ;;
+  esac
+  if [ "$f" = "-" ]; then
+    body_text+=$(gh_heredoc_body "$(printf '%s' "$cmd" | gh_scan tail "$gh_re")")$'\n'
+    continue
+  fi
+  f=$(gh_resolve_path "$cwd" "$(gh_expand_var "$(printf '%s' "$cmd" | gh_scan prefix "$gh_re")" "$f")")
   if [ -f "$f" ] && [ -r "$f" ]; then
-    content=$(cat "$f" 2>/dev/null || true)
-    body_text="$body_text"$'\n'"$content"
+    body_text+=$(cat "$f" 2>/dev/null || true)$'\n'
   fi
 done
 

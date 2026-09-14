@@ -19,9 +19,7 @@ fi
 _lib="$(cd "$(dirname "$0")" && pwd)/lib/gh-command.sh"
 [ -f "$_lib" ] || exit 0
 . "$_lib"
-# Command position only: line start or after a separator, past any VAR=value prefixes.
-create_ere='(^|[;&|(`])[[:space:]]*([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*gh[[:space:]]+issue[[:space:]]+create\b'
-gh_strip_heredocs "$cmd" | grep -qE "$create_ere" || exit 0
+printf '%s' "$cmd" | gh_scan prefix 'gh\s+issue\s+create\b' >/dev/null || exit 0
 
 count=0
 if [ -f "$flag" ]; then

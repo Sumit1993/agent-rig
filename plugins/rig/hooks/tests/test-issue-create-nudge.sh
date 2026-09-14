@@ -95,6 +95,7 @@ CMDEOF
 )
 run_hook "sess4" "$mention" >/dev/null
 run_hook "sess4" 'gh pr comment 5 --body "run gh issue create after the search"' >/dev/null
+run_hook "sess4" "gh pr comment 5 --body 'planned steps; gh issue create'" >/dev/null
 [ ! -f "$ISSUE_NUDGE_STATE_DIR/sess4" ] && echo "PASS: gh issue create inside a body is not counted" \
   || { echo "FAIL: body text counted as a create ($(cat "$ISSUE_NUDGE_STATE_DIR/sess4"))"; fails=$((fails + 1)); }
 run_hook "sess4" 'cd repo && GH_REPO=a/b gh issue create --title real' >/dev/null
