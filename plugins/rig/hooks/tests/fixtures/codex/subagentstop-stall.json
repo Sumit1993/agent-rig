@@ -1,0 +1,14 @@
+{
+  "session_id": "codex-sess-synthetic-2",
+  "turn_id": "codex-turn-synthetic-4",
+  "transcript_path": "/home/sumit/.codex/sessions/synthetic/rollout-synthetic-2.jsonl",
+  "agent_transcript_path": "/home/sumit/.codex/sessions/synthetic/rollout-synthetic-agent-2.jsonl",
+  "cwd": "/home/sumit/ai-context/codex-capture-synthetic/work",
+  "hook_event_name": "SubagentStop",
+  "model": "gpt-5.5",
+  "permission_mode": "bypassPermissions",
+  "stop_hook_active": false,
+  "agent_id": "codex-agent-synthetic-2",
+  "agent_type": "default",
+  "last_assistant_message": "Standing by for the watcher"
+}
