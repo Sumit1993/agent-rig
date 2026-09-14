@@ -1,10 +1,6 @@
 #!/bin/bash
-# Builds the Codex plugin from the Claude plugin: a .codex-plugin/plugin.json compatibility
-# manifest (Codex auto-discovers hooks/hooks.json and skills/ from there), only the skills
-# tagged `harnesses` containing `codex`, and only the five Bash PreToolUse gate hooks proven
-# under Codex's input shape, with hooks/lib so they still find gh-command.sh and
-# report-guard.sh. hooks.json is filtered from plugins/rig/hooks/hooks.json with jq so the
-# command strings never drift from the Claude file. Story: agent-rig#141.
+# Codex plugin from plugins/rig: codex-tagged skills and the five Bash gate hooks only.
+# hooks.json is filtered from the Claude file so commands never drift (#141).
 set -euo pipefail
 SRC="$(cd "$(dirname "$0")/../plugins/rig" && pwd)"
 OUT="${1:?usage: build-codex-plugin.sh <out-dir>}"
@@ -35,11 +31,7 @@ jq --arg re "$hook_re" \
   '{hooks: {PreToolUse: [.hooks.PreToolUse[] | select(.matcher == "Bash") | select(.hooks[0].command | test($re))]}}' \
   "$SRC/hooks/hooks.json" > "$OUT/hooks/hooks.json"
 
-# The plugin root doubles as the marketplace root, so the marketplace file sits beside the
-# plugin's own .codex-plugin/, hooks/ and skills/ and points its one entry back at ".".
-# `codex plugin marketplace add <out-dir>` only recognizes a manifest at .claude-plugin/marketplace.json
-# (verified against the installed CLI, 0.154.0) or the portable/OpenAI locations under .agents/plugins/;
-# a bare marketplace.json at the root is not a supported manifest.
+# codex plugin marketplace add reads .claude-plugin/marketplace.json, not a root file (CLI 0.154.0, #141).
 jq -n \
   '{name: "rig-local", interface: {displayName: "rig (local)"}, plugins: [
     {name: "rig", source: {source: "local", path: "./"}, policy: {installation: "AVAILABLE", authentication: "ON_INSTALL"}, category: "Productivity"}
