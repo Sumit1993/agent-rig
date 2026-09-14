@@ -91,8 +91,7 @@ fi
 echo "→ settings.json (deep-merge: fragment overlays existing; permissions.allow unions)"
 if [ -f "$CLAUDE/settings.json" ]; then
   cp "$CLAUDE/settings.json" "$CLAUDE/settings.json.bak-$(date +%s)"
-  # The repo was claude-kit with plugin kit until #134; drop those keys or both marketplaces load.
-  jq -s '(.[0] | del(.enabledPlugins["kit@claude-kit"], .extraKnownMarketplaces["claude-kit"])) as $cur | .[1] as $frag | ($cur * $frag)
+  jq -s '.[0] as $cur | .[1] as $frag | ($cur * $frag)
          | .permissions.allow = (($cur.permissions.allow // []) + ($frag.permissions.allow // []) | unique)' \
     "$CLAUDE/settings.json" "$HERE/settings.fragment.json" > /tmp/settings.merged.json
   jq -e . /tmp/settings.merged.json >/dev/null
