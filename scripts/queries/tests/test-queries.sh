@@ -87,5 +87,15 @@ else
   check "agy-dispatch-cost counts 1 run for fixture model" 1
 fi
 
+# 9. hook-blocks counts exactly 1 real refusal for rig/guard/test-fixture, and does not
+# also count the Read whose file content merely mentions that guard id (agent-rig#91).
+hb_out=$(bash "$RUN_SH" hook-blocks 2>&1)
+guard_hits=$(echo "$hb_out" | grep -c 'rig/guard/test-fixture' || true)
+if [ "$guard_hits" -eq 1 ] && echo "$hb_out" | grep -E 'rig/guard/test-fixture *│ +Bash +│ +1 +│' >/dev/null 2>&1; then
+  check "hook-blocks counts exactly 1 refusal for rig/guard/test-fixture" 0
+else
+  check "hook-blocks counts exactly 1 refusal for rig/guard/test-fixture" 1
+fi
+
 [ "$fails" -eq 0 ] && echo "all query tests passed"
 exit "$fails"
