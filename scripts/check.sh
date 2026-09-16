@@ -114,12 +114,13 @@ fi
 if ! command -v gh >/dev/null 2>&1; then
   echo "SKIP: milestone check (gh unavailable)"
 else
-  rel_json=$(gh pr list --state open --search "chore(master): release" --json title 2>/dev/null)
+  # gh --search drops the parenthesised title; filter client-side instead.
+  rel_json=$(gh pr list --state open --json title 2>/dev/null)
   rel_rc=$?
   if [ $rel_rc -ne 0 ]; then
     echo "SKIP: milestone check (gh unavailable)"
   else
-    rel_title=$(jq -r '.[0].title // empty' <<<"$rel_json" 2>/dev/null)
+    rel_title=$(jq -r '[.[] | select(.title | startswith("chore(master): release"))][0].title // empty' <<<"$rel_json" 2>/dev/null)
     if [ -z "$rel_title" ]; then
       echo "INFO: milestone check (no open release PR)"
     else
