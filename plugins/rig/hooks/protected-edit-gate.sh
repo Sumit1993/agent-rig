@@ -1,0 +1,41 @@
+#!/bin/bash
+# PreToolUse(Edit|Write|NotebookEdit) hook: block edits to the loose skill copies under
+# ~/.claude/skills and ~/.agents/skills (dedupe.sh overwrites them; the source is plugins/rig),
+# and to the import line of ~/.claude/CLAUDE.md (machine-local rules go below it).
+# Refs #123. Rung: hook. Skipped: impossible (no deny rule can see a path prefix), check (the damage is done by then).
+set -u
+in=$(cat)
+path=$(jq -r '.tool_input.file_path // .tool_input.notebook_path // ""' <<<"$in" 2>/dev/null) || exit 0
+[ -n "$path" ] || exit 0
+home="${PROTECTED_EDIT_HOME:-$HOME}"
+
+case "$path" in
+  "$home"/.claude/skills/*|"$home"/.agents/skills/*)
+    cat >&2 <<MSG
+Blocked by rig/guard/protected-edit-gate: $path is a loose copy that dedupe.sh removes after the
+next plugin load. Edit plugins/rig/skills in the agent-rig checkout, commit, push (README §Editing).
+MSG
+    exit 2 ;;
+  "$home"/.claude/CLAUDE.md) ;;
+  *) exit 0 ;;
+esac
+
+# ~/.claude/CLAUDE.md: the first @ line is the import; a Write must keep it, an Edit must not touch it.
+import=$(grep -m1 '^@' "$path" 2>/dev/null || true)
+[ -n "$import" ] || exit 0
+tool=$(jq -r '.tool_name // ""' <<<"$in" 2>/dev/null) || tool=""
+touched="no"
+if [ "$tool" = "Write" ]; then
+  content=$(jq -r '.tool_input.content // ""' <<<"$in" 2>/dev/null) || content=""
+  grep -qF -- "$import" <<<"$content" || touched="yes"
+else
+  old=$(jq -r '.tool_input.old_string // ""' <<<"$in" 2>/dev/null) || old=""
+  grep -qF -- "$import" <<<"$old" && touched="yes"
+fi
+[ "$touched" = "yes" ] || exit 0
+cat >&2 <<MSG
+Blocked by rig/guard/protected-edit-gate: ~/.claude/CLAUDE.md is a one-line import ($import) plus
+machine-local rules below it. Everything above that line is edited in dotfiles/AGENTS.md in the
+agent-rig checkout. Add machine-local rules below the import instead.
+MSG
+exit 2

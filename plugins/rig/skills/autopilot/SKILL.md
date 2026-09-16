@@ -25,7 +25,7 @@ Three facts shape the plan. Jobs live in this session's memory only; end the ses
 
 ### Write the plan file
 
-`~/ai-context/<repo>-<task>-plan.md` is the source of truth. It holds standing rules, the lane table, decisions waiting on the operator, verified environment facts, and a running log. Detail goes here, not the terminal (§11). If it does not exist, building it is the rest of the first tick: read the queue without touching anything, group into waves by blockers, probe stacks and worktrees, and record standing rules and frozen paths.
+`~/ai-context/<repo>/<issue>-<slug>/plan.md` is the source of truth. It holds standing rules, the lane table, decisions waiting on the operator, verified environment facts, and a running log. Detail goes here, not the terminal (§11). If it does not exist, building it is the rest of the first tick: read the queue without touching anything, group into waves by blockers, probe stacks and worktrees, and record standing rules and frozen paths.
 
 Respect the window. Never start a lane that cannot finish and be verified in the time left. Near the end, take work only to a state that is safe to leave: pushed, commented or parked. Never mid-merge or mid-rebase.
 
@@ -138,6 +138,8 @@ Findings, decisions, evidence, SHAs, blockers. Do not restate the plan, narrate 
 While the operator is away, the terminal has no reader, and the plan file is the record and the report. A tick that dispatched, verified and logged reports one line, or nothing at all. Spend the words on the plan file and issue comments rather than scrollback. Full reporting resumes for the handback. Plain sentences, identifiers and commands exact; compress the words, never the meaning.
 
 Lead with what landed, and the SHAs of anything merged or pushed, before anything pending. Saying nothing about a finished step reads as "it did not happen" and costs a verification round. A lane that refused an unsourced order goes in the report as correct, not as a failed dispatch.
+
+The handback has a fixed shape: a table with one row per PR (number, state, head SHA), then one line per decision owed, then the delta from the PR bodies. Nothing a PR body already says, no lane specs, no state tables; those stay in the plan file under `~/ai-context/<repo>/<issue>-<slug>/`.
 
 ## Wake-up checklist (each tick)
 

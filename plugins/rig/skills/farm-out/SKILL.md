@@ -114,7 +114,7 @@ The resumed turn keeps the same `conversation_id` and the full context. A fresh 
 
 The spec comes from a `fable-planner`, not from the seat that dispatches it. Hand it the issue, the constraints and the worktree path, and it returns the prompt file's content. The spec is the artifact the lane is judged against, and a weak one is not recoverable downstream: the lane is entitled to follow it off a cliff. Judging what comes back is still yours, the same as judging any returned claim.
 
-Write that spec to `~/ai-context/agy-prompts/<task>.md`, or into the repo, never `/tmp`. Spawn `subagent_type: "agy-runner"` with the path. That is the whole dispatch.
+Write that spec to `~/ai-context/<repo>/<issue>-<slug>/spec-<lane>.md`, or into the repo, never `/tmp`. Spawn `subagent_type: "agy-runner"` with the path. That is the whole dispatch.
 
 - One lane per umbrella issue reused across its slices.
 - Verification once at the umbrella: lane runs the umbrella's verify commands and pastes raw output; handler checks provenance; seat reads the diff against the spec.

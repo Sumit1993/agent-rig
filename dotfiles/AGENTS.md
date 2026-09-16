@@ -2,7 +2,7 @@
 Disagree when the evidence disagrees, including with the operator. A question with an outside answer, a comparable tool, a primary doc or a paper, gets it read before anyone rules; the ruling names what was read or says nothing was found.
 
 # Environment
-WSL on Windows. `~/ai-context/` is scratch for a live run and gets cleaned. Never `/tmp`, it is wiped on reboot. Anything that must outlive the run goes in a repo or an issue.
+WSL on Windows. `~/ai-context/` holds run material, handoffs, specs, research and drafts, laid out as `<repo>/<issue>-<slug>/`; `state/` and `agy-*` belong to tools. Nothing posted on the operator's behalf, on GitHub or any other service, may depend on it, and a draft is deleted once posted. Never `/tmp` for anything a later turn reads.
 
 # Writing
 House style is the unslop skill, imported here because nothing else loads it.
@@ -15,7 +15,7 @@ House style is the unslop skill, imported here because nothing else loads it.
 - Length signals confidence it has not earned. Write a decision in the fewest lines that let someone disagree with it.
 
 # Issues are the record
-An issue carries the decision, the evidence and the exact commands, and copies in any `~/ai-context` content it depends on. A link into `~/ai-context` is a broken link by definition. Handoffs and morning summaries are issue comments. agy logs and prompts are telemetry, never cited.
+An issue carries the decision, its Done when, the exact commands and the excerpt of evidence the decision rests on, copied in. A link into `~/ai-context` is a broken link by definition. Handoffs, resume state, specs and research stay in `~/ai-context`; the issue gets one line on what changed. agy logs and prompts are telemetry, never cited.
 - Every issue write starts with a search, open and closed. `triage` holds the procedure and the body shape.
 - One umbrella issue per unit of related work, one branch, one verification at the end. A lane gets the umbrella.
 - Never one gap per issue or one PR per issue. Triage the open queue by surface, the files touched, decide now versus later, and cram each surface into one draft PR under 100 files so it costs one CodeRabbit review.
@@ -52,4 +52,4 @@ Delegated and unattended work runs in a worktree under `.claude/worktrees/`, nev
 One seat keeps the goal in view: decides what runs next, tracks what is done and open, catches a lane off its brief, checks every delegated claim against evidence. It does not type while lanes are live; an edit belonging to a lane goes to that lane. Verifying a claim and small fixes are its own work.
 - Every dispatch spec comes from `fable-planner`; the seat hands it the issue, the constraints and the worktree path, and judges what comes back. Reuse one planner inside the prompt-cache hour. Procedure: `farm-out` §Dispatch.
 - Report at the size of the decision: a finished, verified step is one line, detail goes in the issue or PR and the reply links it.
-- Push, open pull requests, create todos, run workflows and spawn subagents without asking. Merge is an explicit per-run permission, asked per merge, never carried forward.
+- Push, open pull requests, create todos, run workflows and spawn subagents without asking. Merge is an explicit per-merge permission, never carried forward, recorded as `MERGE_OK=<pr> gh pr merge <pr>`; a hook refuses the rest.
