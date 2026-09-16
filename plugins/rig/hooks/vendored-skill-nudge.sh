@@ -1,7 +1,7 @@
 #!/bin/bash
 # PreToolUse(Skill) hook: inject rig record doctrine when vendored skills load.
 # Matches handoff, claude-handoff, to-tickets, research skills.
-# Refs #123
+# Refs #123. Rung: hook. Skipped: impossible (vendored skills cannot be modified upstream), check (the skill loads only at call time).
 set -u
 in=$(cat)
 

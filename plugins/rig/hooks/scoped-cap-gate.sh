@@ -2,6 +2,7 @@
 # mage:rig/guard/scoped-cap-gate
 # PreToolUse(Agent) hook: refuse a spawn on a model whose own weekly cap (Fable) reads critical.
 # Reads the /api/oauth/usage cache the status line keeps; no cache or a passed reset allows. Refs #133.
+# Rung: hook. Skipped: impossible (the harness has no per-model spawn cap), check (usage cache varies dynamically during the session).
 set -u
 in=$(cat)
 cache="${SCOPED_CAP_USAGE:-$HOME/.claude/metrics/usage-api.json}"

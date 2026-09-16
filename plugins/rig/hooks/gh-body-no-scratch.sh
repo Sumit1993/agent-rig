@@ -1,7 +1,7 @@
 #!/bin/bash
 # PreToolUse(Bash) hook: block gh issue/pr create/comment/edit/review citing scratch paths.
 # Reads the gh call's own words and body files, never a --body-file path itself.
-# Refs #123
+# Refs #123. Rung: hook. Skipped: impossible (no deny rule inspects command arguments or body files), check (the body exists only at call time).
 set -u
 in=$(cat)
 cmd=$(jq -r '.tool_input.command // ""' <<<"$in" 2>/dev/null) || exit 0

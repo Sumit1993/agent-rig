@@ -40,6 +40,12 @@ Plugin `rig`, path-independent via `${CLAUDE_PLUGIN_ROOT}`:
 | `hooks/session-budget.sh` | SessionStart: one line with the 5h and 7d percent from `~/.claude/metrics/usage.jsonl`, agy quota per group, the resume cost on `--resume`, and the cheap-mode policy |
 | `hooks/limit-log.sh` | StopFailure(rate_limit, overloaded) and Notification(quota_auto_resume_*): one JSON line each in `~/.claude/metrics/limits.jsonl` |
 | `hooks/outside-view-nudge.sh` | PreToolUse(AskUserQuestion, EnterPlanMode, fable-planner spawn): get an outside view first. 1st time, then every 3rd per session |
+| `hooks/gh-write-nudge.sh` | PreToolUse(Bash): nudges once per session on a handoff-shaped or 40-plus-line gh body, a bare `#N`, and a non-draft `gh pr create` |
+| `hooks/ai-context-write-nudge.sh` | PreToolUse(Edit, Write): suggests the `<repo>/<issue>-<slug>/` layout and reminds that a ruling written there goes on the issue |
+| `hooks/draft-posted-nudge.sh` | PostToolUse(Bash): a body file posted from ai-context is told to delete the draft, once per file |
+| `hooks/agent-prompt-nudge.sh` | PreToolUse(Agent): double-check wording on Fable or Opus, a Sonnet prompt with no verify step, a second fable-planner inside the cache hour |
+| `hooks/protected-edit-gate.sh` | PreToolUse(Edit, Write): blocks edits to loose skill copies and to the import line of `~/.claude/CLAUDE.md` |
+| `hooks/merge-gate.sh` | PreToolUse(Bash): blocks `gh pr merge` and `pulls/N/merge` without `MERGE_OK=<pr>` on the same command |
 
 `dotfiles/AGENTS.md` loads on every turn in every project, so it carries routing and rules only. Procedure lives in a skill that loads on demand. It `@`-imports `skills/unslop/SKILL.md`, because writing rules must be loaded before the writing happens. Imports resolve relative to the file and nest; a nested import that points at nothing fails silently, so `install.sh` checks the target exists.
 
@@ -62,6 +68,8 @@ Hooks that block or rewrite tool calls report their firing to `mage observe`. Th
 | `plugins/rig/hooks/no-broad-agy-kill.sh` | `rig/guard/no-broad-agy-kill` |
 | `plugins/rig/hooks/organizer-seat.sh` | `rig/guard/organizer-seat` |
 | `plugins/rig/hooks/release-docs-gate.sh` | `rig/guard/release-docs-gate` |
+| `plugins/rig/hooks/protected-edit-gate.sh` | `rig/guard/protected-edit-gate` |
+| `plugins/rig/hooks/merge-gate.sh` | `rig/guard/merge-gate` |
 
 Hooks that neither block nor rewrite (`pr-created.sh` and `reap-watchers.sh`) have no guard identifier.
 
@@ -132,3 +140,5 @@ Not vendored: `mattpocock/skills`, subscribed as `mattpocock-skills@mattpocock` 
 Rule of thumb: if upstream ships a plugin, subscribe to it. Vendor a skill only when you patch it, and say so in the table. pstack is the exception: subscribing pulls 44 skills, about 20 of them one-idea `principle-*` files restating `AGENTS.md`, so three skills and one agent are vendored and patched, plus `unslop` verbatim.
 
 `bash plugins/rig/scripts/unslop-check.sh` reports what the house style still flags; what remains is deliberate. Frontmatter `description:` fields are exempt because they are auto-load triggers, and rewriting one changes when a skill fires.
+
+Run `plugins/rig/scripts/ai-context-sweep.sh` (`--delete`) to list or prune `~/ai-context` candidates whose issues have closed.

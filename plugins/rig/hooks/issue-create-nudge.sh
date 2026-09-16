@@ -1,6 +1,7 @@
 #!/bin/bash
 # PreToolUse(Bash) hook: nudge on a gh issue create with no issue search earlier in the session,
 # and on the third create, to fold into an umbrella. State files per session. Refs #123, #120.
+# Rung: hook. Skipped: impossible (no permission rule tracks session history), check (the signal exists only at call time).
 set -u
 in=$(cat)
 cmd=$(jq -r '.tool_input.command // ""' <<<"$in" 2>/dev/null) || exit 0

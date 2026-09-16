@@ -2,6 +2,7 @@
 # PostToolUse hook: when the 5h window crosses 80% and again at 90%, tell the session to wind down.
 # Reads the statusline trace, so a session with no statusline redraw sees nothing. Once per level,
 # per session, per window (keyed by resets_at). Refs #123.
+# Rung: hook. Skipped: impossible (no harness mechanism caps a session by usage percent), check (the 5h window evolves during the session).
 set -u
 in=$(cat)
 log="${BUDGET_USAGE_LOG:-$HOME/.claude/metrics/usage.jsonl}"

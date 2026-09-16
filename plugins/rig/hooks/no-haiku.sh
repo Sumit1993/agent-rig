@@ -3,6 +3,7 @@
 # PreToolUse(Agent) hook: never Haiku for real work.
 # Absence of model is out of jurisdiction; runtime defaults are unblocked.
 # See issue #77.
+# Rung: hook. Skipped: impossible (no deny rule restricts subagent model selection), check (the model exists only at spawn time).
 set -u
 in=$(cat)
 

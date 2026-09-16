@@ -1,4 +1,5 @@
 #!/bin/bash
+# mage:rig/guard/merge-gate
 # PreToolUse(Bash) hook: a merge is a per-merge permission (AGENTS.md §The organizer seat). The seat
 # records the operator's word as MERGE_OK=<pr> on the same command; the token names one PR and never
 # carries forward. Covers gh pr merge (incl. --auto) and gh api .../pulls/<n>/merge.
@@ -13,9 +14,14 @@ _lib="$(cd "$(dirname "$0")" && pwd)/lib/gh-command.sh"
 [ -f "$_lib" ] || exit 0
 . "$_lib"
 
+_report_lib="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/hooks/lib/report-guard.sh"
+[ -f "$_report_lib" ] || _report_lib="$(cd "$(dirname "$0")" && pwd)/lib/report-guard.sh"
+[ -f "$_report_lib" ] && . "$_report_lib"
+type report_guard >/dev/null 2>&1 || report_guard() { :; }
+
 pr="" prefix="" api="no"
 gh_re='gh\s+pr\s+merge\b'
-if printf '%s' "$cmd" | gh_scan prefix "$gh_re" >/dev/null; then
+if printf '%s' "$cmd" | gh_scan prefix "$gh_re" >/dev/null 2>&1; then
   prefix=$(printf '%s' "$cmd" | gh_scan prefix "$gh_re")
   words=()
   while IFS= read -r -d '' w; do words+=("$w"); done < <(printf '%s' "$cmd" | gh_scan words "$gh_re")
@@ -26,11 +32,21 @@ if printf '%s' "$cmd" | gh_scan prefix "$gh_re" >/dev/null; then
       https://github.com/*/pull/*) pr=${w##*/pull/}; pr=${pr%%[!0-9]*} ;;
     esac
   done
-else
-  api="yes"
+elif printf '%s' "$cmd" | gh_scan prefix 'gh\s+api\b' >/dev/null 2>&1; then
   gh_re='gh\s+api\b'
-  prefix=$(printf '%s' "$cmd" | gh_scan prefix "$gh_re" 2>/dev/null || true)
-  pr=$(grep -oE 'pulls/[0-9]+/merge' <<<"$cmd" | head -1 | grep -oE '[0-9]+' || true)
+  words=()
+  while IFS= read -r -d '' w; do words+=("$w"); done < <(printf '%s' "$cmd" | gh_scan words "$gh_re")
+  for w in "${words[@]}"; do
+    if [[ "$w" =~ pulls/([0-9]+)/merge ]]; then
+      pr="${BASH_REMATCH[1]}"
+      api="yes"
+      prefix=$(printf '%s' "$cmd" | gh_scan prefix "$gh_re")
+      break
+    fi
+  done
+  [ "$api" = "yes" ] || exit 0
+else
+  exit 0
 fi
 
 # The token can sit as an env prefix on the gh call or anywhere earlier in the command.
@@ -49,4 +65,5 @@ Blocked by rig/guard/merge-gate: merging $which needs the operator's word for th
 organizer seat: merge is a per-merge permission, never carried forward). Ask, then record it on the
 same command: MERGE_OK=${pr:-<pr>} gh pr merge ${pr:-<pr>} ... The token must name this PR${token:+; it names $token}.
 MSG
+report_guard "rig/guard/merge-gate" "Bash" "pr ${pr:-current}"
 exit 2

@@ -4,6 +4,7 @@
 # event on resume, and that turn pays for the whole context window. Killing
 # watchers is free: their seen-state is durable (~/ai-context/state/cr-watch),
 # so re-arming never replays old events.
+# Rung: hook. Skipped: impossible (background processes survive session exit), check (orphans must be cleaned at lifecycle boundaries).
 #
 #   end   (SessionEnd)   kill only THIS session's watchers — those descending
 #                        from this hook's own claude ancestor process. Watchers

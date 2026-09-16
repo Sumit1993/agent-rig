@@ -4,6 +4,7 @@
 # `pkill -x agy` / `pkill -f "agy --model"` / `killall agy` reap every agy process on the
 # machine, including other sessions' live runs, which surface there as rc=137 and read as
 # quota death. farm-out says kill by PID, or by this run's --log-file slug.
+# Rung: hook. Skipped: impossible (process namespaces are shared on the host), check (the command exists only at execution time).
 set -u
 in=$(cat)
 

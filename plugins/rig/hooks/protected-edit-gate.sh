@@ -1,4 +1,5 @@
 #!/bin/bash
+# mage:rig/guard/protected-edit-gate
 # PreToolUse(Edit|Write|NotebookEdit) hook: block edits to the loose skill copies under
 # ~/.claude/skills and ~/.agents/skills (dedupe.sh overwrites them; the source is plugins/rig),
 # and to the import line of ~/.claude/CLAUDE.md (machine-local rules go below it).
@@ -7,7 +8,13 @@ set -u
 in=$(cat)
 path=$(jq -r '.tool_input.file_path // .tool_input.notebook_path // ""' <<<"$in" 2>/dev/null) || exit 0
 [ -n "$path" ] || exit 0
+tool=$(jq -r '.tool_name // ""' <<<"$in" 2>/dev/null) || tool=""
 home="${PROTECTED_EDIT_HOME:-$HOME}"
+
+_lib="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/hooks/lib/report-guard.sh"
+[ -f "$_lib" ] || _lib="$(cd "$(dirname "$0")" && pwd)/lib/report-guard.sh"
+[ -f "$_lib" ] && . "$_lib"
+type report_guard >/dev/null 2>&1 || report_guard() { :; }
 
 case "$path" in
   "$home"/.claude/skills/*|"$home"/.agents/skills/*)
@@ -15,6 +22,7 @@ case "$path" in
 Blocked by rig/guard/protected-edit-gate: $path is a loose copy that dedupe.sh removes after the
 next plugin load. Edit plugins/rig/skills in the agent-rig checkout, commit, push (README §Editing).
 MSG
+    report_guard "rig/guard/protected-edit-gate" "$tool" "$path"
     exit 2 ;;
   "$home"/.claude/CLAUDE.md) ;;
   *) exit 0 ;;
@@ -23,7 +31,6 @@ esac
 # ~/.claude/CLAUDE.md: the first @ line is the import; a Write must keep it, an Edit must not touch it.
 import=$(grep -m1 '^@' "$path" 2>/dev/null || true)
 [ -n "$import" ] || exit 0
-tool=$(jq -r '.tool_name // ""' <<<"$in" 2>/dev/null) || tool=""
 touched="no"
 if [ "$tool" = "Write" ]; then
   content=$(jq -r '.tool_input.content // ""' <<<"$in" 2>/dev/null) || content=""
@@ -38,4 +45,5 @@ Blocked by rig/guard/protected-edit-gate: ~/.claude/CLAUDE.md is a one-line impo
 machine-local rules below it. Everything above that line is edited in dotfiles/AGENTS.md in the
 agent-rig checkout. Add machine-local rules below the import instead.
 MSG
+report_guard "rig/guard/protected-edit-gate" "$tool" "$path"
 exit 2
