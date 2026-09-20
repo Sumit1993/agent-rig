@@ -26,23 +26,33 @@ json_get() {
       jq -r "${filter} // \$d" --arg d "$def" <<<"$doc" 2>/dev/null || return 1
       ;;
     python3)
-      RIG_DOC="$doc" RIG_DEF="$def" python3 -c '
-import json, os, sys
+      # The document goes in on stdin, never in the environment: one env entry
+      # caps near 128 KiB on Linux, well under the 2 MiB execve total, so a long
+      # Bash command reaching in=$(cat) would stop python3 from starting at all.
+      # json_get would return 1, the caller would read that as unreadable input
+      # and exit 0, and a guard would wave through the one payload big enough to
+      # matter. The default is argv[1], which stays small by construction.
+      python3 -c '
+import json, sys
 try:
-    doc = json.loads(os.environ["RIG_DOC"])
+    doc = json.loads(sys.stdin.read())
 except Exception:
     sys.exit(1)
-for path in sys.argv[1:]:
+default, paths = sys.argv[1], sys.argv[2:]
+for path in paths:
     cur = doc
     for key in path.lstrip(".").split("."):
         cur = cur.get(key) if isinstance(cur, dict) else None
         if cur is None:
             break
-    if cur is not None:
-        print(cur if isinstance(cur, str) else json.dumps(cur))
-        sys.exit(0)
-print(os.environ["RIG_DEF"])
-' "$@" 2>/dev/null || return 1
+    # jq reads `a // b` with null and false alike as unresolved. Match it, or
+    # {"session_id": false} yields "false" here and the default under jq.
+    if cur is None or cur is False:
+        continue
+    print(cur if isinstance(cur, str) else json.dumps(cur))
+    sys.exit(0)
+print(default)
+' "$def" "$@" <<<"$doc" 2>/dev/null || return 1
       ;;
     *)
       echo "rig: neither jq nor python3 on PATH; hook payload unreadable." >&2

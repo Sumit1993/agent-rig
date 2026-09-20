@@ -77,6 +77,39 @@ else
   fail "no-haiku.sh exited $rc on a permitted model with jq absent"
 fi
 
+# A payload too large for one environment entry. The fallback used to carry the
+# document in RIG_DOC, which caps near 128 KiB on Linux, so python3 never
+# started, json_get returned 1, and the guard exited 0 on exactly the payload
+# big enough to hide something. Found by review on #144.
+big=$(printf 'x%.0s' $(seq 1 200000))
+rc=0
+err=$(printf '{"tool_name":"Agent","tool_input":{"model":"claude-haiku-4-5-20251001","pad":"%s"}}' "$big" \
+  | PATH="$NOJQ_PATH" "$HOOK" 2>&1 >/dev/null) || rc=$?
+if [ "$rc" -eq 2 ]; then
+  pass "no-haiku.sh blocks a 200 KB payload with jq absent"
+else
+  fail "no-haiku.sh exited $rc on a 200 KB payload with jq absent; the env-size bypass is back. stderr: ${err:-<empty>}"
+fi
+
+# jq and the fallback must still agree at that size.
+rc2=0
+printf '{"tool_name":"Agent","tool_input":{"model":"claude-haiku-4-5-20251001","pad":"%s"}}' "$big" \
+  | "$HOOK" >/dev/null 2>&1 || rc2=$?
+if [ "$rc2" -eq "$rc" ]; then
+  pass "no-haiku.sh agrees with and without jq on a 200 KB payload"
+else
+  fail "200 KB payload: exited $rc without jq but $rc2 with it"
+fi
+
+# A JSON false must read as unresolved in both parsers, the way jq's // does.
+got_py=$(PATH="$NOJQ_PATH" bash -c '. "$1"/lib/json.sh; json_get "{\"session_id\":false}" nosession .session_id' _ "$HOOKS" 2>/dev/null)
+got_jq=$(bash -c '. "$1"/lib/json.sh; json_get "{\"session_id\":false}" nosession .session_id' _ "$HOOKS" 2>/dev/null)
+if [ "$got_py" = "$got_jq" ] && [ "$got_py" = "nosession" ]; then
+  pass "a JSON false falls back to the default in both parsers"
+else
+  fail "false handling differs: jq=[$got_jq] python3=[$got_py], wanted [nosession] from both"
+fi
+
 # Neither parser: never a crash under set -u. Exit 0 is correct, because
 # unreadable input never blocking is doctrine the other suites assert.
 rc=0
