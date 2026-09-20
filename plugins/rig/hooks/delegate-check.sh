@@ -8,19 +8,24 @@
 set -u
 in=$(cat)
 
+_jlib="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/hooks/lib/json.sh"
+[ -f "$_jlib" ] || _jlib="$(cd "$(dirname "$0")" && pwd)/lib/json.sh"
+[ -f "$_jlib" ] && . "$_jlib"
+type json_get >/dev/null 2>&1 || json_get() { return 1; }
+
 _lib="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/hooks/lib/report-guard.sh"
 [ -f "$_lib" ] || _lib="$(cd "$(dirname "$0")" && pwd)/lib/report-guard.sh"
 [ -f "$_lib" ] && . "$_lib"
 type report_guard >/dev/null 2>&1 || report_guard() { :; }
 
 # Codex spawns carry no subagent_type, so "" below is a generic spawn, not a missed field (#141).
-type=$(jq -r '.tool_input.subagent_type // ""' <<<"$in" 2>/dev/null) || exit 0
+type=$(json_get "$in" "" .tool_input.subagent_type) || exit 0
 # Match the DESCRIPTION, not the prompt. A long prompt mentions "implement" or "audit"
 # somewhere almost every time: replaying real Agent calls, prompt-matching blocked 52% of
 # them. The description is the task in the author's own words, so it is the honest signal.
 # Codex's spawn_agent sends only tool_input.message, the task in the caller's words (#141).
-desc=$(jq -r '.tool_input.description // .tool_input.message // ""' <<<"$in" 2>/dev/null) || exit 0
-text=$(jq -r '[.tool_input.prompt // .tool_input.message // "", .tool_input.description // ""] | join(" ")' <<<"$in" 2>/dev/null) || exit 0
+desc=$(json_get "$in" "" .tool_input.description .tool_input.message) || exit 0
+text="$(json_get "$in" "" .tool_input.prompt .tool_input.message) $(json_get "$in" "" .tool_input.description)" || exit 0
 
 # Purpose-built agents already encode their routing; only the catch-alls are in scope.
 case "$type" in
@@ -47,6 +52,6 @@ If a Claude subagent is genuinely right — the answer is a ruling, not a proced
 in the prompt or description and re-issue. "Simpler to set up" is not a reason.
 mage:rig/guard/delegate-check
 MSG
-tool=$(jq -r '.tool_name // "Agent"' <<<"$in" 2>/dev/null)
+tool=$(json_get "$in" "Agent" .tool_name)
 report_guard "rig/guard/delegate-check" "$tool" "$desc"
 exit 2

@@ -7,18 +7,23 @@
 # Escape hatch (user-approved only): DOCS_GATE=skip in the merge command.
 set -u
 in=$(cat)
+
+_jlib="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/hooks/lib/json.sh"
+[ -f "$_jlib" ] || _jlib="$(cd "$(dirname "$0")" && pwd)/lib/json.sh"
+[ -f "$_jlib" ] && . "$_jlib"
+type json_get >/dev/null 2>&1 || json_get() { return 1; }
 KIT_META="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/scripts/rig-meta.sh"
 _lib="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/hooks/lib/report-guard.sh"
 [ -f "$_lib" ] || _lib="$(cd "$(dirname "$0")" && pwd)/lib/report-guard.sh"
 [ -f "$_lib" ] && . "$_lib"
 type report_guard >/dev/null 2>&1 || report_guard() { :; }
-cmd=$(jq -r '.tool_input.command // ""' <<<"$in" 2>/dev/null) || exit 0
+cmd=$(json_get "$in" "" .tool_input.command) || exit 0
 grep -qE 'gh[[:space:]]+pr[[:space:]]+merge' <<<"$cmd" || exit 0
 grep -q 'DOCS_GATE=skip' <<<"$cmd" && exit 0
-cwd=$(jq -r '.cwd // ""' <<<"$in" 2>/dev/null)
+cwd=$(json_get "$in" "" .cwd)
 [ -d "$cwd" ] || exit 0
 cd "$cwd" || exit 0
-repo=$("$KIT_META" current 2>/dev/null | jq -r '.repo // empty')
+repo=$(json_get "$("$KIT_META" current 2>/dev/null)" "" .repo)
 [ -n "$repo" ] || exit 0
 "$KIT_META" get "$repo" docs >/dev/null 2>&1 || exit 0
 pr=$(grep -oE 'merge[[:space:]]+[0-9]+' <<<"$cmd" | grep -oE '[0-9]+' | head -1)
