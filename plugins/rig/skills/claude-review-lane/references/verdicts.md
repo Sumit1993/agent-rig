@@ -6,6 +6,8 @@ Nineteen `verdict_kind` values, read from `claude-code-review.yml` at gh-workflo
 
 Pause state is not one of these rows. A pause or resume landing on a head that already has a review keeps the standing `reviewed <sha> ...` verdict and changes only the marker, so a paused PR does not always carry the `paused by request` text below. Read `paused=1` off the marker line to decide whether the lane is paused, and the verdict text to decide whether the head was reviewed. The two are independent.
 
+Each row is a prefix, not the whole string. A round that reviewed without some context appends a sentence naming what it missed. Match the start of the text. Read any trailing sentence as a qualifier on coverage, not on whether the head was reviewed.
+
 | Verdict text | Reviewed? | What to do |
 |---|---|---|
 | `reviewed <sha> and posted N inline / M summary comment(s)` | Yes | Work the threads |

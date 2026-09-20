@@ -39,6 +39,8 @@ Match prefix `<!-- claude-review-liveness`. Every field after `rounds=` is optio
 
 Nineteen `verdict_kind` values exist, read from `claude-code-review.yml` at gh-workflows d6db1af. Only the two `reviewed <sha> ...` forms mean the head was reviewed. For any other text, read `references/verdicts.md` beside this file.
 
+Match a verdict by its prefix, never by equality. A round that reviewed without some context appends a sentence to whatever verdict it posts. The reasons are an unresolved issue reference, CI failing or still pending on this head, a lockfile it could not parse, or a tool that could not run. The note qualifies how much the round saw, never whether the head was reviewed. A `reviewed <sha> ...` verdict carrying one still counts as a review. Read the note before trusting its coverage.
+
 No liveness comment means the PR was never admitted; a watcher waiting for one waits forever.
 
 ### When the comment itself is wrong
