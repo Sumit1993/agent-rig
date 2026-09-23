@@ -2,7 +2,7 @@
 
 Every `verdict_kind` the lane can post, whether it means the head was reviewed, and what to do. Read this when a liveness comment is in front of you and its text is not one of the two `reviewed <sha> ...` forms.
 
-Nineteen `verdict_kind` values, read from `claude-code-review.yml` at gh-workflows d6db1af. Only the first two rows mean the head was reviewed:
+Nineteen `verdict_kind` values, read from `claude-code-review.yml` at gh-workflows 1336633. Only the first two rows mean the head was reviewed:
 
 Pause state is not one of these rows. A pause or resume landing on a head that already has a review keeps the standing `reviewed <sha> ...` verdict and changes only the marker, so a paused PR does not always carry the `paused by request` text below. Read `paused=1` off the marker line to decide whether the lane is paused, and the verdict text to decide whether the head was reviewed. The two are independent.
 
@@ -19,7 +19,7 @@ Each row is a prefix, not the whole string. A round that reviewed without some c
 | `the verification round on <sha> was cancelled when the head moved to <newsha>, which is cancel-in-progress doing its job rather than a failure` | No | Benign. Nothing was re-checked, so treat the threads as un-re-checked and summon once after your last push |
 | `the verification round on <sha> was cancelled before it posted a summary, and the head has not moved, so the cause is not recorded here` | No | Cause unknown by design rather than guessed. Some threads may have been replied to before it stopped; read the run log |
 | `auto-paused after N automatic rounds at <sha> — re-request with @claude review` | No | Summon, or hand the pause back to whoever owns the PR; never wait for the next push. The text adds that an already-queued summon replaces this verdict when its round finishes |
-| `paused by request at <sha>; resume with @claude resume` | No | Someone paused the lane deliberately, and every trigger is refused until `@claude resume`: pushes, in-thread replies and summons alike. Resume only if that was you or you know why |
+| `paused by request at <sha>; resume with @claude resume` | No | Someone paused automatic rounds deliberately, so pushes are not reviewed. Any summon lifts it, and in-thread replies still get their verify round. Resume only if that was you or you know why |
 | `did not run at <sha>: the diff is below this repo's min_diff_lines floor` | No | No machine review on record. Summon if the diff deserves one anyway |
 | `did not run at <sha>: the head moved during the debounce window, so this round would have reviewed a stale diff` | No | This head has no review. Whether the newer head gets one depends on its own run, which this round cannot see |
 | `not reviewed at <sha>: the pull request is a draft, and nothing reviews a draft — summons included` | No | Mark it ready for review and the lane takes the whole diff in one round |
