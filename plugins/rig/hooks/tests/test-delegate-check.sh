@@ -23,6 +23,10 @@ check() { # name expected_rc json
 echo "-- blocked: mechanical execution, named as such"
 check "write tests for the parser" 2 \
   '{"tool_input":{"subagent_type":"general-purpose","description":"write tests for the parser","prompt":"to spec"}}'
+check "run tests without 'the'" 2 \
+  '{"tool_input":{"subagent_type":"general-purpose","description":"Run tests for the parser","prompt":"go"}}'
+check "run suite" 2 \
+  '{"tool_input":{"subagent_type":"general-purpose","description":"run suite and report failures","prompt":"go"}}'
 check "missing subagent_type still counts as generic" 2 \
   '{"tool_input":{"description":"Collect evidence from the CI logs"}}'
 check "rebase work" 2 \

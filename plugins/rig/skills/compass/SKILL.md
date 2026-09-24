@@ -29,8 +29,10 @@ Never create, rename or delete a label or a milestone. If the vocabulary lacks s
 Reviews land hours after a PR is marked ready, long after its session ended (`Sumit1993/rig#150`). Findings on the operator's open PRs come before any new pick. The SessionStart hook prints them as `Review debt in <repo>: ...`; without the hook:
 
 ```
-gh api graphql -f query='query { search(query: "repo:{owner}/{repo} is:pr is:open author:@me -is:draft", type: ISSUE, first: 30) { nodes { ... on PullRequest { number title reviewThreads(first: 100) { nodes { isResolved path comments(first: 1) { nodes { author { login } body } } } } } } } }' \
-  --jq '.data.search.nodes[] | {number, title, open: [.reviewThreads.nodes[] | select(.isResolved | not)]} | select(.open | length > 0) | "#\(.number)\t\(.open | length) open\t\(.title)"'
+repo=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+gh api graphql -f q="repo:$repo is:pr is:open author:@me -is:draft" \
+  -f query='query($q: String!) { search(query: $q, type: ISSUE, first: 100) { nodes { ... on PullRequest { number title reviewThreads(first: 100) { totalCount nodes { isResolved } } } } } }' \
+  --jq '.data.search.nodes[] | {number, title, total: .reviewThreads.totalCount, open: [.reviewThreads.nodes[] | select(.isResolved | not)] | length} | select(.open > 0 or .total > 100) | "#\(.number)\t\(.open) open of \(.total)\t\(.title)"'
 ```
 
 One agent clears the whole list in one pass, PR by PR on each PR's branch:
@@ -56,7 +58,7 @@ Current is the lowest open version. Sort the titles with `sort -V` and take the 
 ## Step 3: the pick is a batch
 
 ```
-gh issue list --state open --milestone '<current>' --json number,title,labels,createdAt --jq '
+gh issue list --state open --milestone '<current>' --limit 500 --json number,title,labels,createdAt --jq '
   map(select(.labels | map(.name) | index("blocked") | not))
   | sort_by([(.labels | map(.name) | index("p0") == null), .createdAt])
   | .[] | "#\(.number)\t\(.labels | map(.name) | join(","))\t\(.title)"'
@@ -78,7 +80,7 @@ gh issue list --state open --search 'no:milestone' --json number --jq length
 gh pr list --state open --json number,title,isDraft,updatedAt --jq '.[] | select(.title | startswith("chore(deps)") | not) | "#\(.number)\t\(if .isDraft then "draft" else "ready" end)\t\(.title)"'
 ```
 
-A ready PR on the lead means the batch is already taken; move to the next line. An open draft on the same files is where the batch goes.
+A ready PR on the lead means the batch is already taken. Before moving to the next line, compare that PR's files with the rest of the batch: a same-file issue it left out waits for that PR, or joins it, unless it is its own unit. An open draft on the same files is where the batch goes.
 
 ## Handoffs
 

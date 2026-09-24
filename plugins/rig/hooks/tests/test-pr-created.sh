@@ -241,6 +241,25 @@ case "$c" in
   *"touches files also changed"*) fail "fold note printed for PR in another repo: $c" ;;
   *) pass "PR in another repo prints no fold note" ;;
 esac
+# Case 4: two fresh PRs in one output each get a file query and a fold note
+c=$(GIT_STUB_ORIGIN="git@github.com:acme/widget.git" GH_STUB_OK="pulls/" \
+    GH_STUB_PRLIST="$PR_DRAFTS" GH_STUB_PRVIEW_FILES="$PR_FILES" \
+    run "$CREATE_CMD" "https://github.com/acme/widget/pull/63 https://github.com/acme/widget/pull/64" "$ov_dir/4" | ctx)
+case "$c" in
+  *"PR #63 touches"*"PR #64 touches"*) pass "two fresh PRs both get a fold note" ;;
+  *) fail "second fresh PR missed its fold note: $c" ;;
+esac
+
+# Case 5: an already-seen PR whose URL prefixes a fresh one is not treated as fresh
+mkdir -p "$ov_dir/5" && : > "$ov_dir/5/acme-widget-pull-12"
+c=$(GIT_STUB_ORIGIN="git@github.com:acme/widget.git" GH_STUB_OK="pulls/" \
+    GH_STUB_PRLIST="$PR_DRAFTS" GH_STUB_PRVIEW_FILES="$PR_FILES" \
+    run "$CREATE_CMD" "https://github.com/acme/widget/pull/12 https://github.com/acme/widget/pull/123" "$ov_dir/5" | ctx)
+case "$c" in
+  *"PR #12 touches"*) fail "seen PR #12 matched as a prefix of #123: $c" ;;
+  *"PR #123 touches"*) pass "prefix URL of a seen PR is not fresh" ;;
+  *) fail "fresh PR #123 got no fold note: $c" ;;
+esac
 rm -rf "$ov_dir"
 
 echo

@@ -15,16 +15,18 @@ case "$repo" in
   *) exit 0 ;;
 esac
 
-query='query { search(query: "repo:'"$repo"' is:pr is:open author:@me", type: ISSUE, first: 30) { nodes { ... on PullRequest { number isDraft reviewThreads(first: 100) { nodes { isResolved } } } } } }'
+query='query { search(query: "repo:'"$repo"' is:pr is:open author:@me", type: ISSUE, first: 100) { nodes { ... on PullRequest { number isDraft reviewThreads(first: 100) { totalCount nodes { isResolved } } } } } }'
 res=$(timeout 8 gh api graphql -f query="$query" 2>/dev/null) || exit 0
 
 items=$(jq -r '
   [.data.search.nodes[]?
    | select(.isDraft == false)
-   | {number, count: ([.reviewThreads.nodes[]? | select(.isResolved == false)] | length)}
-   | select(.count > 0)]
+   | {number, count: ([.reviewThreads.nodes[]? | select(.isResolved == false)] | length),
+      unread: ((.reviewThreads.totalCount // 0) > ([.reviewThreads.nodes[]?] | length))}
+   | select(.count > 0 or .unread)]
    | sort_by(.number)
-   | map("#\(.number) (\(.count) open thread\(if .count == 1 then "" else "s" end))")
+   | map(if .unread then "#\(.number) (\(.count)+ open threads, more than 100 in total)"
+         else "#\(.number) (\(.count) open thread\(if .count == 1 then "" else "s" end))" end)
    | join(", ")
 ' <<<"$res" 2>/dev/null) || exit 0
 

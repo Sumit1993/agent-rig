@@ -97,6 +97,14 @@ out=$(printf 'not json' | GIT_STUB_ORIGIN="git@github.com:owner/name.git" GH_STU
 rc=$?
 [ "$rc" -eq 0 ] && valid_json "$out" && pass "malformed stdin survives" || fail "malformed stdin rc=$rc out=$out"
 
+# --- More threads than one page: resolved first page still reports debt ------
+GQL_MANY='{"data":{"search":{"nodes":[{"number":830,"isDraft":false,"reviewThreads":{"totalCount":150,"nodes":[{"isResolved":true}]}}]}}}'
+c=$(GIT_STUB_ORIGIN="git@github.com:owner/name.git" GH_STUB_GRAPHQL="$GQL_MANY" run "{}" | ctx)
+case "$c" in
+  *"#830 (0+ open threads, more than 100 in total)"*) pass "unread thread pages still report debt" ;;
+  *) fail "unread thread pages hidden: '$c'" ;;
+esac
+
 echo
 [ "$FAILURES" -eq 0 ] && { echo "all review-debt hook tests passed"; exit 0; }
 echo "$FAILURES failure(s)"; exit 1

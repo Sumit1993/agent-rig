@@ -82,7 +82,7 @@ mkdir -p "$state_dir" 2>/dev/null || exit 0
 # the rest are reported unverified rather than making the hook sit on the network.
 checks_left=10
 
-fresh=""; seeded=0; unverified=0
+fresh=""; fresh_urls=""; seeded=0; unverified=0
 while read -r url; do
   [ -z "$url" ] && continue
   repo=${url#https://github.com/}; repo=${repo%%/pull/*}
@@ -102,6 +102,7 @@ while read -r url; do
   if seed_seen "$url"; then seeded=1; fi
   if [ "$seen" = "2" ]; then unverified=1; note=", UNVERIFIED"; else note=""; fi
   fresh="${fresh}PR #${num} ($url$note); "
+  fresh_urls="${fresh_urls}${url}"$'\n'
 done <<< "$urls"
 [ -z "$fresh" ] && exit 0
 
@@ -110,7 +111,7 @@ done <<< "$urls"
 closes_note=""
 while read -r url; do
   [ -z "$url" ] && continue
-  case "$fresh" in *"$url"*) ;; *) continue ;; esac
+  grep -qxF "$url" <<<"$fresh_urls" || continue
   repo=${url#https://github.com/}; repo=${repo%%/pull/*}; num=${url##*/}
   pv=$(gh pr view "$num" -R "$repo" --json body,closingIssuesReferences 2>/dev/null) || continue
   named=$(jq -r '[.body // "" | match("(?i)\\b(close[sd]?|fix(e[sd])?|resolve[sd]?)\\b[^\\n]*"; "g").string | match("#[0-9]+"; "g").string] | unique | length' <<<"$pv" 2>/dev/null)
@@ -134,7 +135,7 @@ if [ -n "$cwd_origin" ]; then
   has_matching_fresh=0
   while read -r url; do
     [ -z "$url" ] && continue
-    case "$fresh" in *"$url"*) ;; *) continue ;; esac
+    grep -qxF "$url" <<<"$fresh_urls" || continue
     repo=${url#https://github.com/}; repo=${repo%%/pull/*}
     if [ "$repo" = "$cwd_origin" ]; then
       has_matching_fresh=1
@@ -143,13 +144,13 @@ if [ -n "$cwd_origin" ]; then
   done <<< "$urls"
 
   if [ "$has_matching_fresh" = "1" ]; then
+    # Two PR-file queries at most; the draft list is its own call.
     calls_left=2
     drafts_json=$(gh pr list -R "$cwd_origin" --author @me --draft --state open --json number,files 2>/dev/null) || drafts_json=""
-    calls_left=$((calls_left - 1))
     if jq -e 'type == "array" and length > 0' >/dev/null 2>&1 <<<"$drafts_json"; then
       while read -r url; do
         [ -z "$url" ] && continue
-        case "$fresh" in *"$url"*) ;; *) continue ;; esac
+        grep -qxF "$url" <<<"$fresh_urls" || continue
         repo=${url#https://github.com/}; repo=${repo%%/pull/*}; num=${url##*/}
         [ "$repo" = "$cwd_origin" ] || continue
         [ "$calls_left" -gt 0 ] || break

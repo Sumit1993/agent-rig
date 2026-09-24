@@ -40,7 +40,7 @@ grep -qiE 'agy|antigravity' <<<"$text" && exit 0
 # Leading verb only, and only verbs that name mechanical execution. Deliberately omits
 # verify/validate/research/audit: those read as judgment as often as not, and a blocking
 # hook wants precision over recall — a false block costs more than a missed nudge.
-grep -qiE '^[[:space:]]*(rebase|backfill|migrate|bulk|collect evidence|run the smoke|smoke.?(run|test)|write tests|run the (suite|tests)|triage)\b' <<<"$desc" || exit 0
+grep -qiE '^[[:space:]]*(rebase|backfill|migrate|bulk|collect evidence|run the smoke|smoke.?(run|test)|write tests|run (the )?(suite|tests)|triage)\b' <<<"$desc" || exit 0
 
 cat >&2 <<'MSG'
 Blocked by the delegation rule (AGENTS.md §Delegation): this reads as bounded, mechanical

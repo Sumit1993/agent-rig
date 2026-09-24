@@ -7,9 +7,9 @@ metadata:
 
 # PR watch: the session-scoped review round
 
-The default is async (`Sumit1993/rig#150`). Keep the PR a draft while work continues, mark it ready once at the end, and leave it. The hourly review queue (`review-queue.yml` in prismalens/gh-workflows) summons CodeRabbit on it, merges it when the review comes back clean, and findings come back as review debt at the next session start in that repo (`compass` Step 0). Nothing below runs unless the operator asks to hold a round in this session.
+The default is async (`Sumit1993/rig#150`). Keep the PR a draft while work continues, mark it ready once at the end, and leave it. The hourly review queue (`review-queue.yml` in prismalens/gh-workflows) summons CodeRabbit on it, merges it when the review comes back clean, and findings come back as review debt at the next session start in that repo (`compass` Step 0). Phases 1 and 2 run only when the operator asks to hold a round in this session; Phase 3 also runs when the operator asks to merge.
 
-A held round is one PR, raised in this session, watched until its round ends, so the session reacts to findings without the user relaying them. Not a lifecycle manager: the merge queue removed cascade shepherding, and a PR left over from an earlier session needs no local watcher because GitHub notifications cover verify-then-resolve and enqueue.
+A held round is one PR, whichever session raised it, watched until its round ends, so the session reacts to findings without the user relaying them. Not a lifecycle manager: the merge queue removed cascade shepherding, and a PR left over from an earlier session needs no local watcher because GitHub notifications cover verify-then-resolve and enqueue.
 
 Reviewer behaviour lives elsewhere. `claude-review-lane` owns `claude[bot]`, `coderabbit-lane` owns `coderabbitai[bot]`, and both load on a PR of any age. Load the owning skill before acting on that reviewer. The trigger syntax and `cr-reply.sh` appear below so a router recognises them; the preconditions (cooldown arithmetic, budget, the post-trigger poll) live only there, and acting on the fragments produces confidently wrong reports.
 
