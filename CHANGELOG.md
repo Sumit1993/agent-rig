@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.11.0](https://github.com/Sumit1993/rig/compare/rig-v0.10.0...rig-v0.11.0) (2026-09-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* **rig:** installs need the marketplace re-added as Sumit1993/rig and rig@rig enabled in place of rig@agent-rig.
+* **rig:** the kit: skill prefix is now rig:, and kit@claude-kit is now rig@agent-rig.
+
+### Features
+
+* **rig:** DuckDB queries replace the miners; agy-quota live; Codex CLI as third harness ([#140](https://github.com/Sumit1993/rig/issues/140)) ([716a010](https://github.com/Sumit1993/rig/commit/716a0101aae51c229bba619e16c0c1ae4955a0e4))
+* **rig:** rename claude-kit to agent-rig and the kit plugin to rig ([#138](https://github.com/Sumit1993/rig/issues/138)) ([cf7aabe](https://github.com/Sumit1993/rig/commit/cf7aabe71ad0e4c17f18d7848476bd578ff1bfa6))
+* **rig:** the record split: issues hold decisions, ai-context holds the run; six hooks and record hygiene checks ([#142](https://github.com/Sumit1993/rig/issues/142)) ([6e8c483](https://github.com/Sumit1993/rig/commit/6e8c483b30b775a8c08a06a506795599dcc08a96))
+
+
+### Bug Fixes
+
+* **rig:** hook gates read the posted body; hooks.json keys; review-lane docs from gh-workflows [#173](https://github.com/Sumit1993/rig/issues/173) ([#137](https://github.com/Sumit1993/rig/issues/137)) ([f732ce9](https://github.com/Sumit1993/rig/commit/f732ce909de05180b602b651dde5c456acd95392)), closes [#136](https://github.com/Sumit1993/rig/issues/136)
+* **rig:** pause marker survives replies; verdicts are prefixes; fable-planner reads the record first ([#144](https://github.com/Sumit1993/rig/issues/144)) ([fe212da](https://github.com/Sumit1993/rig/commit/fe212da17e94abeab90c87377babf02c58cdfa19))
+
+
+### Documentation
+
+* **claude-review-lane:** admission modes and the two admission labels (gh-workflows[#194](https://github.com/Sumit1993/rig/issues/194)) ([#147](https://github.com/Sumit1993/rig/issues/147)) ([125f64a](https://github.com/Sumit1993/rig/commit/125f64a0b6349baccc68b1cdef41c83d883a3e01))
+
+
+### Continuous Integration
+
+* add Dependabot for github-actions, with an auto-merge caller ([#146](https://github.com/Sumit1993/rig/issues/146)) ([67f7ae3](https://github.com/Sumit1993/rig/commit/67f7ae328090d0386b3a50b700a751fc0afd3ec9))
+
 ## [0.10.0](https://github.com/Sumit1993/claude-kit/compare/kit-v0.9.0...kit-v0.10.0) (2026-09-13)
 
 
