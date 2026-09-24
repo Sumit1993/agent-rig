@@ -8,12 +8,17 @@
 set -u
 in=$(cat)
 
+_jlib="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/hooks/lib/json.sh"
+[ -f "$_jlib" ] || _jlib="$(cd "$(dirname "$0")" && pwd)/lib/json.sh"
+[ -f "$_jlib" ] && . "$_jlib"
+type json_get >/dev/null 2>&1 || json_get() { return 1; }
+
 _lib="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/hooks/lib/report-guard.sh"
 [ -f "$_lib" ] || _lib="$(cd "$(dirname "$0")" && pwd)/lib/report-guard.sh"
 [ -f "$_lib" ] && . "$_lib"
 type report_guard >/dev/null 2>&1 || report_guard() { :; }
 
-cmd=$(jq -r '.tool_input.command // ""' <<<"$in" 2>/dev/null) || exit 0
+cmd=$(json_get "$in" "" .tool_input.command) || exit 0
 
 grep -qE '\b(pkill|killall)\b' <<<"$cmd" || exit 0
 
@@ -71,7 +76,7 @@ the runs apart by worktree.
 To quote the command in prose, put it in a quoted heredoc to cat or tee, for example \`cat <<'EOF' > notes.md\`.
 mage:rig/guard/no-broad-agy-kill
 MSG
-    tool=$(jq -r '.tool_name // "Bash"' <<<"$in" 2>/dev/null)
+    tool=$(json_get "$in" "Bash" .tool_name)
     report_guard "rig/guard/no-broad-agy-kill" "$tool" "$pat"
     exit 2
   fi

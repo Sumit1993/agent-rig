@@ -27,14 +27,19 @@ Every run that reaches the reviewer upserts one comment by `github-actions[bot]`
 ```
 <!-- claude-review-liveness rounds=N sha=<40-hex> patch=<64-hex> paused=1 paused_by=<login> -->
 **Claude review lane** — [run](...): <verdict>
+_Lane state: paused by @<login> at `<sha>` — resume with `@claude resume`. The review verdict above stands._
 ```
 
 Match prefix `<!-- claude-review-liveness`. Every field after `rounds=` is optional.
 - `rounds=` counts automatic review rounds. `sha=` is the last head with posted output; compare it to the merge head (if different, newer commits were never reviewed as a diff).
 - `patch=` fingerprints the PR's own patch at `sha=`. A rebase or restack push whose patch matches it skips as `unchanged-patch`. A summon never skips on it.
 - An `api-error` round advances neither `sha=` nor `rounds=`, so the head it failed on still reads as unreviewed.
+- Read pause state from `paused=1` on the marker line, never from the verdict text. Pause state and verdict text are independent: a pause or resume on a head that already has a review carries that review's text forward verbatim and changes only the marker, so `reviewed <sha> and posted ...` and `paused=1` appear together. Take the marker through `head -1`.
+- The third `_Lane state:` line appears only when a pause or resume landed on a head holding a standing verdict. It is rebuilt, not appended, so pause then resume then pause leaves one such line. It carries no `paused=1` substring, so a whole-body grep for `paused=1` still does not match on it alone.
 
 Twenty-one `verdict_kind` values exist, read from `claude-code-review.yml` at gh-workflows 8655c6e (main, after #194 merged). Only the two `reviewed <sha> ...` forms mean the head was reviewed. For any other text, read `references/verdicts.md` beside this file.
+
+Match a verdict by its prefix, never by equality. A round that reviewed without some context appends a sentence to whatever verdict it posts. The reasons are an unresolved issue reference, CI failing or still pending on this head, a lockfile it could not parse, or a tool that could not run. The note qualifies how much the round saw, never whether the head was reviewed. A `reviewed <sha> ...` verdict carrying one still counts as a review. Read the note before trusting its coverage.
 
 No liveness comment means the PR was never admitted; a watcher waiting for one waits forever.
 
@@ -82,11 +87,13 @@ Bare PR comments, org members only. The body is read only by workflow `contains(
 
 | Comment | Effect |
 |---|---|
-| `@claude review` | Incremental. The lane picks its mode: a verify round when unresolved `claude[bot]` threads exist, else a normal review. The only resume for an auto-paused PR |
+| `@claude review` | Incremental. The lane picks its mode: a verify round when unresolved `claude[bot]` threads exist, else a normal review. Lifts an auto-pause or an explicit pause |
 | `@claude full review` | From scratch, dedup disabled for that run. The fix for a round that finished green having published nothing, which is what dedup silently causes. Also the only way past a verify round: it short-circuits ahead of the unresolved-thread check |
 | `@claude review --model opus` | Incremental on `claude-opus-5` for that run only. `@claude review --model sonnet` picks `claude-sonnet-5` back |
 | `@claude pause` | Stops automatic rounds on this PR deliberately. Later heads report `paused by request at <sha>`. Soft: any admitted summon lifts it (#189 ruling); a summon an admission gate refuses leaves it in place. A stop is `admission: off` or the `claude_review_skip` label, never a comment |
 | `@claude resume` | Lifts an explicit pause. Not the remedy for an auto-pause, which is `@claude review` |
+
+Both pauses stop automatic rounds only, and a summon lifts either one. Any of `@claude review`, `@claude full review`, `@claude review --model opus` or `@claude resume` lifts an explicit pause. A verb-less in-thread reply still gets its verify round, and a push or a reply carries the pause forward instead of erasing it. One difference remains: the auto-pause counter resets only when a round posts review output. Neither pause is a stop. The operator's stop is `review.admission: off`, reversed by a commit to the base branch, or the `claude_review_skip` label, reversed by removing it (§3). Read `paused=1` off the marker to tell which pause you are looking at.
 
 `default_model` is `claude-sonnet-5`. Escalation is per run, set by token tier.
 
@@ -113,7 +120,7 @@ One run resolves to one mode, named in the run log. A `pull_request` event reach
 
 | Mode | Reached by | What it does |
 |---|---|---|
-| `skip` | any trigger | Nothing reviewed. Reason is one of `no-token`, `skipped-author`, `paused`, `no-new-commits` |
+| `skip` | any trigger | Nothing reviewed. Reason is one of `no-token`, `skipped-author`, `paused`, `paused-by-request`, `no-new-commits`. `paused-by-request` comes only from a push; summons and replies are not refused by a pause |
 | `review` | any trigger | Full review from scratch. Also the fallback when an incremental range cannot be trusted: `no-baseline`, `baseline-gone`, `diverged`, `range-too-large`, `identical-summon` |
 | `incremental` | push, or `@claude review` | Reviews only the `baseline..head` range off the liveness marker |
 | `review-full` | `@claude full review` only | From scratch with dedup disabled |
