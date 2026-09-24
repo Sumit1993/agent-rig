@@ -13,6 +13,7 @@ ALLOWED_HOOKS=(
 CLAUDE_ONLY=(
   "no-haiku.sh: guards Claude model ids" "scoped-cap-gate.sh: Anthropic weekly caps"
   "session-budget.sh: Anthropic usage limits" "budget-nudge.sh: Anthropic usage limits"
+  "review-debt.sh: SessionStart event Codex lacks"
   "limit-log.sh: StopFailure and Notification, events Codex lacks"
   "pr-created.sh: Claude watcher tools" "reap-watchers.sh: Claude watcher tools"
   "vendored-skill-nudge.sh: the Claude Skill tool"

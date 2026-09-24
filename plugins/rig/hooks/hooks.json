@@ -202,6 +202,15 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/review-debt.sh\"",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "PostToolUse": [

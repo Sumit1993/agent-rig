@@ -1,0 +1,34 @@
+#!/bin/bash
+# SessionStart hook: surface unresolved review threads on author's open PRs. Sumit1993/rig#150.
+# Rung: hook. Skipped: impossible (no harness feature queries repo review debt), check (debt changes dynamically).
+set -u
+in=$(cat)
+
+raw_origin=$(git remote get-url origin 2>/dev/null) || exit 0
+case "$raw_origin" in
+  *github.com[:/]*) ;;
+  *) exit 0 ;;
+esac
+repo=$(printf '%s' "$raw_origin" | sed -E 's#.*github\.com[:/]##; s#\.git$##')
+case "$repo" in
+  */*) ;;
+  *) exit 0 ;;
+esac
+
+query='query { search(query: "repo:'"$repo"' is:pr is:open author:@me", type: ISSUE, first: 30) { nodes { ... on PullRequest { number isDraft reviewThreads(first: 100) { nodes { isResolved } } } } } }'
+res=$(timeout 8 gh api graphql -f query="$query" 2>/dev/null) || exit 0
+
+items=$(jq -r '
+  [.data.search.nodes[]?
+   | select(.isDraft == false)
+   | {number, count: ([.reviewThreads.nodes[]? | select(.isResolved == false)] | length)}
+   | select(.count > 0)]
+   | sort_by(.number)
+   | map("#\(.number) (\(.count) open thread\(if .count == 1 then "" else "s" end))")
+   | join(", ")
+' <<<"$res" 2>/dev/null) || exit 0
+
+[ -z "$items" ] && exit 0
+
+msg="Review debt in ${repo}: ${items}. Clear it before any new pick: compass Step 0."
+jq -n --arg ctx "$msg" '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":$ctx}}'
