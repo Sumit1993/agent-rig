@@ -2,7 +2,7 @@
 
 Every `verdict_kind` the lane can post, whether it means the head was reviewed, and what to do. Read this when a liveness comment is in front of you and its text is not one of the two `reviewed <sha> ...` forms.
 
-Twenty-one `verdict_kind` values, read from `claude-code-review.yml` at gh-workflows 38c4d41 (PR #194 head). Only the first two rows mean the head was reviewed:
+Twenty-one `verdict_kind` values, read from `claude-code-review.yml` at gh-workflows 8655c6e (main, after #194 merged). Only the first two rows mean the head was reviewed:
 
 | Verdict text | Reviewed? | What to do |
 |---|---|---|
@@ -16,7 +16,7 @@ Twenty-one `verdict_kind` values, read from `claude-code-review.yml` at gh-workf
 | `the verification round on <sha> was cancelled before it posted a summary, and the head has not moved, so the cause is not recorded here` | No | Cause unknown by design rather than guessed. Some threads may have been replied to before it stopped; read the run log |
 | `auto-paused after N automatic rounds at <sha> — re-request with @claude review` | No | Summon, or hand the pause back to whoever owns the PR; never wait for the next push. The text adds that an already-queued summon replaces this verdict when its round finishes |
 | `paused by request at <sha>; resume with @claude resume` | No | Someone paused the lane deliberately. Resume only if that was you or you know why |
-| `skipped at <sha>: the claude_review_skip label keeps the lane off this pull request, summons included` (`skip-label`) | No | Someone kept the lane off this PR deliberately. Remove the label to resume |
+| `skipped at <sha>: the claude_review_skip label keeps the lane off this pull request, summons included` (`skip-label`) | No | Someone kept the lane off this PR deliberately. Removing the label lifts only this gate; under `admission: label` the PR still needs `claude_review` |
 | `not admitted at <sha>: this repository admits reviews by label (admission: label)` (`awaiting-label`) | No | Apply the `claude_review` label. A summon will not admit it |
 | `did not run at <sha>: the diff is below this repo's min_diff_lines floor` | No | No machine review on record. Summon if the diff deserves one anyway |
 | `did not run at <sha>: the head moved during the debounce window, so this round would have reviewed a stale diff` | No | This head has no review. Whether the newer head gets one depends on its own run, which this round cannot see |
