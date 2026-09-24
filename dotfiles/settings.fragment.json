@@ -20,8 +20,8 @@
   "effortLevel": "high",
   "tui": "fullscreen",
   "extraKnownMarketplaces": {
-    "agent-rig": {
-      "source": { "source": "github", "repo": "Sumit1993/agent-rig" },
+    "rig": {
+      "source": { "source": "github", "repo": "Sumit1993/rig" },
       "autoUpdate": true
     },
     "mattpocock": {
@@ -30,7 +30,7 @@
     }
   },
   "enabledPlugins": {
-    "rig@agent-rig": true,
+    "rig@rig": true,
     "mattpocock-skills@mattpocock": true
   }
 }

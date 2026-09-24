@@ -11,7 +11,7 @@ One PR, raised in this session, watched until its round ends, so the session rea
 
 Reviewer behaviour lives elsewhere. `claude-review-lane` owns `claude[bot]`, `coderabbit-lane` owns `coderabbitai[bot]`, and both load on a PR of any age. Load the owning skill before acting on that reviewer. The trigger syntax and `cr-reply.sh` appear below so a router recognises them; the preconditions (cooldown arithmetic, budget, the post-trigger poll) live only there, and acting on the fragments produces confidently wrong reports.
 
-Process truth is `agent-rig/docs/pr-review-process.html`. Whoever changes the process updates that page in the same session.
+Process truth is `rig/docs/pr-review-process.html`. Whoever changes the process updates that page in the same session.
 
 Reviews arrive on their own schedule: the Claude lane in 2 to 5 minutes, CodeRabbit in 3 to 5 after admission, CI in 5 to 10. Never poll with model turns. Never wait for the user to relay an event. Arm a deterministic watcher and process deltas.
 

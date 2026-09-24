@@ -20,7 +20,7 @@ case "$path" in
   "$home"/.claude/skills/*|"$home"/.agents/skills/*)
     cat >&2 <<MSG
 Blocked by rig/guard/protected-edit-gate: $path is a loose copy that dedupe.sh removes after the
-next plugin load. Edit plugins/rig/skills in the agent-rig checkout, commit, push (README §Editing).
+next plugin load. Edit plugins/rig/skills in the rig checkout, commit, push (README §Editing).
 MSG
     report_guard "rig/guard/protected-edit-gate" "$tool" "$path"
     exit 2 ;;
@@ -47,7 +47,7 @@ grep -qxF -- "$import" <<<"$proposed" && exit 0
 cat >&2 <<MSG
 Blocked by rig/guard/protected-edit-gate: ~/.claude/CLAUDE.md is a one-line import ($import) plus
 machine-local rules below it. Everything above that line is edited in dotfiles/AGENTS.md in the
-agent-rig checkout. Add machine-local rules below the import instead.
+rig checkout. Add machine-local rules below the import instead.
 MSG
 report_guard "rig/guard/protected-edit-gate" "$tool" "$path"
 exit 2

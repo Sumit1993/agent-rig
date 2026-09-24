@@ -1,11 +1,11 @@
 -- Measures hook refusal blocks in tool results by guard id and tool name.
--- Rule: Fire ledger source of truth is hook blocks in transcripts. Ref: agent-rig#89.
+-- Rule: Fire ledger source of truth is hook blocks in transcripts. Ref: rig#89.
 -- A hook refusal is a tool_result with is_error=true whose text (first text block, or
 -- the plain string content) starts with "<Event>:<Tool> hook error", e.g.
 -- "PreToolUse:Bash hook error: [...]: Blocked by rig/guard/gh-body-stamp: ...". Anything
 -- else that merely mentions "hook error" or "blocked by" is either file content (a Read
 -- of a hook script, a grep over the hooks directory) or a harness/classifier denial, not
--- a hook block; those show up in the second table below. Ref: agent-rig#91.
+-- a hook block; those show up in the second table below. Ref: rig#91.
 SET VARIABLE projects = coalesce(getvariable('projects'), getenv('HOME') || '/.claude/projects');
 
 WITH blocks AS (

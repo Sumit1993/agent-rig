@@ -1,4 +1,4 @@
-# agent-rig
+# rig
 
 Sumit's portable Claude Code working style: one plugin plus dotfiles. A fresh machine behaves identically in two minutes.
 
@@ -111,7 +111,7 @@ At the same time, `no-haiku.sh` pipes the following payload to `mage observe` on
 ## New machine
 
 ```bash
-git clone https://github.com/Sumit1993/agent-rig && ./agent-rig/dotfiles/install.sh
+git clone https://github.com/Sumit1993/rig && ./rig/dotfiles/install.sh
 ```
 
 ## Vendored skills and their updates

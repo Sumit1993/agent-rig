@@ -1,5 +1,5 @@
 #!/bin/bash
-# rig-meta.sh — per-repo metadata for agent-rig tooling.
+# rig-meta.sh — per-repo metadata for rig tooling.
 #   get <owner/repo> <key>               print the value (exit 1 if unset)
 #   current [<key>]                      repo resolved from the cwd's origin remote
 #   observe <owner/repo> <key> <value>   record a runtime observation

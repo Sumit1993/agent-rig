@@ -2,7 +2,7 @@
 # Re-arming a watcher after a rate-limit notice was already recorded used to lose the
 # auto-retry silently: the new process read the same updated_at, skipped the arming path,
 # and left retry_at at 0 with no event saying so. Silence read exactly like an armed wait.
-# These run the REAL watcher against a stubbed gh. See agent-rig#28.
+# These run the REAL watcher against a stubbed gh. See rig#28.
 set -u
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WATCHER="$SELF_DIR/../../skills/pr-babysit/watch-coderabbit.sh"
@@ -53,7 +53,7 @@ run() { # autoretry -> one poll of the real watcher
 # --- A detect-only watcher records the notice and arms nothing -----------------
 # CodeRabbit edits its one summary comment in place, so the first sighting of a new
 # updated_at must settle across two polls before it is acted on (same trap the
-# already-reviewed notice hit; agent-rig#73). Refs #82.
+# already-reviewed notice hit; rig#73). Refs #82.
 out=$(run 0)
 case "$out" in
   *"RATE-LIMITED"*) fail "rate-limited fired on the first sighting, before it settled: $(printf '%s' "$out" | tr '\n' '|')" ;;
