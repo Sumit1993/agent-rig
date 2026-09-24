@@ -84,7 +84,18 @@ The session that owns the Monitor is a thin router. Read the sentinel line, then
 
 Per-event handling is in `references/events.md`.
 
-ery reviewer. The thread gate only blocks once a thread exists, and auto-merge can fire between a review landing and its fix commit. Order the round as review posted, then fix, then resolve, then merge, never the reverse. On queue repos "review posted" is read off the liveness comment.
+## Phase 3: merge, once the user says so or under an explicit standing grant
+
+Check `rig-meta.sh get <owner/repo> merge_queue` first.
+
+- Queue repos (`merge_queue` true): `gh pr merge <n> --squash` enqueues, and the queue tests a speculative merge onto main before landing it. No BEHIND cascade, no update-branch babysitting. Do not enqueue before the liveness comment shows posted review output (`claude-review-lane` §2). The queue gates on checks and threads, not on whether a reviewer spoke, so enqueueing into silence merges an unreviewed head.
+- Classic repos (`merge_queue` false): merge by hand once the round's threads are resolved, `gh pr merge <n> --squash`. BEHIND still applies, so update the branch and re-green before merging the next.
+
+Afterward remove the lane's worktree and delete its local branch (`AGENTS.md` §Worktrees). `git worktree unlock` first if git refuses because the tree is locked.
+
+## Notes
+
+- Auto-merge and the queue both outrun every reviewer. The thread gate only blocks once a thread exists, and auto-merge can fire between a review landing and its fix commit. Order the round as review posted, then fix, then resolve, then merge, never the reverse. On queue repos "review posted" is read off the liveness comment.
 - Never wait on `mergeStateStatus`. An unresolved thread pins it at `BLOCKED`. Key on `reviewThreads` and comment IDs (`no-doze` §3).
 - Watching is cheap: a shell poll every 75 seconds, zero tokens while quiet. Prefer over-watching to relaying.
 - Rate limits are invisible on both obvious channels. CodeRabbit posts the notice as an issue comment, so `/pulls/N/comments` misses it, and the `Review rate limited` check passes by design. `watch-coderabbit.sh` polls `/issues/N/comments` for the `rate limited by coderabbit.ai` marker, deduped on `updated_at` because CodeRabbit edits one summary comment in place.
