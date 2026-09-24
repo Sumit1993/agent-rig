@@ -2,7 +2,7 @@
 
 Every `verdict_kind` the lane can post, whether it means the head was reviewed, and what to do. Read this when a liveness comment is in front of you and its text is not one of the two `reviewed <sha> ...` forms.
 
-Nineteen `verdict_kind` values, read from `claude-code-review.yml` at gh-workflows 1b1c597. Only the first two rows mean the head was reviewed:
+Twenty-one `verdict_kind` values, read from `claude-code-review.yml` at gh-workflows 8655c6e (main, after #194 merged). Only the first two rows mean the head was reviewed:
 
 | Verdict text | Reviewed? | What to do |
 |---|---|---|
@@ -16,6 +16,8 @@ Nineteen `verdict_kind` values, read from `claude-code-review.yml` at gh-workflo
 | `the verification round on <sha> was cancelled before it posted a summary, and the head has not moved, so the cause is not recorded here` | No | Cause unknown by design rather than guessed. Some threads may have been replied to before it stopped; read the run log |
 | `auto-paused after N automatic rounds at <sha> — re-request with @claude review` | No | Summon, or hand the pause back to whoever owns the PR; never wait for the next push. The text adds that an already-queued summon replaces this verdict when its round finishes |
 | `paused by request at <sha>; resume with @claude resume` | No | Someone paused the lane deliberately. Resume only if that was you or you know why |
+| `skipped at <sha>: the claude_review_skip label keeps the lane off this pull request, summons included` (`skip-label`) | No | Someone kept the lane off this PR deliberately. Removing the label lifts only this gate; under `admission: label` the PR still needs `claude_review` |
+| `not admitted at <sha>: this repository admits reviews by label (admission: label)` (`awaiting-label`) | No | Apply the `claude_review` label. A summon will not admit it |
 | `did not run at <sha>: the diff is below this repo's min_diff_lines floor` | No | No machine review on record. Summon if the diff deserves one anyway |
 | `did not run at <sha>: the head moved during the debounce window, so this round would have reviewed a stale diff` | No | This head has no review. Whether the newer head gets one depends on its own run, which this round cannot see |
 | `not reviewed at <sha>: the pull request is a draft, and nothing reviews a draft — summons included` | No | Mark it ready for review and the lane takes the whole diff in one round |
@@ -26,3 +28,5 @@ Nineteen `verdict_kind` values, read from `claude-code-review.yml` at gh-workflo
 | `finished on <sha> (job result: ...) and this job could not read back ...` (`counts-unread`) | Unknown | The round may have posted. Read the PR's `claude[bot]` threads before summoning again |
 | `ran a verification round on <sha> and could not read back what it posted` (`verify-unread`) | No, threads only | Read the thread replies directly |
 | `did not review <sha>: ...` (`api-error`) | No | The text names the class. `account-limit`: wait for the reset it names. `rate-limited` or `api-unavailable`: transient, summon again. `auth-failed`: an admin replaces the credential, retrying will not help. `billing`: fix billing, then summon. `model-unavailable`: pick an allowed `review.default_model`. `request-too-large`: split the PR or narrow `path_filters`. Any other error: read the run log. The job concludes `failure`, so read this text before assuming a code problem. A trailing sentence says whether findings were posted before the failure |
+
+`admission-off` is a lane event with no verdict row, because an off repository posts nothing.

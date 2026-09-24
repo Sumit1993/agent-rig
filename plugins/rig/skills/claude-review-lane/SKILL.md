@@ -3,7 +3,7 @@ name: claude-review-lane
 description: "How the claude[bot] review lane behaves on any PR: liveness verdicts, why it stays quiet, summon grammar and model override, verification rounds, who resolves a thread. Load when a claude[bot] thread or liveness comment is in front of you."
 metadata:
   harnesses: "claude agy codex"
-  version: "3.6.1"
+  version: "3.7.0"
 ---
 
 # The Claude review lane
@@ -34,7 +34,7 @@ Match prefix `<!-- claude-review-liveness`. Every field after `rounds=` is optio
 - `patch=` fingerprints the PR's own patch at `sha=`. A rebase or restack push whose patch matches it skips as `unchanged-patch`. A summon never skips on it.
 - An `api-error` round advances neither `sha=` nor `rounds=`, so the head it failed on still reads as unreviewed.
 
-Nineteen `verdict_kind` values exist, read from `claude-code-review.yml` at gh-workflows 1b1c597. Only the two `reviewed <sha> ...` forms mean the head was reviewed. For any other text, read `references/verdicts.md` beside this file.
+Twenty-one `verdict_kind` values exist, read from `claude-code-review.yml` at gh-workflows 8655c6e (main, after #194 merged). Only the two `reviewed <sha> ...` forms mean the head was reviewed. For any other text, read `references/verdicts.md` beside this file.
 
 No liveness comment means the PR was never admitted; a watcher waiting for one waits forever.
 
@@ -51,13 +51,18 @@ A positive verdict needs no cross-check; nothing fabricates posted output.
 
 Automatic rounds fire on `pull_request` for same-repo heads. Summons and in-thread replies require repository write access, checked against the collaborators API. Admission is not `author_association`.
 
-Five ways a PR gets no review. Whether each leaves a liveness comment is noted with it; the comment exists only where the callee was invoked, so anything the caller stub stops is silent:
+Eight ways a PR gets no review. Whether each leaves a liveness comment is noted with it; the comment exists only where the callee was invoked, so anything the caller stub stops is silent:
 
 1. Skipped author. An author in `skip_authors` (default `dependabot[bot]`) gets no automatic round: no review, no verify, no liveness comment. Matching is exact-login on a delimiter-wrapped list. A summon bypasses the list.
 2. Draft PR. Nothing reviews a draft, summons included: the callee's `review` gate is `admitted && same_repo && draft != 'true'` with no override. Marking the pull request ready is what collects the work, and the lane then takes the whole diff in one round. An automatic round or in-thread reply skips on the caller stub, so no run is spent and no liveness comment appears. A summon executes the callee, skips on the review gate, and posts the draft verdict so the spent summon says why.
 3. Fork head. Never machine-reviewed: GitHub withholds secrets from fork code and the lane avoids `pull_request_target`. A `fork-notice` job upserts a comment marked `<!-- claude-review-fork-notice -->` pointing at `coderabbit_review`. A summon does not override this. Read-only tokens fall back to a workflow warning annotation.
 4. Self-skip on the workflow itself. A PR that edits `.github/workflows/claude-code-review.yml` is never reviewed: `claude-code-action` self-skips on workflow-validation mismatch. A security control, and the one case a summon cannot fix; label the PR `coderabbit_review`. A self-skip leaves the action's conclusion empty, which shares an empty conclusion with tool denials and account limits; run duration and logs separate them.
 5. Auto-paused. After `auto_pause_rounds` automatic rounds (default 5) the lane posts the auto-paused verdict instead of reviewing. A paused PR is not reviewed on push, so a wait keyed on push has no end. A summon resets the counter, but only when the round posts review output.
+6. `review.admission: off` in the repo's `.github/claude-review.yml` (read at the base ref) or the org's `.github/claude-review-defaults.yml` in `prismalens/gh-workflows` (read at `main`). Nothing reviews and nothing posts, with no liveness comment. One exception: a summon on a draft PR never reaches the admission check, so it still posts the draft verdict. It records lane event `admission-off`. Every summon (`@claude review`, `@claude full review`, `@claude resume`, `@claude pause`) and every in-thread reply is refused. An unquoted `off` (YAML false) is accepted. A narrower layer can never override it.
+7. The `claude_review_skip` label, under any admission value, summons included. It posts one upserted verdict (`skip-label`), unless `admission: off` applies, which takes precedence and posts nothing. Removing the label lifts only this gate: under `admission: label` the PR still needs `claude_review`.
+8. `review.admission: label` with no `claude_review` label. It posts one upserted verdict (`awaiting-label`). Applying the label admits the PR with no new push, and removing it stops later rounds. Only the label admits: summons on an unlabelled PR are refused.
+
+Precedence is `off`, then the skip label, then the opt-in label, checked first in `Detect verification mode`. A refused summon leaves an existing pause as it was. `scripts/setup-repo.sh` creates both labels. Consumer stubs list `labeled` and `unlabeled` in `pull_request.types` and keep label events out of `cancel-in-progress` (gh-workflows README, principle 7 and the admission section). Without them `auto` and `off` are unaffected, and a label takes effect only at the next push or `@claude review`.
 
 ### Credentials, stacks and context
 
@@ -80,7 +85,7 @@ Bare PR comments, org members only. The body is read only by workflow `contains(
 | `@claude review` | Incremental. The lane picks its mode: a verify round when unresolved `claude[bot]` threads exist, else a normal review. The only resume for an auto-paused PR |
 | `@claude full review` | From scratch, dedup disabled for that run. The fix for a round that finished green having published nothing, which is what dedup silently causes. Also the only way past a verify round: it short-circuits ahead of the unresolved-thread check |
 | `@claude review --model opus` | Incremental on `claude-opus-5` for that run only. `@claude review --model sonnet` picks `claude-sonnet-5` back |
-| `@claude pause` | Stops automatic rounds on this PR deliberately. Later heads report `paused by request at <sha>` |
+| `@claude pause` | Stops automatic rounds on this PR deliberately. Later heads report `paused by request at <sha>`. Soft: any admitted summon lifts it (#189 ruling); a summon an admission gate refuses leaves it in place. A stop is `admission: off` or the `claude_review_skip` label, never a comment |
 | `@claude resume` | Lifts an explicit pause. Not the remedy for an auto-pause, which is `@claude review` |
 
 `default_model` is `claude-sonnet-5`. Escalation is per run, set by token tier.
