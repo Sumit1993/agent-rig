@@ -1,6 +1,6 @@
 #!/bin/bash
 # mage:rig/guard/merge-gate
-# PreToolUse(Bash) hook: a merge is a per-merge permission (AGENTS.md §The organizer seat). The seat
+# PreToolUse(Bash) hook: a merge is a per-merge permission (AGENTS.md §Reporting and merging). The session
 # records the operator's word as MERGE_OK=<pr> on the same command; the token names one PR and never
 # carries forward. Covers gh pr merge (incl. --auto) and gh api .../pulls/<n>/merge.
 # Refs #123, #20. Rung: hook. Skipped: impossible (a ruleset needing one approval is stronger; open on #20 per repo).
@@ -59,8 +59,8 @@ token=$(grep -oE '(^|[;&|[:space:]])MERGE_OK=[^[:space:];&|]+' <<<"${prefix:-$cm
 which="PR ${pr:-<current branch>}"
 [ "$api" = "yes" ] && which="pulls/${pr:-?}/merge via gh api"
 cat >&2 <<MSG
-Blocked by rig/guard/merge-gate: merging $which needs the operator's word for this PR (AGENTS.md §The
-organizer seat: merge is a per-merge permission, never carried forward). Ask, then record it on the
+Blocked by rig/guard/merge-gate: merging $which needs the operator's word for this PR (AGENTS.md §Reporting and
+merging: merge is a per-merge permission, never carried forward). Ask, then record it on the
 same command: MERGE_OK=${pr:-<pr>} gh pr merge ${pr:-<pr>} ... The token must name this PR${token:+; it names $token}.
 MSG
 report_guard "rig/guard/merge-gate" "Bash" "pr ${pr:-current}"
