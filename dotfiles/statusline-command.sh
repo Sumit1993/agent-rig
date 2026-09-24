@@ -1,7 +1,7 @@
 #!/bin/bash
 # Reads the statusline JSON Claude Code pipes in. rate_limits arrives on v2.1.251+ for
 # Pro and Max after the first API response; each render is also appended to
-# ~/.claude/metrics/usage.jsonl so a window that fills up has a local trace. Story: agent-rig#124.
+# ~/.claude/metrics/usage.jsonl so a window that fills up has a local trace. Story: rig#124.
 input=$(cat)
 cwd=$(echo "$input" | jq -r '.workspace.current_dir // .cwd')
 model=$(echo "$input" | jq -r '.model.display_name // empty')
@@ -44,7 +44,7 @@ fi
 
 # Per-model weekly caps (Fable) are not in the stdin payload. /api/oauth/usage has them; refresh a
 # cache in the background at most every 5 minutes and render from the cache. Undocumented, so any
-# failure just leaves the field off. Story: agent-rig#133.
+# failure just leaves the field off. Story: rig#133.
 api=~/.claude/metrics/usage-api.json
 if [ -z "$(find "$api" -mmin -5 2>/dev/null)" ]; then
   mkdir -p ~/.claude/metrics; touch "$api"

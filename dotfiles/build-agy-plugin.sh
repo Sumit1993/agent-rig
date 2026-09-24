@@ -1,7 +1,7 @@
 #!/bin/bash
 # Builds the agy plugin from the Claude plugin: a root plugin.json and only the skills whose frontmatter
 # says `harnesses: "claude agy"`. Hooks and agents never cross, because agy's hook contract and agent
-# frontmatter differ from Claude Code's. Untagged means Claude-only. Story: agent-rig#134.
+# frontmatter differ from Claude Code's. Untagged means Claude-only. Story: rig#134.
 set -euo pipefail
 SRC="$(cd "$(dirname "$0")/../plugins/rig" && pwd)"
 OUT="${1:?usage: build-agy-plugin.sh <out-dir>}"

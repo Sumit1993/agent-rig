@@ -2,6 +2,7 @@
 # SessionStart hook: one line of budget the operator used to type by hand: the 5h and 7d
 # account percent from the statusline trace, and agy's quota state per group. Refs #123.
 # On resume or fork, the resume-cost fields Claude Code sends (v2.1.251+) become one more sentence.
+# Rung: hook. Skipped: impossible (the harness banner does not show external quota), check (the session starts dynamically).
 set -u
 in=$(cat)
 log="${BUDGET_USAGE_LOG:-$HOME/.claude/metrics/usage.jsonl}"

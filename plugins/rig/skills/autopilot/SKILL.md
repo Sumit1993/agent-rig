@@ -25,17 +25,17 @@ Three facts shape the plan. Jobs live in this session's memory only; end the ses
 
 ### Write the plan file
 
-`~/ai-context/<repo>-<task>-plan.md` is the source of truth. It holds standing rules, the lane table, decisions waiting on the operator, verified environment facts, and a running log. Detail goes here, not the terminal (§11). If it does not exist, building it is the rest of the first tick: read the queue without touching anything, group into waves by blockers, probe stacks and worktrees, and record standing rules and frozen paths.
+`~/ai-context/<repo>/<issue>-<slug>/plan.md` is the source of truth. It holds standing rules, the lane table, decisions waiting on the operator, verified environment facts, and a running log. Detail goes here, not the terminal (§11). If it does not exist, building it is the rest of the first tick: read the queue without touching anything, group into waves by blockers, probe stacks and worktrees, and record standing rules and frozen paths.
 
 Respect the window. Never start a lane that cannot finish and be verified in the time left. Near the end, take work only to a state that is safe to leave: pushed, commented or parked. Never mid-merge or mid-rebase.
 
 ## 1. The organizer never edits repo files
 
-Dispatch and judge. Editing a file means the seat holding the goal spent its turn on work a cheap lane could have done, and stopped watching every other lane. The organizer produces dispatches, verdicts on returned claims, plan file updates, and merges. Nothing else.
+The organizer produces dispatches, verdicts on returned claims, plan file updates, and merges. Nothing else.
 
 Lanes work in worktrees, never the main checkout. `AGENTS.md` sets which mechanism; a Claude subagent lane and an agy lane do not get the same one. The main checkout and its stack belong to the organizer. A lane that "restores" its branch takes the run down. The organizer creates or reuses the worktree and hands the lane an absolute path, with instructions to stop and report if it is missing.
 
-The organizer does not draft the spec either. `farm-out` §Dispatch sends that to a `fable-planner`: you supply the issue, the constraints and the worktree path, and you judge what comes back. Drafting is work, and this seat does not do work.
+Bounded specs are the organizer's own. A spec that needs a ruling goes to `fable-planner` (§6).
 
 Every dispatch prompt says, in as many words:
 
@@ -45,14 +45,13 @@ Every dispatch prompt says, in as many words:
 - The stop conditions. "Abort and report rather than improvise" on any conflict, any frozen path, any gate still red after N minutes.
 - What the lane may not do: merge, close, bypass, edit a frozen path.
 - The stall rule (§3).
+- The early-stop rule: status notes go in the same message as the next tool call. Stop only when nothing can move without the operator, never to report a milestone or offer to continue.
 
 Never override a lane's brief with reasoning you invented on the spot. If you contradict a brief, cite what supersedes it. With no source, the brief wins, and a lane that refuses an unsourced order is behaving correctly.
 
-Workflows, subagents and todos are free to use; cost is the only limit. Do not ration agents to save money and do not do work by hand to avoid spawning one. This grant is about model choice and does not exempt bounded mechanical work from the delegation rule in `AGENTS.md`, which still sends that work to agy.
-
 ## 2. Delegate, then verify
 
-Send bulk reading, log triage, rebases, evidence gathering and repetitive work to the cheap executor. Verification runs once per umbrella against the build, not once per unit. The seat does not re-run a gate the umbrella already proved; re-run only on a gap. Judgement skips the cheap lane: security, crypto, user-facing work, product semantics.
+Verification runs once per umbrella against the build, not once per unit. The seat does not re-run a gate the umbrella already proved; re-run only on a gap.
 
 ## 3. The stall rule: a wait has to hold the turn
 
@@ -90,7 +89,7 @@ Architecture, security and crypto, product semantics, and any dilemma where two 
 
 - Frame the consult around the subsystem, not the hole in front of you (§7).
 - One consult per decision. Past an hour, start a new one; a stale consult reasons from premises the run has since disproved.
-- Routine dispatch specs come from this same seat (`farm-out` §Dispatch), and from the same agent while it is inside that hour. The planner is not reserved for hard calls: it is where every spec is written.
+- Reuse the same planner for a second ruling inside that hour.
 - Its ruling binds that decision, and what it explicitly deferred stays deferred.
 - A ruling you disagree with is still the ruling. Record the disagreement in the plan file and park it (§10).
 
@@ -108,6 +107,7 @@ A broken gate blocks every PR in the repo, including the PR that fixes it.
 
 Mechanics are `pr-babysit` Phase 3. Specific to unattended:
 
+- Merge only when CI is green and every review thread resolved by the reviewer that opened it (`pr-babysit` Phase 0). A thread the organizer or a lane resolved does not count.
 - Never arm auto-merge. Reviewers cannot block a merge, so it fires the moment CI goes green, before the reviewer has finished, and `required_review_thread_resolution` has nothing left to block on.
 - An organizer that cannot merge with the operator present does not merge at all. Take the PR to green, report it ready, leave it (§10).
 - With a standing grant on a classic repo: one at a time, checking the gate after each. Every merge puts the other open PRs behind the base, auto-merge never updates a branch in that state, and nothing tells you. Go and look. Rebase the PRs you are parking at the end of the drain, not the start.
@@ -131,13 +131,13 @@ The PR that repairs a gate is the worst candidate in the repo for skipping revie
 - An honest gap beats an invented claim. Say where the evidence for a parked item is incomplete.
 - Every parked item goes in the plan file's decision list as a specific question with options, never "needs review".
 
-## 11. Short output, and near-silence once the operator is away
+## 11. Near-silence once the operator is away, then the handback
 
-Findings, decisions, evidence, SHAs, blockers. Do not restate the plan, narrate intent, or re-summarise logged work. Every dispatched agent gets the same instruction. A tick with no dispatch is a valid tick, one line with the reason.
-
-While the operator is away, the terminal has no reader, and the plan file is the record and the report. A tick that dispatched, verified and logged reports one line, or nothing at all. Spend the words on the plan file and issue comments rather than scrollback. Full reporting resumes for the handback. Plain sentences, identifiers and commands exact; compress the words, never the meaning.
+While the operator is away, the terminal has no reader, and the plan file is the record and the report. A tick that dispatched, verified and logged reports one line, or nothing at all. Spend the words on the plan file and issue comments rather than scrollback. Full reporting resumes for the handback.
 
 Lead with what landed, and the SHAs of anything merged or pushed, before anything pending. Saying nothing about a finished step reads as "it did not happen" and costs a verification round. A lane that refused an unsourced order goes in the report as correct, not as a failed dispatch.
+
+The handback has a fixed shape: a table with one row per PR (number, state, head SHA), then one line per decision owed, then the delta from the PR bodies. Nothing a PR body already says, no lane specs, no state tables; those stay in the plan file under `~/ai-context/<repo>/<issue>-<slug>/`.
 
 ## Wake-up checklist (each tick)
 

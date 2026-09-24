@@ -2,6 +2,7 @@
 # SubagentStop hook: refuse subagents returning stall phrasing instead of waiting.
 # Checks last_assistant_message first, then falls back to transcript file.
 # Codex rejects an exit-0 SubagentStop without JSON on stdout, so passes print {}. Refs #123, #141.
+# Rung: hook. Skipped: impossible (subagent output phrasing cannot be restricted by schema), check (the phrasing exists only at subagent stop time).
 set -u
 in=$(cat)
 pass() { echo '{}'; exit 0; }

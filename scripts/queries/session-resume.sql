@@ -1,5 +1,5 @@
 -- Reconstructs session timeline including operator messages and tail state.
--- Rule: Union human queued_command attachments to restore operator intent. Ref: agent-rig#130, #91.
+-- Rule: Union human queued_command attachments to restore operator intent. Ref: rig#130, #91.
 SET VARIABLE projects = coalesce(getvariable('projects'), getenv('HOME') || '/.claude/projects');
 SET VARIABLE session_id = coalesce(getvariable('session_id'), '');
 SET VARIABLE since = coalesce(getvariable('since'), '');
@@ -66,7 +66,7 @@ timeline AS (
     -- attachment line, ~0.03s apart on this repo's own transcripts (measured max gap
     -- for a genuine same-event pair, vs. the next-closest real repeat at >60s away).
     -- Collapse same text only within a 5s gap, so the same words sent twice minutes
-    -- apart stay two rows. Ref: agent-rig#140, 4006888972.
+    -- apart stay two rows. Ref: rig#140, 4006888972.
     SELECT
         min(ts) as ts,
         'operator' as kind,

@@ -1,5 +1,5 @@
 -- Measures tool-result bytes by tool name for all time and last 30 days.
--- Rule: Track transcript payload weight to identify context-heavy tools. Ref: agent-rig#89.
+-- Rule: Track transcript payload weight to identify context-heavy tools. Ref: rig#89.
 SET VARIABLE projects = coalesce(getvariable('projects'), getenv('HOME') || '/.claude/projects');
 
 WITH blocks AS (

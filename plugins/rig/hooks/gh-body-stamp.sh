@@ -1,7 +1,7 @@
 #!/bin/bash
 # PreToolUse(Bash) hook: gh issue/pr comment/create/edit (+ pr review) must carry the operator-stamp marker in its body.
 # gh api and MCP posting tools are not covered.
-# Refs #116
+# Refs #116. Rung: hook. Skipped: impossible (no deny rule inspects body content), check (the body exists only at call time).
 set -u
 in=$(cat)
 cmd=$(jq -r '.tool_input.command // ""' <<<"$in" 2>/dev/null) || exit 0

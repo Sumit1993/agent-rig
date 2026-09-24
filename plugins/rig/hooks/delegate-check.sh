@@ -5,6 +5,7 @@
 # interrupts. This blocks a GENERIC subagent on work that reads as delegable.
 # Escape: name agy anywhere in the prompt or description. Considering it is the rule;
 # choosing Claude anyway is allowed, silently deciding is not.
+# Rung: hook. Skipped: impossible (no deny rule distinguishes delegable intent), check (prompts exist only at spawn time).
 set -u
 in=$(cat)
 

@@ -4,6 +4,7 @@
 # held round. Deduped per PR, so each one
 # prompts once and never again.
 # Silent (exit 0, no output) for every other Bash call.
+# Rung: hook. Skipped: impossible (no harness feature auto-attaches watchers), check (the PR URL appears only in tool output).
 #
 # Matching the URL rather than the `gh pr create` command is deliberate. A PR
 # raised inside a delegated lane never puts that string in the session's own

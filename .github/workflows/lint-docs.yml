@@ -18,11 +18,3 @@ jobs:
       # is a break in every session. replay-transcripts.sh finds no transcripts on a
       # runner and exits clean; it is the local pass that has real payloads to replay.
       - run: bash plugins/rig/hooks/tests/run-all.sh
-
-  unslop:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      # Report-only: no --strict, so it exits 0 and the hit count is visible in the
-      # job log without blocking. Flip to --strict once the standing hits are cleared.
-      - run: bash plugins/rig/scripts/unslop-check.sh

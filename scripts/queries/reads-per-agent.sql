@@ -1,5 +1,5 @@
 -- Measures Read tool calls and distinct files read per subagent transcript.
--- Rule: Subagents carry fixed read overhead per spawn; batch when possible. Ref: agent-rig#89.
+-- Rule: Subagents carry fixed read overhead per spawn; batch when possible. Ref: rig#89.
 SET VARIABLE projects = coalesce(getvariable('projects'), getenv('HOME') || '/.claude/projects');
 
 WITH all_agents AS (

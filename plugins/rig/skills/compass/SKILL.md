@@ -8,7 +8,7 @@ metadata:
 
 # Direction
 
-GitHub is the record and this skill is the reader. There is no script. Run the commands below with `gh` from inside the repo. Never run an unfiltered `gh issue list`; picking by recency is the failure this replaces. The ruling with the evidence is the last superseding comment on `Sumit1993/agent-rig#100`.
+GitHub is the record and this skill is the reader. There is no script. Run the commands below with `gh` from inside the repo. Never run an unfiltered `gh issue list`; picking by recency is the failure this replaces. The ruling with the evidence is the last superseding comment on `Sumit1993/rig#100`.
 
 ## The vocabulary
 

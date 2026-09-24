@@ -1,7 +1,7 @@
 #!/bin/bash
 # CodeRabbit refuses a trigger in two ways that mean opposite things, and the watcher
 # only ever matched one of them. Bodies are REAL, from prismalens/gh-workflows#98.
-# See agent-rig#28.
+# See rig#28.
 set -u
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WATCHER="$SELF_DIR/../../skills/pr-babysit/watch-coderabbit.sh"
@@ -63,7 +63,7 @@ run() { # body-file -> one poll, fresh state dir
 }
 
 # --- "Already reviewed" settles before it fires: unchanged across two polls, then its
-# own event, with the opposite meaning (agent-rig#73: the first poll must not fire on
+# own event, with the opposite meaning (rig#73: the first poll must not fire on
 # a body an in-place edit is about to supersede). --------------------------------
 d1="$SANDBOX/s1"; mkdir -p "$d1"
 out=$(run "$SANDBOX/already.txt" "$d1")
@@ -112,7 +112,7 @@ esac
 # --- The footer every reply carries must NOT fire already-reviewed. Bodies are REAL,
 # from prismalens/gh-workflows#133 and #134, reported 2026-09-06. The old matcher also
 # accepted "already reviewed commits", which appears only in this Note, so it fired on
-# every command reply CodeRabbit sends. See agent-rig#101. ---------------------
+# every command reply CodeRabbit sends. See rig#101. ---------------------
 cat > "$SANDBOX/triggered.txt" <<'EOF'
 <details>
 <summary>Action performed</summary>

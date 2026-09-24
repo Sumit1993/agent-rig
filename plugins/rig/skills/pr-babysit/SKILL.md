@@ -11,7 +11,7 @@ One PR, raised in this session, watched until its round ends, so the session rea
 
 Reviewer behaviour lives elsewhere. `claude-review-lane` owns `claude[bot]`, `coderabbit-lane` owns `coderabbitai[bot]`, and both load on a PR of any age. Load the owning skill before acting on that reviewer. The trigger syntax and `cr-reply.sh` appear below so a router recognises them; the preconditions (cooldown arithmetic, budget, the post-trigger poll) live only there, and acting on the fragments produces confidently wrong reports.
 
-Process truth is `agent-rig/docs/pr-review-process.html`. Whoever changes the process updates that page in the same session.
+Process truth is `rig/docs/pr-review-process.html`. Whoever changes the process updates that page in the same session.
 
 Reviews arrive on their own schedule: the Claude lane in 2 to 5 minutes, CodeRabbit in 3 to 5 after admission, CI in 5 to 10. Never poll with model turns. Never wait for the user to relay an event. Arm a deterministic watcher and process deltas.
 
@@ -28,7 +28,7 @@ Whether anything is enforced is a per-repo fact. `rig-meta.sh get <owner/repo> e
 Where a repo enforces, the contract is three facts:
 
 - Two required checks, `CI gate` and `Validate PR title (conventional commits)`. Nothing else. No review check, evidence artifact, marker job, SHA pinning, carry-forward or committed high-risk path list. `cr-preview.sh` and `cr-evidence.sh` do not exist.
-- `required_review_thread_resolution: true`. One unresolved thread blocks the merge. This is the only thing that enforces a finding, which is what makes Phase 2's in-thread protocol load-bearing.
+- `required_review_thread_resolution: true`. One unresolved thread blocks the merge. The merge condition is stricter than the ruleset: every review thread resolved by the reviewer that opened it. GitHub cannot tell who resolved a thread, so check it: a thread this session resolved does not count. This is the only thing that enforces a finding, which is what makes Phase 2's in-thread protocol load-bearing.
 - Reviewers are advisory. No check waits on them, so no check proves a review happened. What counts as evidence is in `claude-review-lane`.
 
 Push freely; nothing runs pre-push. Escalate by risk, and never pay model tokens for review a cheaper layer already covers:
@@ -84,7 +84,18 @@ The session that owns the Monitor is a thin router. Read the sentinel line, then
 
 Per-event handling is in `references/events.md`.
 
-ery reviewer. The thread gate only blocks once a thread exists, and auto-merge can fire between a review landing and its fix commit. Order the round as review posted, then fix, then resolve, then merge, never the reverse. On queue repos "review posted" is read off the liveness comment.
+## Phase 3: merge, once the user says so or under an explicit standing grant
+
+Check `rig-meta.sh get <owner/repo> merge_queue` first.
+
+- Queue repos (`merge_queue` true): `gh pr merge <n> --squash` enqueues, and the queue tests a speculative merge onto main before landing it. No BEHIND cascade, no update-branch babysitting. Do not enqueue before the liveness comment shows posted review output (`claude-review-lane` §2). The queue gates on checks and threads, not on whether a reviewer spoke, so enqueueing into silence merges an unreviewed head.
+- Classic repos (`merge_queue` false): merge by hand once CI is green and every review thread resolved by the reviewer that opened it, `gh pr merge <n> --squash`. BEHIND still applies, so update the branch and re-green before merging the next.
+
+Afterward remove the lane's worktree and delete its local branch (`AGENTS.md` §Worktrees). `git worktree unlock` first if git refuses because the tree is locked.
+
+## Notes
+
+- Auto-merge and the queue both outrun every reviewer. The thread gate only blocks once a thread exists, and auto-merge can fire between a review landing and its fix commit. Order the round as review posted, then fix, then resolve, then merge, never the reverse. On queue repos "review posted" is read off the liveness comment.
 - Never wait on `mergeStateStatus`. An unresolved thread pins it at `BLOCKED`. Key on `reviewThreads` and comment IDs (`no-doze` §3).
 - Watching is cheap: a shell poll every 75 seconds, zero tokens while quiet. Prefer over-watching to relaying.
 - Rate limits are invisible on both obvious channels. CodeRabbit posts the notice as an issue comment, so `/pulls/N/comments` misses it, and the `Review rate limited` check passes by design. `watch-coderabbit.sh` polls `/issues/N/comments` for the `rate limited by coderabbit.ai` marker, deduped on `updated_at` because CodeRabbit edits one summary comment in place.

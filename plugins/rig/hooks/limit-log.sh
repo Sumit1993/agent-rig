@@ -2,6 +2,7 @@
 # StopFailure(rate_limit|overloaded) and Notification(quota_auto_resume_*): one JSON line per
 # event in ~/.claude/metrics/limits.jsonl, so a limit hit has a timestamp the transcripts
 # lack. Refs #124. Output and exit code are ignored by Claude Code on both events.
+# Rung: hook. Skipped: impossible (provider rate limits cannot be prevented), check (the event exists only when the limit occurs).
 set -u
 in=$(cat)
 log="${LIMIT_LOG:-$HOME/.claude/metrics/limits.jsonl}"

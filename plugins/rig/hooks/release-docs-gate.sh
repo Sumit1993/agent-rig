@@ -5,6 +5,7 @@
 # (rig-meta observed docs_audit_at) within the last 14 days — the rig
 # docs-drift skill's Phase 1 records the marker. Fail-open everywhere.
 # Escape hatch (user-approved only): DOCS_GATE=skip in the merge command.
+# Rung: hook. Skipped: impossible (branch protection cannot read local audit timestamps), check (the merge command exists only at call time).
 set -u
 in=$(cat)
 
