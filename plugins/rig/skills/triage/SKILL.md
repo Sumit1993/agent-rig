@@ -54,7 +54,7 @@ Files, `#N - title`, PRs. No summaries.
 
 - Before rewriting or closing, check every present-tense claim ("main is red", "not built") against the remote default branch, via `gh api` or after `git fetch`, never a working tree. Cite the command. A rewrite that restates a stale claim launders it.
 - The command must be able to fail if the claim is false. Another issue's open or closed state proves nothing about a sentence in this one.
-- Before editing a body, move its evidence and exact commands verbatim into one comment, unless a comment already holds them. Edit history is not a record. Where the evidence links a scratch file, copy in the excerpt the decision rests on, not the file.
+- Before editing a body, move its exact commands and the evidence excerpt the decision rests on into one comment, unless a comment already holds them. Edit history is not a record. Where the evidence links a scratch file, copy in the excerpt the decision rests on, not the file.
 - A comment is the decision and its delta, under 25 lines, for every model and lane. State tables, lane specs, handoffs and adjudication essays live in `~/ai-context/<repo>/<issue>-<slug>/`; the comment says what changed since the last one.
 - A ruling that changes the work edits the body's Done when. The comment holds the why, and the comment it supersedes is trimmed to one line naming the successor. An append-only issue ends up carrying three versions of one procedure.
 - Rewriting many issues goes through drafts in files, a review, then one apply script. Never live edits one by one; a half-reshaped queue is worse than none. The script records each step it lands and skips it on a rerun, so a retry posts no duplicate comments.

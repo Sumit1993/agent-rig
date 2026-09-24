@@ -28,7 +28,7 @@ Whether anything is enforced is a per-repo fact. `rig-meta.sh get <owner/repo> e
 Where a repo enforces, the contract is three facts:
 
 - Two required checks, `CI gate` and `Validate PR title (conventional commits)`. Nothing else. No review check, evidence artifact, marker job, SHA pinning, carry-forward or committed high-risk path list. `cr-preview.sh` and `cr-evidence.sh` do not exist.
-- `required_review_thread_resolution: true`. One unresolved thread blocks the merge. This is the only thing that enforces a finding, which is what makes Phase 2's in-thread protocol load-bearing.
+- `required_review_thread_resolution: true`. One unresolved thread blocks the merge. The merge condition is stricter than the ruleset: every review thread resolved by the reviewer that opened it. GitHub cannot tell who resolved a thread, so check it: a thread this session resolved does not count. This is the only thing that enforces a finding, which is what makes Phase 2's in-thread protocol load-bearing.
 - Reviewers are advisory. No check waits on them, so no check proves a review happened. What counts as evidence is in `claude-review-lane`.
 
 Push freely; nothing runs pre-push. Escalate by risk, and never pay model tokens for review a cheaper layer already covers:
@@ -89,7 +89,7 @@ Per-event handling is in `references/events.md`.
 Check `rig-meta.sh get <owner/repo> merge_queue` first.
 
 - Queue repos (`merge_queue` true): `gh pr merge <n> --squash` enqueues, and the queue tests a speculative merge onto main before landing it. No BEHIND cascade, no update-branch babysitting. Do not enqueue before the liveness comment shows posted review output (`claude-review-lane` §2). The queue gates on checks and threads, not on whether a reviewer spoke, so enqueueing into silence merges an unreviewed head.
-- Classic repos (`merge_queue` false): merge by hand once the round's threads are resolved, `gh pr merge <n> --squash`. BEHIND still applies, so update the branch and re-green before merging the next.
+- Classic repos (`merge_queue` false): merge by hand once CI is green and every review thread resolved by the reviewer that opened it, `gh pr merge <n> --squash`. BEHIND still applies, so update the branch and re-green before merging the next.
 
 Afterward remove the lane's worktree and delete its local branch (`AGENTS.md` §Worktrees). `git worktree unlock` first if git refuses because the tree is locked.
 

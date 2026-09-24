@@ -9,7 +9,10 @@ cmd=$(jq -r '.tool_input.command // ""' <<<"$in" 2>/dev/null) || exit 0
 grep -qE 'gh[[:space:]]+(issue|pr)[[:space:]]+(create|comment|edit|review)\b' <<<"$cmd" || exit 0
 grep -qE -- '--body-file|(^|[[:space:]])-F([[:space:]]|=)' <<<"$cmd" || exit 0
 
-# A failed post keeps its draft. gh prints HTTP errors on stderr.
+# A failed post keeps its draft. PostToolUse carries no exit code, so success is positive
+# evidence only: gh prints the issue, PR or comment URL on stdout when a write lands.
+out=$(jq -r '.tool_response.stdout // ""' <<<"$in" 2>/dev/null) || out=""
+grep -qE 'https://github\.com/[^/[:space:]]+/[^/[:space:]]+/(issues|pull)/[0-9]+' <<<"$out" || exit 0
 err=$(jq -r '.tool_response.stderr // ""' <<<"$in" 2>/dev/null) || err=""
 grep -qE 'HTTP [45][0-9]{2}|GraphQL|error' <<<"$err" && exit 0
 
@@ -36,7 +39,7 @@ for ((i = 3; i < ${#words[@]}; i++)); do
   f=$(gh_resolve_path "$cwd" "$(gh_expand_var "$(printf '%s' "$cmd" | gh_scan prefix "$gh_re")" "$f")")
   case "$f" in "$root"/*) ;; *) continue ;; esac
   case "$f" in "$root"/state/*|"$root"/agy-*) continue ;; esac
-  case "$(basename "$f")" in handoff.md|spec.md|plan.md) continue ;; esac
+  case "$(basename "$f")" in handoff.md|spec.md|spec-*.md|plan.md) continue ;; esac
   key=$(printf '%s' "$f" | md5sum | cut -c1-16)
   [ -e "$state_dir/$key" ] && continue
   : > "$state_dir/$key" 2>/dev/null
@@ -44,6 +47,6 @@ for ((i = 3; i < ${#words[@]}; i++)); do
 done
 [ "${#files[@]}" -gt 0 ] || exit 0
 
-msg="Posted from ${files[*]}. AGENTS.md §Environment: a draft that has landed on GitHub is done here. Delete it now with rm, unless it is the run's handoff, spec or plan."
+msg="Posted from ${files[*]}. AGENTS.md §Environment: a draft that has landed on GitHub is done here. Delete it now with rm, unless it is the run's handoff, a spec or the plan."
 jq -n --arg ctx "$msg" '{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":$ctx}}'
 exit 0

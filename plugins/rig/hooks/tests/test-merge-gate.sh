@@ -79,13 +79,13 @@ else
   echo "FAIL: current branch merge without token (rc=$rc, err=$err)"; fails=$((fails + 1))
 fi
 
-# MERGE_OK=any gh pr merge --squash exits 0
-out=$(run_hook "MERGE_OK=any gh pr merge --squash" 2>&1)
+# MERGE_OK=any gh pr merge --squash exits 2: a token cannot cover a merge that names no PR.
+err=$(run_hook "MERGE_OK=any gh pr merge --squash" 2>&1 >/dev/null)
 rc=$?
-if [ "$rc" -eq 0 ] && [ -z "$out" ]; then
-  echo "PASS: current branch merge with MERGE_OK=any exits 0"
+if [ "$rc" -eq 2 ] && grep -q 'it names any' <<<"$err"; then
+  echo "PASS: current branch merge with MERGE_OK=any exits 2"
 else
-  echo "FAIL: current branch merge with MERGE_OK=any (rc=$rc, out=$out)"; fails=$((fails + 1))
+  echo "FAIL: current branch merge with MERGE_OK=any (rc=$rc, err=$err)"; fails=$((fails + 1))
 fi
 
 # 6. gh api -X PUT repos/a/b/pulls/7/merge exits 2

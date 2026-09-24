@@ -53,10 +53,8 @@ fi
 token=$(grep -oE '(^|[;&|[:space:]])MERGE_OK=[^[:space:];&|]+' <<<"${prefix:-$cmd}" | tail -1 | sed -E 's/.*MERGE_OK=//; s/^["'"'"']//; s/["'"'"']$//')
 [ -n "$token" ] || token=$(grep -oE '(^|[;&|[:space:]])MERGE_OK=[^[:space:];&|]+' <<<"$cmd" | tail -1 | sed -E 's/.*MERGE_OK=//; s/^["'"'"']//; s/["'"'"']$//')
 
-if [ -n "$token" ]; then
-  [ -z "$pr" ] && exit 0
-  [ "$token" = "$pr" ] && exit 0
-fi
+# A merge that names no PR is blocked even with a token: the token must name the PR it merges.
+[ -n "$token" ] && [ -n "$pr" ] && [ "$token" = "$pr" ] && exit 0
 
 which="PR ${pr:-<current branch>}"
 [ "$api" = "yes" ] && which="pulls/${pr:-?}/merge via gh api"

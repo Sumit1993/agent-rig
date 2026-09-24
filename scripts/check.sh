@@ -106,7 +106,7 @@ if ! command -v gh >/dev/null 2>&1; then
   echo "SKIP: milestone check (gh unavailable)"
 else
   # gh --search drops the parenthesised title; filter client-side instead.
-  rel_json=$(gh pr list --state open --json title 2>/dev/null)
+  rel_json=$(gh pr list --state open --limit 1000 --json title 2>/dev/null)
   rel_rc=$?
   if [ $rel_rc -ne 0 ]; then
     echo "SKIP: milestone check (gh unavailable)"
@@ -117,8 +117,9 @@ else
     else
       ver=$(grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' <<<"$rel_title" | head -1)
       [ -n "$ver" ] || ver="$rel_title"
-      ms_json=$(gh api repos/:owner/:repo/milestones?state=all 2>/dev/null)
+      ms_json=$(gh api --paginate "repos/:owner/:repo/milestones?state=all&per_page=100" 2>/dev/null)
       ms_rc=$?
+      [ $ms_rc -eq 0 ] && ms_json=$(jq -s 'add // []' <<<"$ms_json")
       if [ $ms_rc -ne 0 ]; then
         echo "SKIP: milestone check (gh unavailable)"
       else
@@ -145,7 +146,7 @@ fi
 if [ -f "plugins/rig/data/repo-meta.json" ] && command -v gh >/dev/null 2>&1; then
   req_labels="bug enhancement documentation decision blocked parked needs-operator p0 p1"
   for rk in $(jq -r 'keys[]' plugins/rig/data/repo-meta.json 2>/dev/null); do
-    lbl_json=$(gh label list -R "$rk" --json name 2>/dev/null)
+    lbl_json=$(gh label list -R "$rk" --limit 1000 --json name 2>/dev/null)
     if [ $? -ne 0 ] || [ -z "$lbl_json" ]; then
       echo "SKIP: labels check $rk (gh unavailable)"
     else

@@ -28,18 +28,22 @@ MSG
   *) exit 0 ;;
 esac
 
-# ~/.claude/CLAUDE.md: the first @ line is the import; a Write must keep it, an Edit must not touch it.
+# ~/.claude/CLAUDE.md: the first @ line is the import. Rebuild the file the call would leave and
+# require that line to survive as an exact line; a substring or a partial edit does not count.
 import=$(grep -m1 '^@' "$path" 2>/dev/null || true)
 [ -n "$import" ] || exit 0
-touched="no"
 if [ "$tool" = "Write" ]; then
-  content=$(jq -r '.tool_input.content // ""' <<<"$in" 2>/dev/null) || content=""
-  grep -qF -- "$import" <<<"$content" || touched="yes"
+  proposed=$(jq -r '.tool_input.content // ""' <<<"$in" 2>/dev/null) || proposed=""
 else
   old=$(jq -r '.tool_input.old_string // ""' <<<"$in" 2>/dev/null) || old=""
-  grep -qF -- "$import" <<<"$old" && touched="yes"
+  new=$(jq -r '.tool_input.new_string // ""' <<<"$in" 2>/dev/null) || new=""
+  all=$(jq -r '.tool_input.replace_all // false' <<<"$in" 2>/dev/null) || all=false
+  proposed=$(cat "$path" 2>/dev/null) || proposed=""
+  if [ -n "$old" ]; then
+    if [ "$all" = "true" ]; then proposed=${proposed//"$old"/"$new"}; else proposed=${proposed/"$old"/"$new"}; fi
+  fi
 fi
-[ "$touched" = "yes" ] || exit 0
+grep -qxF -- "$import" <<<"$proposed" && exit 0
 cat >&2 <<MSG
 Blocked by rig/guard/protected-edit-gate: ~/.claude/CLAUDE.md is a one-line import ($import) plus
 machine-local rules below it. Everything above that line is edited in dotfiles/AGENTS.md in the

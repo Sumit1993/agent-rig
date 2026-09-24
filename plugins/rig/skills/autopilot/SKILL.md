@@ -107,6 +107,7 @@ A broken gate blocks every PR in the repo, including the PR that fixes it.
 
 Mechanics are `pr-babysit` Phase 3. Specific to unattended:
 
+- Merge only when CI is green and every review thread resolved by the reviewer that opened it (`pr-babysit` Phase 0). A thread the organizer or a lane resolved does not count.
 - Never arm auto-merge. Reviewers cannot block a merge, so it fires the moment CI goes green, before the reviewer has finished, and `required_review_thread_resolution` has nothing left to block on.
 - An organizer that cannot merge with the operator present does not merge at all. Take the PR to green, report it ready, leave it (§10).
 - With a standing grant on a classic repo: one at a time, checking the gate after each. Every merge puts the other open PRs behind the base, auto-merge never updates a branch in that state, and nothing tells you. Go and look. Rebase the PRs you are parking at the end of the drain, not the start.

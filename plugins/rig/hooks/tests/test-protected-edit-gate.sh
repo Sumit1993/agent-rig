@@ -25,9 +25,9 @@ else
 fi
 
 run_hook() {
-  local tool=$1 path=$2 old=${3:-} content=${4:-}
-  jq -n --arg t "$tool" --arg p "$path" --arg o "$old" --arg c "$content" \
-    '{"tool_name": $t, "tool_input": {"file_path": $p, "old_string": $o, "content": $c}}' | "$HOOK"
+  local tool=$1 path=$2 old=${3:-} content=${4:-} new=${5:-}
+  jq -n --arg t "$tool" --arg p "$path" --arg o "$old" --arg c "$content" --arg n "$new" \
+    '{"tool_name": $t, "tool_input": {"file_path": $p, "old_string": $o, "new_string": $n, "content": $c}}' | "$HOOK"
 }
 
 mkdir -p "$PROTECTED_EDIT_HOME/.claude/skills/x" "$PROTECTED_EDIT_HOME/.agents/skills/x"
@@ -98,6 +98,34 @@ if [ "$rc" -eq 2 ]; then
   echo "PASS: Write dropping import line exits 2"
 else
   echo "FAIL: Write dropping import line (rc=$rc)"; fails=$((fails + 1))
+fi
+
+# Write that keeps the import only as an inactive substring exits 2
+err=$(run_hook "Write" "$claude_md" "" "# was @/x/AGENTS.md
+updated rule" 2>&1 >/dev/null)
+rc=$?
+if [ "$rc" -eq 2 ]; then
+  echo "PASS: Write keeping the import only as a substring exits 2"
+else
+  echo "FAIL: Write inactive substring (rc=$rc, err=$err)"; fails=$((fails + 1))
+fi
+
+# Edit that rewrites part of the import line exits 2
+err=$(run_hook "Edit" "$claude_md" "AGENTS" "" "OTHER" 2>&1 >/dev/null)
+rc=$?
+if [ "$rc" -eq 2 ]; then
+  echo "PASS: partial Edit of the import exits 2"
+else
+  echo "FAIL: partial Edit of the import (rc=$rc, err=$err)"; fails=$((fails + 1))
+fi
+
+# Edit that moves text next to the import but leaves the line intact exits 0
+out=$(run_hook "Edit" "$claude_md" "local rule" "" "local rule two" 2>&1)
+rc=$?
+if [ "$rc" -eq 0 ] && [ -z "$out" ]; then
+  echo "PASS: Edit below the import exits 0"
+else
+  echo "FAIL: Edit below the import (rc=$rc, out=$out)"; fails=$((fails + 1))
 fi
 
 # 4. $HOME/.claude/CLAUDE.md with no @ line: any edit exits 0.

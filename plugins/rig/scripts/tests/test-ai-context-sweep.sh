@@ -144,5 +144,28 @@ else
   echo "FAIL: --delete output missing DELETED lines: $del_out"; fails=$((fails + 1))
 fi
 
+# An unreadable registry is an error, not an empty one.
+echo "not json" > "$TMP_DIR/bad-meta.json"
+RIG_REPO_META="$TMP_DIR/bad-meta.json" bash "$SWEEP_SH" >/dev/null 2>&1
+rc=$?
+if [ "$rc" -eq 1 ]; then
+  echo "PASS: invalid registry exits 1"
+else
+  echo "FAIL: invalid registry (rc=$rc)"; fails=$((fails + 1))
+fi
+
+# Two registry repos sharing a basename make their directory ambiguous; --delete leaves it.
+cat > "$TMP_DIR/dup-meta.json" <<'JSON'
+{ "owner-a/dup": {}, "owner-b/dup": {} }
+JSON
+mkdir -p "$ROOT_DIR/dup/1-closed"
+echo "note" > "$ROOT_DIR/dup/1-closed/notes.md"
+dup_out=$(RIG_REPO_META="$TMP_DIR/dup-meta.json" bash "$SWEEP_SH" --delete 2>&1)
+if grep -q "SKIP AMBIGUOUS $ROOT_DIR/dup/1-closed" <<<"$dup_out" && [ -d "$ROOT_DIR/dup/1-closed" ]; then
+  echo "PASS: ambiguous basename skipped and kept"
+else
+  echo "FAIL: ambiguous basename (out=$dup_out)"; fails=$((fails + 1))
+fi
+
 [ "$fails" -eq 0 ] && echo && echo "all ai-context-sweep tests passed"
 exit "$fails"

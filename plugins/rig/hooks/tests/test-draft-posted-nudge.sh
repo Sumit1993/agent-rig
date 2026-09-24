@@ -27,9 +27,9 @@ else
 fi
 
 run_hook() {
-  local session=$1 cmd=$2 stderr=${3:-} cwd=${4:-}
-  jq -n --arg s "$session" --arg c "$cmd" --arg err "$stderr" --arg cwd "$cwd" \
-    '{"session_id": $s, "tool_input": {"command": $c}, "tool_response": {"stderr": $err}, "cwd": $cwd}' | "$HOOK"
+  local session=$1 cmd=$2 stderr=${3:-} cwd=${4:-} stdout=${5-https://github.com/o/r/issues/5#issuecomment-1}
+  jq -n --arg s "$session" --arg c "$cmd" --arg err "$stderr" --arg cwd "$cwd" --arg out "$stdout" \
+    '{"session_id": $s, "tool_input": {"command": $c}, "tool_response": {"stdout": $out, "stderr": $err}, "cwd": $cwd}' | "$HOOK"
 }
 
 # 2. gh issue comment 5 --body-file $ROOT/kit/1-x/drafts/c.md with empty stderr prints nudge naming that path and rm.
@@ -68,6 +68,15 @@ else
   echo "FAIL: GraphQL stderr printed: $out"; fails=$((fails + 1))
 fi
 
+# A failed post whose stderr matches nothing still keeps its draft: no URL on stdout, no nudge.
+echo "draft 3" > "$AI_CONTEXT_ROOT/kit/1-x/drafts/c3.md"
+out=$(run_hook "sess_nourl" "gh issue comment 5 --body-file $AI_CONTEXT_ROOT/kit/1-x/drafts/c3.md" "something went sideways" "" "")
+if [ -z "$out" ]; then
+  echo "PASS: no URL on stdout prints nothing"
+else
+  echo "FAIL: no URL on stdout printed: $out"; fails=$((fails + 1))
+fi
+
 # 5. --body-file - prints nothing; a body file outside root prints nothing;
 out=$(run_hook "sess4" "gh issue comment 5 --body-file -" "")
 if [ -z "$out" ]; then
@@ -87,7 +96,7 @@ else
 fi
 
 # $ROOT/kit/1-x/handoff.md, spec.md, plan.md print nothing.
-for reserved in handoff.md spec.md plan.md; do
+for reserved in handoff.md spec.md spec-lane1.md plan.md; do
   touch "$AI_CONTEXT_ROOT/kit/1-x/$reserved"
   out=$(run_hook "sess_res" "gh issue comment 5 --body-file $AI_CONTEXT_ROOT/kit/1-x/$reserved" "")
   if [ -z "$out" ]; then
