@@ -1,7 +1,7 @@
 #!/bin/bash
 # PreToolUse(Agent) hook: three prompt-shape nudges from AGENTS.md §Models and farm-out §Dispatch,
-# once per session each. doublecheck: Fable or Opus told to double-check or echo reasoning (refusals
-# on Fable). verify: a Sonnet prompt with no verification step. planner: a second fable-planner
+# once per session each. reasoning: Fable or Opus told to echo or show its reasoning
+# (declined as reasoning_extraction). verify: a Sonnet prompt with no verification step. planner: a second fable-planner
 # inside the prompt-cache hour, where SendMessage to the first is cheaper.
 # Refs #123, #79. Rung: hook. Skipped: check (prompts exist only at spawn time), rule (in AGENTS.md, ignored).
 set -u
@@ -23,8 +23,8 @@ grep -qE '(^|:)fable-planner$' <<<"$st" && planner="yes"
 msgs=()
 
 if { [ "$planner" = "yes" ] || grep -qiE '^(fable|opus)' <<<"$model"; } \
-   && grep -qiE 'double[- ]?check|echo (your |the )?reasoning|show your (reasoning|work|thinking)|think step by step' <<<"$prompt"; then
-  once doublecheck && msgs+=("AGENTS.md §Models: never tell Opus 5 or Fable 5.1 to double-check or echo reasoning; the second triggers refusals on Fable. Cut that line and state the verify commands instead.")
+   && grep -qiE 'echo (your |the )?reasoning|show your (reasoning|work|thinking)|think step by step' <<<"$prompt"; then
+  once reasoning && msgs+=("AGENTS.md §Models: never ask Opus 5.5 or Fable 5.1 to echo or show its reasoning; both decline it as reasoning_extraction. Cut that line and ask for evidence instead.")
 fi
 
 if grep -qiE '^sonnet' <<<"$model" && ! grep -qiE 'verif|confirm|paste (the )?(raw )?output|run .*(test|check)' <<<"$prompt"; then

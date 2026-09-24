@@ -1,5 +1,5 @@
 #!/bin/bash
-# scripts/check.sh: Run repository documentation checks, tests, and unslop scan.
+# scripts/check.sh: Run repository documentation checks and tests.
 # Matches .github/workflows/lint-docs.yml. Runs every step and reports status. Refs agent-rig#55.
 set -u
 
@@ -47,15 +47,6 @@ if bash plugins/rig/scripts/tests/test-ai-context-sweep.sh; then
 else
   echo "FAIL: sweep tests"
   failed_steps+=("sweep tests")
-fi
-echo
-
-echo "=== 3. unslop-check (report-only)"
-if bash plugins/rig/scripts/unslop-check.sh; then
-  echo "PASS: unslop-check"
-else
-  echo "FAIL: unslop-check"
-  failed_steps+=("unslop-check")
 fi
 echo
 
@@ -186,9 +177,9 @@ echo "PASS: record hygiene reported"
 echo
 
 if [ "${#failed_steps[@]}" -eq 0 ]; then
-  echo "All checks passed. Note: unslop-check is report-only; hit count is information, not a gate."
+  echo "All checks passed."
   exit 0
 else
-  echo "Checks failed: ${failed_steps[*]}. Note: unslop-check is report-only; hit count is information, not a gate."
+  echo "Checks failed: ${failed_steps[*]}."
   exit 1
 fi

@@ -17,12 +17,8 @@ Plugin `rig`, path-independent via `${CLAUDE_PLUGIN_ROOT}`:
 | `skills/coderabbit-lane` | How `coderabbitai[bot]` behaves: per-developer counter, hand admission by label, bare triggers, in-thread replies |
 | `skills/farm-out` | Antigravity CLI delegation: preflight probe, launch line, model choice, failure table, kill by PID, the runner's babysit loop |
 | `skills/docs-drift` | Four-phase docs-drift playbook plus the illustration standard |
-| `skills/html-explainer` | Mechanics for a standalone HTML explainer page |
 | `skills/tweet` | Draft tweet options for @Desolatte from the session, voice and dedup from n8n |
 | `skills/no-comments` | Enforce the comment budget on a diff via `agents/comment-sicko`. Vendored from pstack, patched 2026-08-22 |
-| `skills/blast-radius` | What a diff breaks outside the diff, with one safety fact proven by running code. Vendored from pstack, patched 2026-08-22 |
-| `skills/show-me-your-work` | Append-only TSV decision log for unattended runs. Vendored from pstack, patched 2026-08-22 |
-| `skills/unslop` | Cut AI tells from writing. Vendored from pstack verbatim; imported by `AGENTS.md` so it loads every turn |
 | `skills/autofix` | CodeRabbit's autofix skill, patched 2026-07-12 so replies go in-thread |
 | `agents/comment-sicko` | The subagent `no-comments` spawns. Deletes comments, never code |
 | `hooks/pr-created.sh` | PostToolUse(Bash, Agent): a real PR URL injects "pick its watcher now": `/autofix-pr` by default, the pr-babysit Monitor for a held round |
@@ -43,11 +39,11 @@ Plugin `rig`, path-independent via `${CLAUDE_PLUGIN_ROOT}`:
 | `hooks/gh-write-nudge.sh` | PreToolUse(Bash): nudges once per session on a handoff-shaped or 40-plus-line gh body, a bare `#N`, and a non-draft `gh pr create` |
 | `hooks/ai-context-write-nudge.sh` | PreToolUse(Edit, Write): suggests the `<repo>/<issue>-<slug>/` layout and reminds that a ruling written there goes on the issue |
 | `hooks/draft-posted-nudge.sh` | PostToolUse(Bash): a body file posted from ai-context is told to delete the draft, once per file |
-| `hooks/agent-prompt-nudge.sh` | PreToolUse(Agent): double-check wording on Fable or Opus, a Sonnet prompt with no verify step, a second fable-planner inside the cache hour |
+| `hooks/agent-prompt-nudge.sh` | PreToolUse(Agent): a Fable or Opus prompt asking it to show its reasoning, a Sonnet prompt with no verify step, a second fable-planner inside the cache hour |
 | `hooks/protected-edit-gate.sh` | PreToolUse(Edit, Write): blocks edits to loose skill copies and to the import line of `~/.claude/CLAUDE.md` |
 | `hooks/merge-gate.sh` | PreToolUse(Bash): blocks `gh pr merge` and `pulls/N/merge` without `MERGE_OK=<pr>` on the same command |
 
-`dotfiles/AGENTS.md` loads on every turn in every project, so it carries routing and rules only. Procedure lives in a skill that loads on demand. It `@`-imports `skills/unslop/SKILL.md`, because writing rules must be loaded before the writing happens. Imports resolve relative to the file and nest; a nested import that points at nothing fails silently, so `install.sh` checks the target exists.
+`dotfiles/AGENTS.md` loads on every turn in every project, so it carries routing and rules only. Procedure lives in a skill that loads on demand.
 
 Claude Code does not read the name `AGENTS.md` on its own. `install.sh` writes `~/.claude/CLAUDE.md` as a one-line `@` import to this checkout, so there is one copy. Machine-local rules go below the import line. A plugin cannot carry this; Claude Code does not load a `CLAUDE.md` at a plugin root.
 
@@ -137,8 +133,6 @@ This repo is the source of truth. Edit here, commit, push; machines with `autoUp
 
 Not vendored: `mattpocock/skills`, subscribed as `mattpocock-skills@mattpocock` through `settings.fragment.json`, because a copy installed via `npx skills add` rots silently and a plugin cannot drift. mage and context-mode own their own lifecycles. Tokens and auth never live here.
 
-Rule of thumb: if upstream ships a plugin, subscribe to it. Vendor a skill only when you patch it, and say so in the table. pstack is the exception: subscribing pulls 44 skills, about 20 of them one-idea `principle-*` files restating `AGENTS.md`, so three skills and one agent are vendored and patched, plus `unslop` verbatim.
-
-`bash plugins/rig/scripts/unslop-check.sh` reports what the house style still flags; what remains is deliberate. Frontmatter `description:` fields are exempt because they are auto-load triggers, and rewriting one changes when a skill fires.
+Rule of thumb: if upstream ships a plugin, subscribe to it. Vendor a skill only when you patch it, and say so in the table. pstack is the exception: subscribing pulls 44 skills, about 20 of them one-idea `principle-*` files restating `AGENTS.md`, so one skill and one agent are vendored and patched.
 
 Run `plugins/rig/scripts/ai-context-sweep.sh` (`--delete`) to list or prune `~/ai-context` candidates whose issues have closed.

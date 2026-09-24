@@ -30,30 +30,30 @@ run_hook() {
     '{"session_id": $s, "tool_name": $t, "tool_input": {"model": $m, "subagent_type": $st, "prompt": $p}}' | "$HOOK"
 }
 
-# 2. model opus, prompt containing double-check: nudge contains double-check.
-out=$(run_hook "sess_opus" "Agent" "opus" "" "please double-check the results")
+# 2. model opus, prompt asking to echo reasoning: nudge names reasoning_extraction.
+out=$(run_hook "sess_opus" "Agent" "opus" "" "please echo your reasoning")
 rc=$?
 ctx=$(jq -r '.hookSpecificOutput.additionalContext // ""' <<<"$out" 2>/dev/null)
-if [ "$rc" -eq 0 ] && grep -q 'double-check' <<<"$ctx"; then
-  echo "PASS: opus with double-check prints double-check nudge"
+if [ "$rc" -eq 0 ] && grep -q 'reasoning_extraction' <<<"$ctx"; then
+  echo "PASS: opus with echo reasoning prints reasoning nudge"
 else
-  echo "FAIL: opus double-check (rc=$rc, ctx=$ctx)"; fails=$((fails + 1))
+  echo "FAIL: opus echo reasoning (rc=$rc, ctx=$ctx)"; fails=$((fails + 1))
 fi
 
 # Same for fable
-out=$(run_hook "sess_fable" "Agent" "fable" "" "please double-check this")
+out=$(run_hook "sess_fable" "Agent" "fable" "" "show your reasoning")
 ctx=$(jq -r '.hookSpecificOutput.additionalContext // ""' <<<"$out" 2>/dev/null)
-if grep -q 'double-check' <<<"$ctx"; then
-  echo "PASS: fable with double-check prints double-check nudge"
+if grep -q 'reasoning_extraction' <<<"$ctx"; then
+  echo "PASS: fable with show reasoning prints reasoning nudge"
 else
-  echo "FAIL: fable double-check (ctx=$ctx)"; fails=$((fails + 1))
+  echo "FAIL: fable show reasoning (ctx=$ctx)"; fails=$((fails + 1))
 fi
 
 # Same for subagent_type: rig:fable-planner with echo your reasoning
 out=$(run_hook "sess_fp_echo" "Agent" "" "rig:fable-planner" "echo your reasoning and verify")
 ctx=$(jq -r '.hookSpecificOutput.additionalContext // ""' <<<"$out" 2>/dev/null)
-if grep -q 'double-check' <<<"$ctx"; then
-  echo "PASS: fable-planner with echo your reasoning prints doublecheck nudge"
+if grep -q 'reasoning_extraction' <<<"$ctx"; then
+  echo "PASS: fable-planner with echo your reasoning prints reasoning nudge"
 else
   echo "FAIL: fable-planner echo reasoning (ctx=$ctx)"; fails=$((fails + 1))
 fi
@@ -61,10 +61,18 @@ fi
 # Model sonnet with double-check prints nothing (when verification is present).
 out=$(run_hook "sess_sonnet_dc" "Agent" "sonnet" "" "double-check and verify the output")
 ctx=$(jq -r '.hookSpecificOutput.additionalContext // ""' <<<"$out" 2>/dev/null)
-if ! grep -q 'double-check' <<<"$ctx"; then
-  echo "PASS: sonnet with double-check does not trigger doublecheck nudge"
+if ! grep -q 'reasoning_extraction' <<<"$ctx"; then
+  echo "PASS: sonnet with double-check does not trigger reasoning nudge"
 else
-  echo "FAIL: sonnet doublecheck triggered (ctx=$ctx)"; fails=$((fails + 1))
+  echo "FAIL: sonnet reasoning nudge triggered (ctx=$ctx)"; fails=$((fails + 1))
+fi
+
+# Opus told to double-check prints no reasoning nudge: asking for evidence is fine now.
+out=$(run_hook "sess_opus_dc" "Agent" "opus" "" "please double-check the results")
+if [ -z "$out" ]; then
+  echo "PASS: opus with double-check prints nothing"
+else
+  echo "FAIL: opus double-check printed: $out"; fails=$((fails + 1))
 fi
 
 # 3. Model sonnet, prompt rename things: nudge contains verification.
@@ -112,15 +120,15 @@ else
 fi
 
 # 5. tool_name: spawn_agent is treated as Agent; tool_name: Bash prints nothing.
-out_spawn=$(run_hook "sess_spawn" "spawn_agent" "opus" "" "please double-check")
+out_spawn=$(run_hook "sess_spawn" "spawn_agent" "opus" "" "please echo your reasoning")
 ctx_spawn=$(jq -r '.hookSpecificOutput.additionalContext // ""' <<<"$out_spawn" 2>/dev/null)
-if grep -q 'double-check' <<<"$ctx_spawn"; then
+if grep -q 'reasoning_extraction' <<<"$ctx_spawn"; then
   echo "PASS: tool_name spawn_agent treated as Agent"
 else
   echo "FAIL: spawn_agent (ctx=$ctx_spawn)"; fails=$((fails + 1))
 fi
 
-out_bash=$(run_hook "sess_bash" "Bash" "opus" "" "please double-check")
+out_bash=$(run_hook "sess_bash" "Bash" "opus" "" "please echo your reasoning")
 if [ -z "$out_bash" ]; then
   echo "PASS: tool_name Bash prints nothing"
 else
@@ -128,12 +136,12 @@ else
 fi
 
 # 6. Once per session per kind.
-out_rep1=$(run_hook "sess_once_kind" "Agent" "opus" "" "please double-check")
-out_rep2=$(run_hook "sess_once_kind" "Agent" "opus" "" "please double-check again")
+out_rep1=$(run_hook "sess_once_kind" "Agent" "opus" "" "please echo your reasoning")
+out_rep2=$(run_hook "sess_once_kind" "Agent" "opus" "" "echo your reasoning again")
 if [ -n "$out_rep1" ] && [ -z "$out_rep2" ]; then
-  echo "PASS: doublecheck nudge fires once per session"
+  echo "PASS: reasoning nudge fires once per session"
 else
-  echo "FAIL: doublecheck repeated (out1=$out_rep1, out2=$out_rep2)"; fails=$((fails + 1))
+  echo "FAIL: reasoning nudge repeated (out1=$out_rep1, out2=$out_rep2)"; fails=$((fails + 1))
 fi
 
 [ "$fails" -eq 0 ] && echo && echo "all agent-prompt-nudge hook tests passed"
