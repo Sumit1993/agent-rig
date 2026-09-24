@@ -7,7 +7,7 @@ OUT="${1:?usage: build-codex-plugin.sh <out-dir>}"
 
 ALLOWED_HOOKS=(
   gh-body-stamp.sh gh-body-no-scratch.sh issue-create-nudge.sh no-broad-agy-kill.sh release-docs-gate.sh
-  organizer-seat.sh subagent-no-stall.sh delegate-check.sh outside-view-nudge.sh
+  subagent-no-stall.sh delegate-check.sh outside-view-nudge.sh
 )
 # Every hook is in exactly one list; a new hook fails the build until someone rules on it (#141).
 CLAUDE_ONLY=(
@@ -49,7 +49,7 @@ for h in "${ALLOWED_HOOKS[@]}"; do
 done
 cp "$SRC/hooks/lib/gh-command.sh" "$SRC/hooks/lib/report-guard.sh" "$OUT/hooks/lib/"
 
-hook_re='gh-body-stamp\.sh|gh-body-no-scratch\.sh|issue-create-nudge\.sh|no-broad-agy-kill\.sh|release-docs-gate\.sh|organizer-seat\.sh|subagent-no-stall\.sh|delegate-check\.sh|outside-view-nudge\.sh'
+hook_re='gh-body-stamp\.sh|gh-body-no-scratch\.sh|issue-create-nudge\.sh|no-broad-agy-kill\.sh|release-docs-gate\.sh|subagent-no-stall\.sh|delegate-check\.sh|outside-view-nudge\.sh'
 # Codex has no AskUserQuestion or EnterPlanMode, so outside-view-nudge crosses on Agent only (#141).
 jq --arg re "$hook_re" '
   {

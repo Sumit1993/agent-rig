@@ -25,7 +25,6 @@ Plugin `rig`, path-independent via `${CLAUDE_PLUGIN_ROOT}`:
 | `hooks/delegate-check.sh` | PreToolUse(Agent): blocks a Claude subagent on delegable work. Escape: name agy in the prompt |
 | `hooks/no-haiku.sh` | PreToolUse(Agent): blocks `model=haiku` |
 | `hooks/no-broad-agy-kill.sh` | PreToolUse(Bash): blocks a kill that targets agy by name; kill by PID or slug |
-| `hooks/organizer-seat.sh` | PreToolUse(Edit, Write): nudges once when the organizer edits files while an agy run is live |
 | `hooks/release-docs-gate.sh` | PreToolUse(Bash): blocks merging a release PR without a docs audit in 14 days. Escape: `DOCS_GATE=skip` |
 | `hooks/reap-watchers.sh` | SessionEnd kills watchers, SessionStart reaps orphans. Seen-state is durable so this is free |
 | `hooks/gh-body-no-scratch.sh` | PreToolUse(Bash): blocks gh issue/pr citing ai-context or /tmp. Escape: `SCRATCH_GATE=skip` |
@@ -63,7 +62,6 @@ Hooks that block or rewrite tool calls report their firing to `mage observe`. Th
 | `plugins/rig/hooks/delegate-check.sh` | `rig/guard/delegate-check` |
 | `plugins/rig/hooks/no-haiku.sh` | `rig/guard/no-haiku` |
 | `plugins/rig/hooks/no-broad-agy-kill.sh` | `rig/guard/no-broad-agy-kill` |
-| `plugins/rig/hooks/organizer-seat.sh` | `rig/guard/organizer-seat` |
 | `plugins/rig/hooks/release-docs-gate.sh` | `rig/guard/release-docs-gate` |
 | `plugins/rig/hooks/protected-edit-gate.sh` | `rig/guard/protected-edit-gate` |
 | `plugins/rig/hooks/merge-gate.sh` | `rig/guard/merge-gate` |

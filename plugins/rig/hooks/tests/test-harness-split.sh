@@ -26,9 +26,9 @@ else
   echo "SKIP: agy not installed, plugin validate not run"
 fi
 
-# Codex: codex-tagged skills, the five Bash PreToolUse gate hooks, and the four ported in
-# #141b (organizer-seat, subagent-no-stall, delegate-check, outside-view-nudge) cross.
-CODEX_ALLOWED_HOOKS="gh-body-no-scratch.sh gh-body-stamp.sh issue-create-nudge.sh no-broad-agy-kill.sh release-docs-gate.sh delegate-check.sh organizer-seat.sh outside-view-nudge.sh subagent-no-stall.sh"
+# Codex: codex-tagged skills, the five Bash PreToolUse gate hooks, and the three ported in
+# #141b (subagent-no-stall, delegate-check, outside-view-nudge) cross.
+CODEX_ALLOWED_HOOKS="gh-body-no-scratch.sh gh-body-stamp.sh issue-create-nudge.sh no-broad-agy-kill.sh release-docs-gate.sh delegate-check.sh outside-view-nudge.sh subagent-no-stall.sh"
 bash "$ROOT/dotfiles/build-codex-plugin.sh" "$T/codex" >/dev/null
 check ".codex-plugin/plugin.json valid, named rig" 'jq -e ".name == \"rig\"" "$T/codex/.codex-plugin/plugin.json" >/dev/null'
 check "no agents cross to codex" '[ ! -e "$T/codex/agents" ]'
