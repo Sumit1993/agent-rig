@@ -947,58 +947,30 @@ The first three below each put a sentence on the PR saying which it was, and tha
 </svg>
 </figure>
 
-<h3>8.6 Spending a CodeRabbit review</h3>
-<p>CodeRabbit is the independent second opinion, spent on changes where being wrong is expensive and where a reviewer
-sharing no model, prompt or failure mode is worth having. The counter is <strong>per developer</strong>, not per repo:
-all three repos draw one pool, and a review costs roughly a 40-minute cooldown across all of them.</p>
-<figure>
-<figcaption>Why it is admitted by hand, and what the numbers behind that decision were</figcaption>
-<svg viewBox="0 0 940 300" role="img" aria-label="CodeRabbit admission: two cases to spend a review, and the measured traffic that forced hand admission">
-  <rect x="20" y="16" width="580" height="128" rx="9" fill="#fff" stroke="#177a70" stroke-width="2"/>
-  <text x="40" y="42" font-size="12.5" font-weight="600" fill="#177a70">Case 1 &#183; someone decides this PR deserves an independent look</text>
-  <text x="40" y="66" font-size="11" fill="#4a5160">A sensitive surface: the CI and workflow surface itself, credential and crypto</text>
-  <text x="40" y="83" font-size="11" fill="#4a5160">handling, the engine core, contract or schema changes.</text>
-  <text x="40" y="106" font-size="11" fill="#4a5160">Or a Claude finding that deserves a check from a reviewer sharing no model,</text>
-  <text x="40" y="123" font-size="11" fill="#4a5160">no prompt and no failure mode. Two agreeing Claude runs are one opinion twice.</text>
-
-  <rect x="20" y="156" width="580" height="80" rx="9" fill="#fff" stroke="#177a70" stroke-width="2"/>
-  <text x="40" y="182" font-size="12.5" font-weight="600" fill="#177a70">Case 2 &#183; the Claude lane is down</text>
-  <text x="40" y="201" font-size="11" fill="#4a5160">A bare @coderabbitai review comment, by hand. It bypasses the label config</text>
-  <text x="40" y="217" font-size="11" fill="#4a5160">but not the cooldown, and still spends the counter. @coderabbit review</text>
-  <text x="40" y="233" font-size="11" fill="#4a5160">full draws the same budget, so it is no way past a refusal.</text>
-
-  <rect x="630" y="16" width="290" height="220" rx="9" fill="#f0ece4" stroke="#e3ddd1"/>
-  <text x="775" y="42" text-anchor="middle" font-size="12.5" font-weight="600">Why it is not automatic</text>
-  <text x="775" y="70" text-anchor="middle" font-size="11" fill="#4a5160">Measured over 180 merged PRs</text>
-  <text x="775" y="98" text-anchor="middle" font-size="22" font-weight="700" fill="#177a70">7.5</text>
-  <text x="775" y="114" text-anchor="middle" font-size="10.5" fill="#6b7280">PRs per day, worst hour 8 opens</text>
-  <text x="775" y="146" text-anchor="middle" font-size="22" font-weight="700" fill="#b3403a">61%</text>
-  <text x="775" y="162" text-anchor="middle" font-size="10.5" fill="#6b7280">arrived with the counter empty,</text>
-  <text x="775" y="177" text-anchor="middle" font-size="10.5" fill="#6b7280">at one review per hour</text>
-  <text x="775" y="204" text-anchor="middle" font-size="10.8" fill="#4a5160">Automatic review spends the slot</text>
-  <text x="775" y="220" text-anchor="middle" font-size="10.8" fill="#4a5160">where PRs land, not where it matters.</text>
-
-  <rect x="20" y="248" width="900" height="44" rx="8" fill="#fdf4e6" stroke="#ecd9b0"/>
-  <text x="40" y="266" font-size="11.5" font-weight="600" fill="#8a4021">This used to be automatic, and the automation was deliberately retired.</text>
-  <text x="40" y="283" font-size="11" fill="#8a4021">review-admit.yml applied the label on a path match against .github/high-risk-paths.txt, and the review-evidence gate held such PRs red until CodeRabbit evidence existed. Both died with that gate in #415. Neither file is on main. The label is now the whole mechanism, and it is a judgement call.</text>
-</svg>
-</figure>
-<p>Once a PR is admitted, <code>auto_pause_after_reviewed_commits: 1</code> stops a fix-push loop from spending the counter
-again on every push. Batch the fixes, push, reply with SHAs, then re-request explicitly. <strong>Never write the word
-"resolve" in a reply to CodeRabbit</strong>: it parses as a command and no-ops the reply.</p>
-<p><code>gh-workflows</code> is the exception and reviews automatically, because it is the one repo the Claude lane refuses
-to review. Everywhere else, <em>"Review skipped: excluded by label configuration"</em> is the valve working.</p>
-<p><strong>On <code>gh-workflows</code> the push is the request.</strong> There is no separate summon step to hold back, so
-"don't trigger CodeRabbit, I'll do it once this lands" is an instruction a lane cannot obey by pushing: the first push
-spends the slot on its own. Batch before you <em>push</em> there, not before you summon. Later pushes are covered by
-<code>auto_pause_after_reviewed_commits: 1</code> and surface as <code>CODERABBIT AUTO-PAUSED</code> rather than spending
-again. Batching-before-summon is advice for the label-gated repos only.</p>
-<p><strong><code>gh-workflows</code> enforces nothing at merge.</strong> <code>gh api repos/prismalens/gh-workflows/rulesets</code>
-returns <code>[]</code>: no required check, no thread-resolution gate. The other three repos each carry one active ruleset with
-<code>CI gate</code>, <code>Validate PR title (conventional commits)</code> and <code>required_review_thread_resolution</code>.
-Holding the PR until the review has been read is the only gate the canon repo has. Read enforcement off <code>rulesets</code>;
-all four repos 404 on <code>branches/&lt;b&gt;/protection</code> because none of them use classic branch protection, so that 404
-distinguishes nothing.</p>
+<h3>8.6 Spending a CodeRabbit review: the hourly queue</h3>
+<p>CodeRabbit's allowance is <strong>one review per developer per hour</strong>, across every repo. Since
+Sumit1993/rig#150 one scheduler spends it: <code>review-queue.yml</code> in <code>prismalens/gh-workflows</code>, run at :07
+every hour with the operator's tokens. <code>auto_review</code> is off in every repo's <code>.coderabbit.yaml</code>, so
+opening a PR or marking it ready spends nothing by itself.</p>
+<ol>
+  <li><strong>Merge sweep.</strong> Every ready PR whose CodeRabbit review on the current head came back clean, with every
+  thread resolved by the reviewer that opened it, the Claude lane's review on head where <code>admission</code> admits the
+  PR, and required checks green, is merged, or enqueued on a merge-queue repo. Docs-only PRs merge on green checks with no
+  review. <code>blocked</code> or <code>needs-operator</code> holds a merge; release-please and Dependabot PRs are never
+  merged by it.</li>
+  <li><strong>One summon.</strong> First a re-review: a PR whose head moved past its last review and whose CodeRabbit threads
+  all carry a reply. Then new PRs, oldest first. The head commit must be 20 minutes old, drafts are never summoned, and a
+  rate-limit notice's stated wait is obeyed.</li>
+</ol>
+<p>Findings are not fixed by the queue. They wait on the PR as review debt, printed at the next session start in that repo
+and cleared by that session before any new pick (<code>compass</code> Step 0): one push per PR, a reply in every thread,
+rulings collected into one question. The queue then re-reviews, CodeRabbit resolves what it accepts, and the next sweep
+merges. The run summary lists every PR with the reason it waits. The kill switch is the gh-workflows repo variable
+<code>REVIEW_QUEUE_LIVE</code>; anything but <code>true</code> is a dry run.</p>
+<p>Replayed on the 297 PRs of 2026-08-25 to 2026-09-24, a one-per-hour queue gives a median wait of 3.5 hours and a p90 of
+8.9: a night session fills it and it drains before the next one. One PR per surface per session, not one per issue, is what
+keeps it short. <strong>Never write the word "resolve" in a reply to CodeRabbit</strong>: it parses as a command and no-ops
+the reply.</p>
 
 <h2><span class="n">9</span>Who resolves this thread</h2>
 <figure>
@@ -1141,11 +1113,6 @@ with the verb match, so the two compose instead of one silently swallowing the o
     <td>All three repos. The lane can satisfy the only review-shaped merge gate with nobody involved. Defensible, because the verify round re-derives from head rather than trusting a reply, but shipped rather than decided.</td>
     <td>Write it down as intended next to the ruleset, or set the approval count to 1.</td>
   </tr>
-  <tr>
-    <td><strong><code>rig</code> reviews nothing</strong></td>
-    <td>The repo holding the lane's consumer tooling and doctrine has one lint workflow, no <code>.coderabbit.yaml</code>, and does not call the shared lane.</td>
-    <td>Adopt the lane, or state why it is exempt.</td>
-  </tr>
 </table>
 
 <p class="foot">Living doc &#183; established 2026-08-12, rewritten 2026-08-30 &#183;
@@ -1154,7 +1121,7 @@ gh-workflows#12 (roadmap index and standing invariants), gh-workflows#20 (resolu
 verify becomes its own hardened job), gh-workflows#33/#34/#54 (per-repo config, model escalation, org defaults),
 gh-workflows#37 (dropped the dead GitHub App path from the docs), gh-workflows#39 (vendored prompt drift check),
 canary runs on <code>prismalens/sreforge#157</code> and run <code>33200877365</code> on <code>prismalens/prismalens</code>.
-Skills that carry the procedures: <code>claude-review-lane</code>, <code>coderabbit-lane</code>, <code>pr-babysit</code>.</p>
+Sumit1993/rig#150 (the hourly review queue and review debt). Skills that carry the procedures: <code>claude-review-lane</code>, <code>coderabbit-lane</code>, <code>pr-babysit</code>, <code>compass</code>.</p>
 
 </main>
 </body>

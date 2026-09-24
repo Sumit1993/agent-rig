@@ -1,19 +1,21 @@
 ---
 name: pr-babysit
-description: "Watch a PR raised in this session until its review round completes: seed seen-state, arm the reviewer and CI Monitor, route each event to the seat holding the diff, then merge. Load after any gh pr create or when asked to watch or merge a PR."
+description: "What happens to a PR after it is raised: by default nothing in this session, because the hourly review queue reviews and merges it async. When the operator asks to hold a round here: seed seen-state, arm the reviewer and CI Monitor, route each event, then merge. Load after any gh pr create or when asked to watch or merge a PR."
 metadata:
-  version: "4.3.0"
+  version: "5.0.0"
 ---
 
 # PR watch: the session-scoped review round
 
-One PR, raised in this session, watched until its round ends, so the session reacts to findings without the user relaying them. Not a lifecycle manager: the merge queue removed cascade shepherding, and a PR left over from an earlier session needs no local watcher because GitHub notifications cover verify-then-resolve and enqueue.
+The default is async (`Sumit1993/rig#150`). Keep the PR a draft while work continues, mark it ready once at the end, and leave it. The hourly review queue (`review-queue.yml` in prismalens/gh-workflows) summons CodeRabbit on it, merges it when the review comes back clean, and findings come back as review debt at the next session start in that repo (`compass` Step 0). Nothing below runs unless the operator asks to hold a round in this session.
+
+A held round is one PR, raised in this session, watched until its round ends, so the session reacts to findings without the user relaying them. Not a lifecycle manager: the merge queue removed cascade shepherding, and a PR left over from an earlier session needs no local watcher because GitHub notifications cover verify-then-resolve and enqueue.
 
 Reviewer behaviour lives elsewhere. `claude-review-lane` owns `claude[bot]`, `coderabbit-lane` owns `coderabbitai[bot]`, and both load on a PR of any age. Load the owning skill before acting on that reviewer. The trigger syntax and `cr-reply.sh` appear below so a router recognises them; the preconditions (cooldown arithmetic, budget, the post-trigger poll) live only there, and acting on the fragments produces confidently wrong reports.
 
 Process truth is `rig/docs/pr-review-process.html`. Whoever changes the process updates that page in the same session.
 
-Reviews arrive on their own schedule: the Claude lane in 2 to 5 minutes, CodeRabbit in 3 to 5 after admission, CI in 5 to 10. Never poll with model turns. Never wait for the user to relay an event. Arm a deterministic watcher and process deltas.
+Reviews arrive on their own schedule: the Claude lane in 2 to 5 minutes, CodeRabbit within the hour the queue summons it (median 3.5 hours after a burst of PRs), CI in 5 to 10. Never poll with model turns. Never wait for the user to relay an event. Arm a deterministic watcher and process deltas.
 
 Scripts sit in `${CLAUDE_PLUGIN_ROOT}/skills/pr-babysit/` when loaded as `rig:pr-babysit`; shared ones (`cr-reply.sh`, `rig-meta.sh`) in `${CLAUDE_PLUGIN_ROOT}/scripts/`. Resolve both to absolute paths before handing them to a Monitor or a background Bash, which may not inherit the variable. Watch scripts read the repo off the cwd's origin remote; `--repo owner/name` overrides.
 
@@ -36,19 +38,17 @@ Push freely; nothing runs pre-push. Escalate by risk, and never pay model tokens
 | Tier | When | What |
 |---|---|---|
 | Claude review (`claude[bot]`) | Where `rig-meta.sh get <repo> claude_lane` says the lane runs: every same-repo PR, automatic, but not every round and not every author | The default. Inline findings. Advisory, but every thread it opens blocks. See `claude-review-lane` |
-| CodeRabbit (`coderabbitai[bot]`) | Per repo: `coderabbit_review` label or `@coderabbitai review` by hand, or automatic where `rig-meta.sh get <repo> coderabbit_auto_review` is true | The independent lane, drawing a scarce per-developer counter. See `coderabbit-lane` |
+| CodeRabbit (`coderabbitai[bot]`) | Every ready PR, summoned by the hourly review queue; `auto_review` is off everywhere | The independent lane, drawing a scarce per-developer counter. See `coderabbit-lane` |
 | One Opus 5 pass | Non-trivial PRs | Spec and ADR conformance, which the bots cannot see |
 | `/code-review ultra` | Rare | Engine core, security boundary, contract or schema changes |
 
 A PR body that closes several issues repeats the keyword per issue, `closes #a, closes #b`; GitHub links only the first number after one keyword. `pr-created.sh` reads `closingIssuesReferences` and says when the body names more than GitHub linked (gh-workflows #140 claimed seven, linked one).
 
-Never bypass the ruleset. Batch every fix before you push, not merely before you summon: a CodeRabbit slot spent on a commit you are about to amend is wasted. Where admission is automatic, the push is the request and there is no summon step to hold back; a lane cannot obey "don't trigger CodeRabbit" by pushing. `auto_pause_after_reviewed_commits: 1` limits the damage: the first push spends a slot, later pushes auto-pause and surface as `CODERABBIT AUTO-PAUSED`. Check `coderabbit_auto_review` before assuming you have a summon step (`coderabbit-lane` §1 and §3).
+Never bypass the ruleset. Batch every fix before you push: the queue summons a PR once its head commit is 20 minutes old, so a push right after a fix batch lands spends a slot on a commit you are about to amend.
 
-## Phase 1: arm the watcher as soon as a PR this session caused exists
+## Phase 1: arm the watcher, only for a held round
 
-The trigger is a PR existing that this session caused, whoever typed the command: a delegated lane, an agy run or a subagent in its own worktree can open it.
-
-Choose the watcher first. `/autofix-pr` on the PR branch spawns a cloud session subscribed to that PR; it fixes CI failures and review comments and replies in the threads under your account, and this session holds nothing. That is the default. The Monitor below is for a round this session must hold: the fix belongs in a seat that already has the diff, or CodeRabbit's rate limit needs tracking, which auto-fix does not see. Read from code.claude.com/docs/en/claude-code-on-the-web, "Auto-fix pull requests".
+The trigger is the operator asking to hold this PR's round in this session. A PR merely existing is not one; the queue has it.
 
 Seed the seen-state first, both files, so existing comments never replay as `NEW`:
 
@@ -86,6 +86,8 @@ Per-event handling is in `references/events.md`.
 
 ## Phase 3: merge, once the user says so or under an explicit standing grant
 
+The review queue merges a PR whose review came back clean on its own; that is the one standing grant. Everything else waits for `MERGE_OK`.
+
 Check `rig-meta.sh get <owner/repo> merge_queue` first.
 
 - Queue repos (`merge_queue` true): `gh pr merge <n> --squash` enqueues, and the queue tests a speculative merge onto main before landing it. No BEHIND cascade, no update-branch babysitting. Do not enqueue before the liveness comment shows posted review output (`claude-review-lane` §2). The queue gates on checks and threads, not on whether a reviewer spoke, so enqueueing into silence merges an unreviewed head.
@@ -102,5 +104,5 @@ Afterward remove the lane's worktree and delete its local branch (`AGENTS.md` §
 - `~/ai-context/state/cr-watch/` is durable across sessions. Re-arming is always safe.
 - A `git checkout` under a running watcher kills it. Bash reads a script incrementally, so switching branches rewrites `watch-coderabbit.sh` beneath the running shell, usually exit 144, with no event. Re-arm after any branch change, or run the watcher from a path that is not moving.
 - A watcher dies with its task, not the session. TaskStop it the moment its PR is merged, closed or handed off. The SessionEnd hook also kills watchers and SessionStart reaps orphans; re-arming after either is free.
-- `hooks/pr-created.sh` injects a reminder whenever a PR URL appears in a Bash or Agent tool result, and seeds the seen-state. Answer it by running Phase 1. It is a net, not a guarantee: an agy lane redirects output to a file, so the URL reaches no Bash result and arrives later in the handler's report, which is why the hook also runs on `Agent`. When you dispatch work that ends in a PR, expect the URL in the handler's report (`farm-out` babysit step 9) and arm on it.
+- `hooks/pr-created.sh` injects a reminder whenever a PR URL appears in a Bash or Agent tool result, seeds the seen-state, and says when the new PR touches files an open draft already changes. It reminds the session that reviews run async; run Phase 1 only for a held round. It also runs on `Agent`, because an agy lane's PR URL arrives in the handler's report, not a Bash result.
 - Phase 3's cascade is a background Bash with a single completion, not a Monitor.

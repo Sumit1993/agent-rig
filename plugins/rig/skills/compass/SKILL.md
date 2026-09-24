@@ -1,9 +1,9 @@
 ---
 name: compass
-description: "Where a repo stands and what to work on next, read from GitHub itself: the version milestone, its open issues by priority, blocked skipped. Load when a session picks up work cold or must rank a queue. Also the frozen label and milestone vocabulary."
+description: "Where a repo stands and what to work on next, read from GitHub itself: review debt on open PRs first, then the version milestone, its open issues by priority and surface, blocked skipped. Load when a session picks up work cold or must rank a queue. Also the frozen label and milestone vocabulary."
 metadata:
   harnesses: "claude agy codex"
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Direction
@@ -18,11 +18,26 @@ Nine labels, the same in every repo, and nothing else:
 | --- | --- | --- |
 | `bug`, `enhancement`, `documentation`, `decision` | `blocked`, `parked`, `needs-operator` | `p0`, `p1` |
 
-Bot labels (`dependencies`, `github_actions`, `javascript`, `autorelease:*`) and the review-lane admission label `coderabbit_review` are mechanism, not vocabulary. Leave them alone and do not count them as drift.
+Bot labels (`dependencies`, `github_actions`, `javascript`, `autorelease:*`) and the review-lane labels `coderabbit_review`, `claude_review` and `claude_review_skip` are mechanism, not vocabulary. Leave them alone and do not count them as drift.
 
 A milestone is titled with the version it ships, `0.5.0`. A repo has at most two open: current and next. Line one of the description is the done-when sentence. There is no number prefix, no due date, and no order across repos.
 
 Never create, rename or delete a label or a milestone. If the vocabulary lacks something, file an issue labelled `needs-operator` saying what and why. On a repo's first run the operator installs the labels and milestones, the skill never does.
+
+## Step 0: review debt
+
+Reviews land hours after a PR is marked ready, long after its session ended (`Sumit1993/rig#150`). Findings on the operator's open PRs come before any new pick. The SessionStart hook prints them as `Review debt in <repo>: ...`; without the hook:
+
+```
+gh api graphql -f query='query { search(query: "repo:{owner}/{repo} is:pr is:open author:@me -is:draft", type: ISSUE, first: 30) { nodes { ... on PullRequest { number title reviewThreads(first: 100) { nodes { isResolved path comments(first: 1) { nodes { author { login } body } } } } } } } }' \
+  --jq '.data.search.nodes[] | {number, title, open: [.reviewThreads.nodes[] | select(.isResolved | not)]} | select(.open | length > 0) | "#\(.number)\t\(.open | length) open\t\(.title)"'
+```
+
+One agent clears the whole list in one pass, PR by PR on each PR's branch:
+
+- Fix what is right, one push per PR, then reply in each thread (`coderabbit-lane` §5, `claude-review-lane` for `claude[bot]`). Never resolve a reviewer's thread; the next review round does.
+- A finding that needs the operator's ruling is collected, not asked one at a time. Ask them all in one question at the end.
+- Nothing else to do: the review queue re-reviews a PR whose threads all carry a reply, and merges it once the review comes back clean.
 
 ## Step 1: read the repo and report drift
 
@@ -38,7 +53,7 @@ Drift is any label outside the nine and the mechanism set, more than two open mi
 
 Current is the lowest open version. Sort the titles with `sort -V` and take the first. If the repo has no open milestone, nothing is startable; say so and stop.
 
-## Step 3: the pick
+## Step 3: the pick is a batch
 
 ```
 gh issue list --state open --milestone '<current>' --json number,title,labels,createdAt --jq '
@@ -47,7 +62,9 @@ gh issue list --state open --milestone '<current>' --json number,title,labels,cr
   | .[] | "#\(.number)\t\(.labels | map(.name) | join(","))\t\(.title)"'
 ```
 
-The pick is the first line. `p0` sorts to the front of its own milestone and nowhere else. `blocked` is skipped; the comment on that issue names the blocker. An issue whose body says it is blocked but carries no label is a triage note: open it, and if the blocker is real, add the `blocked` label with a comment.
+The first line is the lead. `p0` sorts to the front of its own milestone and nowhere else. `blocked` is skipped; the comment on that issue names the blocker. An issue whose body says it is blocked but carries no label is a triage note: open it, and if the blocker is real, add the `blocked` label with a comment.
+
+The pick is the lead plus every other startable issue in the list that touches the same files: read the bodies and the Pointers, not the titles. One branch, one draft PR, `closes #a, closes #b`, marked ready once at the end. Each PR is one review slot and hours of queue wait, so two PRs where one would do cost twice. Work found mid-session on the same files joins the open draft; it gets its own PR only when it is its own unit.
 
 An issue with no milestone is not startable. Count them and report the number:
 
@@ -61,7 +78,7 @@ gh issue list --state open --search 'no:milestone' --json number --jq length
 gh pr list --state open --json number,title,isDraft,updatedAt --jq '.[] | select(.title | startswith("chore(deps)") | not) | "#\(.number)\t\(if .isDraft then "draft" else "ready" end)\t\(.title)"'
 ```
 
-A ready PR on the pick means the pick is already taken; move to the next line.
+A ready PR on the lead means the batch is already taken; move to the next line. An open draft on the same files is where the batch goes.
 
 ## Handoffs
 

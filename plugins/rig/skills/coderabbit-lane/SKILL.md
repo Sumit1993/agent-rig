@@ -1,8 +1,8 @@
 ---
 name: coderabbit-lane
-description: "CodeRabbit review lane mechanics: the per-developer hourly slot shared across repos, per-repo admission, when a slot is worth spending, trigger syntax, in-thread replies with cr-reply.sh, thread resolution. Load when requesting or answering CodeRabbit."
+description: "CodeRabbit review lane mechanics: the hourly review queue that admits and merges, the per-developer hourly slot shared across repos, when a hand summon is worth it, trigger syntax, in-thread replies with cr-reply.sh, thread resolution. Load when requesting or answering CodeRabbit."
 metadata:
-  version: "3.0.0"
+  version: "4.0.0"
 ---
 
 # The CodeRabbit review lane
@@ -11,21 +11,18 @@ metadata:
 
 ## 1. Admission
 
-Admission is per repo. Read it: `rig-meta.sh get <repo> coderabbit_auto_review`. The repo's own AGENTS.md says why.
+The hourly review queue (`review-queue.yml` in prismalens/gh-workflows, `Sumit1993/rig#150`) is the admission mechanism, in every repo. `auto_review` is off everywhere, so opening a PR or marking it ready spends nothing by itself. Each hour the queue:
 
-- Manual (`coderabbit_auto_review` false): apply the `coderabbit_review` label by hand, or post a bare `@coderabbitai review`. Without the label CodeRabbit outputs `Review skipped: excluded by label configuration`, which is expected.
-- Automatic (`auto_review.enabled: true` in that repo's `.coderabbit.yaml`): every PR is reviewed, no summon. The push is the request, so batch before pushing, and never tell a lane to hold off triggering when pushing is what triggers. A repo hosting `claude-code-review.yml` needs this, because `claude-code-action` self-skips on any PR editing that file.
+- merges or enqueues every ready PR whose CodeRabbit review on the current head came back clean, every thread resolved by the reviewer that opened it; docs-only PRs merge on green checks with no review;
+- summons CodeRabbit on at most one PR: first a re-review, a PR whose head moved past its last review and whose CodeRabbit threads all carry a reply, then new PRs oldest first. A head commit must be 20 minutes old; a draft is never summoned.
 
-## 2. When a slot is warranted
+`blocked` or `needs-operator` on a PR holds its merge, not its review. The queue's run summary lists every PR with the reason it waits. Its kill switch is the gh-workflows repo variable `REVIEW_QUEUE_LIVE`.
 
-A slot is a deliberate budget decision, never routine. Two cases:
+## 2. When to summon by hand
 
-1. A sensitive surface: the CI and workflow surface itself, credential and crypto handling, the engine core, contract and schema changes.
-2. Independent validation: a Claude finding that wants a reviewer sharing no model, prompt or failure mode.
+Rarely. A hand summon spends the same slot the queue schedules and makes its budget check wait. Two cases justify one: the operator wants a PR reviewed ahead of the queue, or a held round (`pr-babysit`) needs the review inside this session. Post it bare (§4). The queue sees it as pending and does not repeat it.
 
-A judgement call, not a path test. prismalens #415 retired `review-admit.yml` and the `review-evidence` gate, and neither file is on `main`; do not propose finishing them. The hand-applied label is the whole mechanism. Hand admission exists because traffic outruns the counter.
-
-`.coderabbit.yaml` path instructions still shape review quality and the Claude lane cannot see them, so they stay worth writing. They do not decide admission. `profile: chill` tames noise.
+`.coderabbit.yaml` path instructions still shape review quality and the Claude lane cannot see them, so they stay worth writing.
 
 ## 3. The per-developer counter
 
@@ -39,11 +36,11 @@ The lane runs on the Free/OSS plan, seat assignment disabled:
 
 Essentials was formerly called Pro, and Team was formerly called Pro+.
 
-- **The star count does not tell you whether `auto_review` fires.** Fewer than 10 stars describes the OSS tier's default, and a repo carrying `auto_review: true` gets automatic review anyway. `prismalens/gh-workflows` is public with 0 stars, and `coderabbitai[bot]` posted 8 to 93 seconds after `gh pr create` on `#158`, `#155` and `#142`, all three non-draft, with no human summon first. Settle it per repo by comparing the PR's `createdAt` against the first `coderabbitai[bot]` comment in `repos/<owner>/<repo>/issues/<n>/comments`, never by `stargazerCount`.
-- **A draft is exempt, and that decides when to batch.** `reviews.auto_review.drafts` defaults to false, so on a draft the bot posts `Draft PR not reviewed` and stops without spending anything (`prismalens/gh-workflows#161`, 6 seconds after open). Three rules follow. A draft costs nothing to open and nothing to push to. A non-draft spends the slot at `gh pr create`. A draft spends it the moment it is marked ready. So open the draft first, push as often as the work wants, and mark ready once at the end. Holding commits back before the push only saves a slot on a pull request that is already ready.
+- **With `auto_review` off, nothing fires on its own.** Before #150 a repo carrying `auto_review: true` was reviewed 8 to 93 seconds after `gh pr create` whatever its star count (`prismalens/gh-workflows` `#158`, `#155`, `#142`). A repo with no `.coderabbit.yaml` gets CodeRabbit's default, which is on; every repo in the queue carries one with `enabled: false`.
+- **A draft is never reviewed.** The queue skips drafts, and CodeRabbit posts `Draft PR not reviewed` on a draft summon (`prismalens/gh-workflows#161`). Open the draft first, push as often as the work wants, and mark ready once at the end.
 - **Do not read the plan off the bot.** CodeRabbit's run configuration reports a feature tier, and it printed "Plan: Team" on a repo that is rate-limited as Free, because open-source projects receive Team features without a subscription. The name the bot prints is not the row of the rate-limit table that applies.
-- The counter is per developer, not per repo, branch, session or subagent. `prismalens`, `sreforge` and `mage-memory` draw one pool. Run at most one review at a time across every repo you touch; parallel runs serialise and delay every lane.
-- Every run spends a slot: initial reviews, automatic incremental reviews after a push, manual `@coderabbitai review`. The label gates automatic review only. The CLI's `coderabbit review --agent` posts to the PR regardless of labels (marker `coderabbit-cli-agent-hint`, recorded on `#123`). A manual summon on an unlabelled PR still spends the counter, which makes it the escape hatch when the Claude lane is down. Enabled repos set `auto_pause_after_reviewed_commits: 1` in `.coderabbit.yaml`: one review per PR, then batch fixes before re-requesting.
+- The counter is per developer, not per repo, branch, session or subagent. Every repo in the queue draws one pool. Run at most one review at a time across every repo you touch; parallel runs serialise and delay every lane.
+- Every run spends a slot: initial reviews, incremental reviews, manual `@coderabbitai review`. The CLI's `coderabbit review --agent` posts to the PR regardless of labels (marker `coderabbit-cli-agent-hint`, recorded on `#123`). Repos set `auto_pause_after_reviewed_commits: 1` in `.coderabbit.yaml`: one review per PR, then batch fixes before the queue re-requests.
 - Auto-pause is recoverable. A push past the limit pauses the lane on that PR and nothing arrives on its own. A bare `@coderabbitai resume` restarts it, and what follows is a real review of the final head that posts `Review completed`, so a PR paused by its own fix commits can still meet a merge condition requiring one. Resume deliberately; it spends a slot.
 - Batch fixes before requesting. Never spend a slot on a commit you are about to amend.
 - Remaining capacity is not readable. `@coderabbitai rate limit` returns documentation links.
