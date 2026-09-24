@@ -26,10 +26,17 @@ fail() { echo "FAIL: $1"; fails=$((fails + 1)); }
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
-# A PATH with python3 and no jq. The shim dir is first so a jq installed
-# anywhere else cannot leak in.
+# A PATH with python3 and no jq. Runners ship jq in /usr/bin, so the PATH is one
+# directory of links to every system binary except jq, never /usr/bin itself.
 mkdir -p "$TMP/bin" "$TMP/empty"
-NOJQ_PATH="$TMP/bin:/usr/bin:/bin"
+for d in /usr/local/bin /usr/bin /bin; do
+  for f in "$d"/*; do
+    n=${f##*/}
+    [ "$n" = jq ] && continue
+    [ -e "$TMP/bin/$n" ] || ln -s "$f" "$TMP/bin/$n" 2>/dev/null
+  done
+done
+NOJQ_PATH="$TMP/bin"
 if PATH="$NOJQ_PATH" command -v jq >/dev/null 2>&1; then
   fail "fixture broken: jq is reachable on the no-jq PATH"
 fi
