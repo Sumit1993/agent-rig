@@ -4,6 +4,7 @@
 # §Orchestrator) only bites while delegates are working — editing when nothing is
 # delegated is just doing the work. So this fires ONLY while an agy run is alive, and
 # only once per session: a nudge at the moment the seat is being left, not a wall.
+# Rung: hook. Skipped: impossible (editing is allowed when delegates are idle), check (delegate processes exist only at call time).
 set -u
 in=$(cat)
 

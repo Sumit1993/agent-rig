@@ -1,5 +1,5 @@
 #!/bin/bash
-# Remove the loose ~/.claude copies that agent-rig's plugin now provides.
+# Remove the loose ~/.claude copies that rig's plugin now provides.
 # Run ONCE, after the plugin is confirmed loaded (skills show as rig:pr-babysit etc.).
 set -euo pipefail
 CLAUDE="$HOME/.claude"

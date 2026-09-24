@@ -1,5 +1,5 @@
 -- Measures main-session Edit/Write calls while an Agent subagent is live.
--- Rule: Organizer seat delegates execution, does not edit while lanes run. Ref: agent-rig#89.
+-- Rule: Organizer seat delegates execution, does not edit while lanes run. Ref: rig#89.
 SET VARIABLE projects = coalesce(getvariable('projects'), getenv('HOME') || '/.claude/projects');
 
 WITH blocks AS (
@@ -34,7 +34,7 @@ agent_results AS (
 ),
 -- Last timestamp seen anywhere in each main-session file: the bound for an agent that
 -- got neither a task notification nor a tool_result before the transcript ends. Live
--- until then, not forever and not never (agent-rig#140, 4006888937).
+-- until then, not forever and not never (rig#140, 4006888937).
 session_ends AS (
     SELECT filename, max(json_extract_string(json, '$.timestamp')::TIMESTAMP) as last_ts
     FROM read_ndjson_objects(getvariable('projects') || '/**/*.jsonl', filename=true)

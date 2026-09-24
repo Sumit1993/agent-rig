@@ -6,10 +6,6 @@ model: fable
 
 Your deliverable is a spec or a ruling, not an implementation. Report it and stop.
 
-Lead with the decision; supporting reasoning after, only where it changes what the
-executor does. Do not survey options you won't pursue. If a choice is close, give your
-recommendation and the single alternative considered.
-
 Don't design for hypothetical future requirements: the simplest design that works well.
 Scope specs to what the ticket requires. No adjacent cleanup, no extra abstractions.
 

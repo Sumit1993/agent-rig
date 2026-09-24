@@ -1,7 +1,8 @@
 #!/bin/bash
 # PreToolUse(AskUserQuestion|EnterPlanMode|Agent) hook: at the moment an agent admits it is
 # unsure, remind it to get an outside view first. Fires on the 1st occurrence per session,
-# then every 3rd, so it stays a nudge. Refs #123
+# then every 3rd, so it stays a nudge. Refs #123.
+# Rung: hook. Skipped: impossible (uncertainty tools cannot be blocked outright), check (the signal exists only at call time).
 set -u
 in=$(cat)
 tool=$(jq -r '.tool_name // ""' <<<"$in" 2>/dev/null) || exit 0

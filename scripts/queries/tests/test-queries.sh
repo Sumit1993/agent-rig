@@ -1,5 +1,5 @@
 #!/bin/bash
-# Regression suite for scripts/queries DuckDB SQL suite. Refs agent-rig#91, #130.
+# Regression suite for scripts/queries DuckDB SQL suite. Refs rig#91, #130.
 set -u
 
 if ! command -v duckdb >/dev/null 2>&1; then
@@ -57,7 +57,7 @@ fi
 
 # 4b. The same operator text sent twice, 3 minutes apart, prints twice: the dedupe
 # collapses a mid-turn queue-operation/attachment pair (seconds apart), not a genuine
-# repeat sent minutes apart (agent-rig#140, 4006888972).
+# repeat sent minutes apart (rig#140, 4006888972).
 repeat_hits=$(echo "$sr_out" | grep -c 'Repeated operator text sent twice, three minutes apart' || true)
 if [ "$repeat_hits" -eq 2 ]; then
   check "the same operator text sent 3 minutes apart prints twice" 0
@@ -75,7 +75,7 @@ fi
 
 # 6. organizer-edits counts 2 edits while live: the completed-agent edit, plus an edit
 # after an Agent with neither a notification nor a tool_result, live until the last
-# timestamp in its own session file (agent-rig#140, 4006888937).
+# timestamp in its own session file (rig#140, 4006888937).
 oe_out=$(bash "$RUN_SH" organizer-edits 2>&1)
 if echo "$oe_out" | grep -E '│ +2 +│ +2 +│ +100\.0 +│' >/dev/null 2>&1; then
   check "organizer-edits counts 2 edits while live" 0
@@ -84,7 +84,7 @@ else
 fi
 
 # 7. reads-per-agent includes a subagent with zero Read calls in the agent set, not just
-# subagent transcripts that used Read (agent-rig#140, 4006888946). Two subagent
+# subagent transcripts that used Read (rig#140, 4006888946). Two subagent
 # transcripts: agent-1 (2 reads), agent-2 (0 reads) -> agent_count=2, median_reads=1.0.
 rpa_out=$(bash "$RUN_SH" reads-per-agent 2>&1)
 if echo "$rpa_out" | grep -E '│ +2 +│ +1\.0 +│' >/dev/null 2>&1; then
@@ -102,7 +102,7 @@ else
 fi
 
 # 9. hook-blocks counts exactly 1 real refusal for rig/guard/test-fixture, and does not
-# also count the Read whose file content merely mentions that guard id (agent-rig#91).
+# also count the Read whose file content merely mentions that guard id (rig#91).
 hb_out=$(bash "$RUN_SH" hook-blocks 2>&1)
 guard_hits=$(echo "$hb_out" | grep -c 'rig/guard/test-fixture' || true)
 if [ "$guard_hits" -eq 1 ] && echo "$hb_out" | grep -E 'rig/guard/test-fixture *│ +Bash +│ +1 +│' >/dev/null 2>&1; then
@@ -112,7 +112,7 @@ else
 fi
 
 # 10. hook-blocks counts a refusal whose content is an array of text blocks
-# (content[0].text), not just the plain-string shape (agent-rig#140, 4006888932).
+# (content[0].text), not just the plain-string shape (rig#140, 4006888932).
 if echo "$hb_out" | grep -E 'rig/guard/test-array-fixture *│ +Bash +│ +1 +│' >/dev/null 2>&1; then
   check "hook-blocks counts an array-content refusal for rig/guard/test-array-fixture" 0
 else

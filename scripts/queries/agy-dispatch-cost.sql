@@ -1,5 +1,5 @@
 -- Measures agy delegation runs, tokens, duration, and outcomes by model and day.
--- Rule: Audit delegation cost and failure modes across envelopes and sidecars. Ref: agent-rig#91.
+-- Rule: Audit delegation cost and failure modes across envelopes and sidecars. Ref: rig#91.
 SET VARIABLE agy_logs = coalesce(getvariable('agy_logs'), getenv('HOME') || '/ai-context/agy-logs');
 
 WITH sidecars AS (

@@ -1,5 +1,5 @@
 -- Measures assistant turns using Haiku models across project transcripts.
--- Rule: Never Haiku as an agent or session model. Ref: agent-rig#89.
+-- Rule: Never Haiku as an agent or session model. Ref: rig#89.
 SET VARIABLE projects = coalesce(getvariable('projects'), getenv('HOME') || '/.claude/projects');
 
 WITH all_rows AS (

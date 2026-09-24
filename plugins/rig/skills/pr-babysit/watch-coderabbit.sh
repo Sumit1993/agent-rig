@@ -91,7 +91,7 @@ fi
 # last accepted review and measures exact to within fifteen seconds. A flat 3600s counts
 # from the REFUSAL instead, landing ~21 minutes late. The fallback covers only a notice
 # with no figure in it. RETRY_NOTICE records the claim so the event line names its source.
-# Measurements: agent-rig#28.
+# Measurements: rig#28.
 COOLDOWN_SECONDS=${CR_WATCH_COOLDOWN_SECONDS:-3600}
 # Validate before it ever reaches arithmetic. A junk value flows through the fallback path
 # into $((secs / 60)), where bash treats a non-numeric literal as a variable name and
@@ -188,7 +188,7 @@ while [ ${#PRS[@]} -gt 0 ]; do
       # miss entirely: CodeRabbit declining because the head is already reviewed. Nothing
       # matched it, so a refused trigger looked like a review still in flight, and the
       # nearest event said "no review ran" when the head IS reviewed. `coderabbit-lane` §4
-      # already separates the two refusals; the watcher now does too. Story: agent-rig#28.
+      # already separates the two refusals; the watcher now does too. Story: rig#28.
       # Match ONLY the verdict line. CodeRabbit appends "does not re-review already reviewed
       # commits" to every command reply, so matching that footer fired on all of them. Refs #101.
       ar_ts=$(jq -r '[.[] | select(.user.login | test("coderabbit"))
@@ -253,7 +253,7 @@ while [ ${#PRS[@]} -gt 0 ]; do
         # looks exactly like an armed wait. So a process also arms on its FIRST sight of a
         # PR that has a recorded notice and nothing armed. Once per process, never per
         # poll, or a spent retry would immediately re-arm itself off the stale notice.
-        # Story: agent-rig#28, 29 minutes lost on gh-workflows#98.
+        # Story: rig#28, 29 minutes lost on gh-workflows#98.
         rl_first=0
         case " $rl_seen " in *" $pr "*) ;; *) rl_first=1; rl_seen="$rl_seen $pr";; esac
         # used=0 is the whole test for "arming was lost": a spent retry means a trigger

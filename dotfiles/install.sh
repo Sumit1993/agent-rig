@@ -1,5 +1,5 @@
 #!/bin/bash
-# agent-rig bootstrap for a new machine. Idempotent. Requires: jq, git, gh (authed).
+# rig bootstrap for a new machine. Idempotent. Requires: jq, git, gh (authed).
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 CLAUDE="$HOME/.claude"
@@ -36,14 +36,6 @@ if [ ! -f "$src_root/dotfiles/AGENTS.md" ]; then
   exit 1
 fi
 
-# AGENTS.md @-imports the unslop rules by a path relative to itself. An import that resolves
-# to nothing is dropped at launch with no warning, so the miss shows up as writing that
-# quietly stopped following house style. Check the target here instead.
-if [ ! -f "$src_root/plugins/rig/skills/unslop/SKILL.md" ]; then
-  echo "  ERROR: AGENTS.md imports plugins/rig/skills/unslop/SKILL.md, which is missing." >&2
-  echo "  Restore it before installing; a broken import fails silently." >&2
-  exit 1
-fi
 stub="@$src_root/dotfiles/AGENTS.md"
 if [ -f "$CLAUDE/CLAUDE.md" ] && grep -qxF "$stub" "$CLAUDE/CLAUDE.md"; then
   echo "  import already present — local additions left untouched"
@@ -67,7 +59,7 @@ else
       echo "  Re-add anything you still want BELOW the import line." >&2
     fi
   fi
-  printf '%s\n\nEdit the imported file in the agent-rig repo, not here. Anything below this line is machine-local.\n' \
+  printf '%s\n\nEdit the imported file in the rig repo, not here. Anything below this line is machine-local.\n' \
     "$stub" > "$CLAUDE/CLAUDE.md"
 fi
 
@@ -83,7 +75,7 @@ if [ -d "$AGY" ]; then
     && jq -e . "$s.tmp" >/dev/null && mv "$s.tmp" "$s"
   if command -v agy >/dev/null 2>&1; then
     echo "→ agy plugin (skills tagged harnesses: claude agy; no hooks, no agents)"
-    b="${XDG_DATA_HOME:-$HOME/.local/share}/agent-rig/agy-plugin"
+    b="${XDG_DATA_HOME:-$HOME/.local/share}/rig/agy-plugin"
     bash "$HERE/build-agy-plugin.sh" "$b" >/dev/null && agy plugin install "$b"
   fi
 fi
@@ -92,7 +84,7 @@ if command -v codex >/dev/null 2>&1; then
   echo "→ codex plugin (skills tagged codex; hooks proven under Codex; see build-codex-plugin.sh)"
   codex_home="${CODEX_HOME:-$HOME/.codex}"
   mkdir -p "$codex_home"  # marketplace add fails on a machine with no CODEX_HOME yet (#141)
-  cb="${XDG_DATA_HOME:-$HOME/.local/share}/agent-rig/codex-plugin"
+  cb="${XDG_DATA_HOME:-$HOME/.local/share}/rig/codex-plugin"
   bash "$HERE/build-codex-plugin.sh" "$cb" >/dev/null
   codex plugin marketplace add "$cb" >/dev/null 2>&1 || echo "  WARN: codex plugin marketplace add $cb failed" >&2
   codex plugin add rig@rig-local >/dev/null 2>&1 || echo "  WARN: codex plugin add rig@rig-local failed" >&2
@@ -119,6 +111,6 @@ else
   cp "$HERE/settings.fragment.json" "$CLAUDE/settings.json"
 fi
 
-echo "→ done. Restart Claude Code; the agent-rig marketplace + rig plugin load from settings."
+echo "→ done. Restart Claude Code; the rig marketplace + rig plugin load from settings."
 echo "   Skills arrive under the rig: prefix, one per directory in plugins/rig/skills/."
 echo "   If migrating FROM a machine with loose copies in ~/.claude/skills/, run dedupe.sh next."

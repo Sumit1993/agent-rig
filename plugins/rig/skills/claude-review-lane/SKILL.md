@@ -138,6 +138,7 @@ Disputed, declined or deferred findings are resolved by a human via GraphQL `res
 
 ## 7. Before a merge
 
+0. Is every review thread resolved by the reviewer that opened it? A thread the session resolved does not count.
 1. Has posted review output landed at all? Only a `reviewed <sha> ...` verdict answers yes. Auto-paused, posted-nothing, fork notices, or no comment mean unreviewed.
 2. Did it land on *this* head? Read `sha=` off the liveness marker. Resolved threads describe findings, not coverage. Summon and wait, or make a deliberate risk decision to merge without one.
 

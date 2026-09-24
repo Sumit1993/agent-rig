@@ -7,7 +7,7 @@ metadata:
 
 # The CodeRabbit review lane
 
-`coderabbitai[bot]` is the independent automated reviewer. `AGENTS.md` decides reviewer routing. `pr-babysit` covers watching a PR this session raised, watcher lifecycles and merge mechanics. `claude-review-lane` covers `claude[bot]`. `autofix` applies PR-thread feedback with per-change approval. Process truth is `agent-rig/docs/pr-review-process.html`.
+`coderabbitai[bot]` is the independent automated reviewer. `AGENTS.md` decides reviewer routing. `pr-babysit` covers watching a PR this session raised, watcher lifecycles and merge mechanics. `claude-review-lane` covers `claude[bot]`. `autofix` applies PR-thread feedback with per-change approval. Process truth is `rig/docs/pr-review-process.html`.
 
 ## 1. Admission
 
@@ -76,6 +76,7 @@ Replies go in-thread, to satisfy `required_review_thread_resolution`:
 ## 6. Thread resolution
 
 - Fixed threads resolve through one verified re-review, never a blanket command. After every fix for the round is committed, pushed and replied to in-thread, spend one `@coderabbitai review`. CodeRabbit resolves the threads it considers addressed; anything left open is reviewed and resolved individually with rationale in-thread.
-- Bare top-level `@coderabbitai resolve` blanket-resolves every thread with zero validation. Reserved for rounds made entirely of declined or deferred findings whose dispositions are already recorded.
-- Declining or deferring: CodeRabbit self-resolves only when code changed, so the operator or session resolves under three rules. State the disposition (accepted-and-deferred with landing target, or rejected with reasons; "noted" is not a disposition). Wait about 60 seconds for the counter-reply so follow-up issue offers are not dropped. Reference tracking issues by number.
+- Bare top-level `@coderabbitai resolve` blanket-resolves every thread with zero validation. The operator's call only, for rounds made entirely of declined or deferred findings whose dispositions are already recorded.
+- A PR merges only with every review thread resolved by the reviewer that opened it. The session never resolves a CodeRabbit thread to clear a merge.
+- Declining or deferring: CodeRabbit self-resolves only when code changed, so a declined or deferred finding goes to the operator, who resolves it under three rules. State the disposition (accepted-and-deferred with landing target, or rejected with reasons; "noted" is not a disposition). Wait about 60 seconds for the counter-reply so follow-up issue offers are not dropped. Reference tracking issues by number.
 - Never reply and resolve in one step.
