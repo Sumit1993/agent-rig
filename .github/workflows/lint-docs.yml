@@ -7,13 +7,13 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: bash plugins/rig/scripts/lint-skill-docs.sh
 
   hooks:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # The hook suites gate code Claude Code runs on every tool call, so a break here
       # is a break in every session. replay-transcripts.sh finds no transcripts on a
       # runner and exits clean; it is the local pass that has real payloads to replay.
