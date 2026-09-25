@@ -7,8 +7,10 @@ never matched here, so a rewording cannot mislead it (prismalens/gh-workflows#21
 import base64
 import json
 import re
-import subprocess
+import os
 import sys
+import urllib.error
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
@@ -29,13 +31,29 @@ first:comments(first:1){nodes{author{login}}} last:comments(last:1){nodes{author
 NOW = datetime.now(timezone.utc)
 
 
+def request(url, payload=None):
+    # Cloud sessions have no gh CLI; the GitHub proxy swaps the placeholder GH_TOKEN for real credentials.
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": "coderabbit-routine"}
+    if os.environ.get("GH_TOKEN"):
+        headers["Authorization"] = f"Bearer {os.environ['GH_TOKEN']}"
+    data = json.dumps(payload).encode() if payload is not None else None
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, data=data, headers=headers)) as resp:
+            return json.load(resp), resp.headers.get("Link") or ""
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"{e.code} {url}: {e.read()[:160]!r}") from None
+
+
 def gh(path, paginate=False):
-    args = ["gh", "api", path] + (["--paginate", "--slurp"] if paginate else [])
-    out = subprocess.run(args, capture_output=True, text=True)
-    if out.returncode != 0:
-        raise RuntimeError(out.stderr.strip()[:200])
-    data = json.loads(out.stdout)
-    return [x for page in data for x in page] if paginate else data
+    url = f"https://api.github.com/{path}"
+    data, link = request(url)
+    if not paginate:
+        return data
+    items = list(data)
+    while (m := re.search(r'<([^>]+)>;\s*rel="next"', link)):
+        data, link = request(m.group(1))
+        items.extend(data)
+    return items
 
 
 def ts(s):
@@ -80,13 +98,11 @@ def repo_facts(repo):
 
 def threads(repo, number):
     owner, name = repo.split("/")
-    out = subprocess.run(
-        ["gh", "api", "graphql", "-f", f"query={THREADS_QUERY}", "-F", f"o={owner}", "-F", f"n={name}", "-F", f"p={number}"],
-        capture_output=True, text=True,
-    )
-    if out.returncode != 0:
-        return {"unavailable": out.stderr.strip()[:160]}
-    conn = json.loads(out.stdout)["data"]["repository"]["pullRequest"]["reviewThreads"]
+    try:
+        res, _ = request("https://api.github.com/graphql", {"query": THREADS_QUERY, "variables": {"o": owner, "n": name, "p": number}})
+        conn = res["data"]["repository"]["pullRequest"]["reviewThreads"]
+    except (RuntimeError, KeyError, TypeError) as e:
+        return {"unavailable": str(e)[:160]}
     unresolved, cr_unreplied, wrong_resolver = 0, 0, []
     for t in conn["nodes"]:
         opener = login(t["first"]["nodes"][0]) if t["first"]["nodes"] else ""
@@ -97,7 +113,7 @@ def threads(repo, number):
                 cr_unreplied += 1
         else:
             # The Claude lane's verify job resolves its own threads as github-actions.
-            by = (t.get("resolvedBy") or {}).get("login", "")
+            by = (t.get("resolvedBy") or {}).get("login", "").removesuffix("[bot]")
             if by != opener and not (opener == "claude" and by == "github-actions"):
                 wrong_resolver.append(f"{opener} thread resolved by {by}")
     return {
