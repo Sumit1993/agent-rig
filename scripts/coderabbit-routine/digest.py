@@ -64,7 +64,10 @@ def repo_facts(repo):
     except RuntimeError:
         pass
     try:
-        gh(f"repos/{repo}/contents/.github/workflows/claude-code-review.yml")
+        # gh-workflows hosts the callee (workflow_call only), so the lane never reviews there.
+        wf = base64.b64decode(gh(f"repos/{repo}/contents/.github/workflows/claude-code-review.yml")["content"]).decode()
+        if not re.search(r"^\s+pull_request(_target)?:", wf, re.M):
+            return facts
         facts["claude_lane"] = "auto"
         cfg = base64.b64decode(gh(f"repos/{repo}/contents/.github/claude-review.yml")["content"]).decode()
         m = re.search(r"^\s*admission:\s*['\"]?(\w+)", cfg, re.M)
