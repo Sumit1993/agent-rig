@@ -31,14 +31,14 @@ first:comments(first:1){nodes{author{login}}} last:comments(last:1){nodes{author
 NOW = datetime.now(timezone.utc)
 
 
-def request(url, payload=None):
+def request(url, payload=None, method=None):
     # Cloud sessions have no gh CLI; the GitHub proxy swaps the placeholder GH_TOKEN for real credentials.
     headers = {"Accept": "application/vnd.github+json", "User-Agent": "coderabbit-routine"}
     if os.environ.get("GH_TOKEN"):
         headers["Authorization"] = f"Bearer {os.environ['GH_TOKEN']}"
     data = json.dumps(payload).encode() if payload is not None else None
     try:
-        with urllib.request.urlopen(urllib.request.Request(url, data=data, headers=headers)) as resp:
+        with urllib.request.urlopen(urllib.request.Request(url, data=data, headers=headers, method=method)) as resp:
             return json.load(resp), resp.headers.get("Link") or ""
     except urllib.error.HTTPError as e:
         raise RuntimeError(f"{e.code} {url}: {e.read()[:160]!r}") from None
