@@ -15,11 +15,12 @@ case "$repo" in
   *) exit 0 ;;
 esac
 
-query='query { search(query: "repo:'"$repo"' is:pr is:open author:@me", type: ISSUE, first: 100) { nodes { ... on PullRequest { number isDraft reviewThreads(first: 100) { totalCount nodes { isResolved } } } } } }'
-res=$(timeout 8 gh api graphql -f query="$query" 2>/dev/null) || exit 0
+# --paginate walks every page of the search, not just the first 100 PRs.
+query='query($endCursor: String) { search(query: "repo:'"$repo"' is:pr is:open author:@me", type: ISSUE, first: 100, after: $endCursor) { pageInfo { hasNextPage endCursor } nodes { ... on PullRequest { number isDraft reviewThreads(first: 100) { totalCount nodes { isResolved } } } } } }'
+res=$(timeout 8 gh api graphql --paginate -f query="$query" 2>/dev/null) || exit 0
 
-items=$(jq -r '
-  [.data.search.nodes[]?
+items=$(jq -rs '
+  [.[].data.search.nodes[]?
    | select(.isDraft == false)
    | {number, count: ([.reviewThreads.nodes[]? | select(.isResolved == false)] | length),
       unread: ((.reviewThreads.totalCount // 0) > ([.reviewThreads.nodes[]?] | length))}

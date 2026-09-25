@@ -105,6 +105,14 @@ case "$c" in
   *) fail "unread thread pages hidden: '$c'" ;;
 esac
 
+# --- A PR with debt on the second search page (--paginate prints one document per page) ---
+GQL_PAGES='{"data":{"search":{"pageInfo":{"hasNextPage":true},"nodes":[{"number":840,"isDraft":false,"reviewThreads":{"totalCount":1,"nodes":[{"isResolved":true}]}}]}}}{"data":{"search":{"pageInfo":{"hasNextPage":false},"nodes":[{"number":941,"isDraft":false,"reviewThreads":{"totalCount":1,"nodes":[{"isResolved":false}]}}]}}}'
+c=$(GIT_STUB_ORIGIN="git@github.com:owner/name.git" GH_STUB_GRAPHQL="$GQL_PAGES" run "{}" | ctx)
+case "$c" in
+  *"#941 (1 open thread)"*) pass "debt on a later search page is reported" ;;
+  *) fail "later search page dropped: '$c'" ;;
+esac
+
 echo
 [ "$FAILURES" -eq 0 ] && { echo "all review-debt hook tests passed"; exit 0; }
 echo "$FAILURES failure(s)"; exit 1

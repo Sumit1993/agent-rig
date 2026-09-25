@@ -30,8 +30,8 @@ Reviews land hours after a PR is marked ready, long after its session ended (`Su
 
 ```
 repo=$(gh repo view --json nameWithOwner -q .nameWithOwner)
-gh api graphql -f q="repo:$repo is:pr is:open author:@me -is:draft" \
-  -f query='query($q: String!) { search(query: $q, type: ISSUE, first: 100) { nodes { ... on PullRequest { number title reviewThreads(first: 100) { totalCount nodes { isResolved } } } } } }' \
+gh api graphql --paginate -f q="repo:$repo is:pr is:open author:@me -is:draft" \
+  -f query='query($q: String!, $endCursor: String) { search(query: $q, type: ISSUE, first: 100, after: $endCursor) { pageInfo { hasNextPage endCursor } nodes { ... on PullRequest { number title reviewThreads(first: 100) { totalCount nodes { isResolved } } } } } }' \
   --jq '.data.search.nodes[] | {number, title, total: .reviewThreads.totalCount, open: [.reviewThreads.nodes[] | select(.isResolved | not)] | length} | select(.open > 0 or .total > 100) | "#\(.number)\t\(.open) open of \(.total)\t\(.title)"'
 ```
 
