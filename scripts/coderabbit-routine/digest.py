@@ -161,10 +161,17 @@ def pr_facts(repo, pr):
 
 def last_review_on_closed(repo):
     # A PR closed since its review still holds the hourly window; open PRs alone would miss it.
-    closed = gh(f"repos/{repo}/pulls?state=closed&sort=updated&direction=desc&per_page=20")
+    closed, page = [], 1
+    while True:
+        batch = gh(f"repos/{repo}/pulls?state=closed&sort=updated&direction=desc&per_page=50&page={page}")
+        recent = [pr for pr in batch if age_min(pr["updated_at"]) <= 120]
+        closed += recent
+        if len(recent) < len(batch) or len(batch) < 50:
+            break
+        page += 1
     ats = [
         r["submitted_at"]
-        for pr in closed if age_min(pr["updated_at"]) <= 120
+        for pr in closed
         for r in gh(f"repos/{repo}/pulls/{pr['number']}/reviews?per_page=100", paginate=True)
         if r["user"]["login"] == CR and (r["body"] or "").strip()
     ]

@@ -7,9 +7,8 @@ set -u
 in=$(cat)
 cmd=$(jq -r '.tool_input.command // ""' <<<"$in" 2>/dev/null) || exit 0
 [ -n "$cmd" ] || exit 0
-# Quotes stripped first, so '@coderabbitai'' review' still reads as the shell will post it.
-flat=$(tr -d "'\"\\" <<<"$cmd")
-grep -qiE '@coderabbit(ai)?[[:space:]]+(full[[:space:]]+)?review\b|@coderabbit(ai)?[[:space:]]+review[[:space:]]+full\b' <<<"$flat" || exit 0
+# Any post naming coderabbit and review needs the token: shell escapes ($'\040', \x40) defeat an exact phrase match.
+grep -qi 'coderabbit' <<<"$cmd" && grep -qi 'review' <<<"$cmd" || exit 0
 # A post, not a read: gh pr/issue comment, or gh api .../comments carrying a body field.
 grep -qE 'gh[[:space:]]+(pr|issue)[[:space:]]+comment\b' <<<"$cmd" \
   || { grep -qE 'issues/[0-9]+/comments' <<<"$cmd" && grep -qE '(-f|-F|--field|--raw-field)[[:space:]]+body=|--input\b' <<<"$cmd"; } \
