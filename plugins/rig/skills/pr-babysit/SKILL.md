@@ -1,13 +1,13 @@
 ---
 name: pr-babysit
-description: "What happens to a PR after it is raised: by default nothing in this session, because the hourly review queue reviews and merges it async. When the operator asks to hold a round here: seed seen-state, arm the reviewer and CI Monitor, route each event, then merge. Load after any gh pr create or when asked to watch or merge a PR."
+description: "What happens to a PR after it is raised: by default nothing in this session, because the hourly CodeRabbit routine reviews and merges it async. When the operator asks to hold a round here: seed seen-state, arm the reviewer and CI Monitor, route each event, then merge. Load after any gh pr create or when asked to watch or merge a PR."
 metadata:
   version: "5.0.0"
 ---
 
 # PR watch: the session-scoped review round
 
-The default is async (`Sumit1993/rig#150`). Keep the PR a draft while work continues, mark it ready once at the end, and leave it. The hourly review queue (`review-queue.yml` in prismalens/gh-workflows) summons CodeRabbit on it, merges it when the review comes back clean, and findings come back as review debt at the next session start in that repo (`compass` Step 0). Phases 1 and 2 run only when the operator asks to hold a round in this session; Phase 3 also runs when the operator asks to merge.
+The default is async (`Sumit1993/rig#150`). Keep the PR a draft while work continues, mark it ready once at the end, and leave it. The hourly CodeRabbit routine (`scripts/coderabbit-routine/` in Sumit1993/rig) summons CodeRabbit on it, merges it when the review comes back clean, and findings come back as review debt at the next session start in that repo (`compass` Step 0). Phases 1 and 2 run only when the operator asks to hold a round in this session; Phase 3 also runs when the operator asks to merge.
 
 A held round is one PR, whichever session raised it, watched until its round ends, so the session reacts to findings without the user relaying them. Not a lifecycle manager: the merge queue removed cascade shepherding, and a PR left over from an earlier session needs no local watcher because GitHub notifications cover verify-then-resolve and enqueue.
 
@@ -15,7 +15,7 @@ Reviewer behaviour lives elsewhere. `claude-review-lane` owns `claude[bot]`, `co
 
 Process truth is `rig/docs/pr-review-process.html`. Whoever changes the process updates that page in the same session.
 
-Reviews arrive on their own schedule: the Claude lane in 2 to 5 minutes, CodeRabbit within the hour the queue summons it (median 3.5 hours after a burst of PRs), CI in 5 to 10. Never poll with model turns. Never wait for the user to relay an event. Arm a deterministic watcher and process deltas.
+Reviews arrive on their own schedule: the Claude lane in 2 to 5 minutes, CodeRabbit within the hour the routine summons it (median 3.5 hours after a burst of PRs), CI in 5 to 10. Never poll with model turns. Never wait for the user to relay an event. Arm a deterministic watcher and process deltas.
 
 Scripts sit in `${CLAUDE_PLUGIN_ROOT}/skills/pr-babysit/` when loaded as `rig:pr-babysit`; shared ones (`cr-reply.sh`, `rig-meta.sh`) in `${CLAUDE_PLUGIN_ROOT}/scripts/`. Resolve both to absolute paths before handing them to a Monitor or a background Bash, which may not inherit the variable. Watch scripts read the repo off the cwd's origin remote; `--repo owner/name` overrides.
 
@@ -38,17 +38,17 @@ Push freely; nothing runs pre-push. Escalate by risk, and never pay model tokens
 | Tier | When | What |
 |---|---|---|
 | Claude review (`claude[bot]`) | Where `rig-meta.sh get <repo> claude_lane` says the lane runs: every same-repo PR, automatic, but not every round and not every author | The default. Inline findings. Advisory, but every thread it opens blocks. See `claude-review-lane` |
-| CodeRabbit (`coderabbitai[bot]`) | Every ready PR, summoned by the hourly review queue; `auto_review` is off everywhere | The independent lane, drawing a scarce per-developer counter. See `coderabbit-lane` |
+| CodeRabbit (`coderabbitai[bot]`) | Every ready PR, summoned by the hourly CodeRabbit routine; `auto_review` is off everywhere | The independent lane, drawing a scarce per-developer counter. See `coderabbit-lane` |
 | One Opus 5 pass | Non-trivial PRs | Spec and ADR conformance, which the bots cannot see |
 | `/code-review ultra` | Rare | Engine core, security boundary, contract or schema changes |
 
 A PR body that closes several issues repeats the keyword per issue, `closes #a, closes #b`; GitHub links only the first number after one keyword. `pr-created.sh` reads `closingIssuesReferences` and says when the body names more than GitHub linked (gh-workflows #140 claimed seven, linked one).
 
-Never bypass the ruleset. Batch every fix before you push: the queue summons a PR once its head commit is 20 minutes old, so a push right after a fix batch lands spends a slot on a commit you are about to amend.
+Never bypass the ruleset. Batch every fix before you push: the routine summons a PR once its head commit is 20 minutes old, so a push right after a fix batch lands spends a slot on a commit you are about to amend.
 
 ## Phase 1: arm the watcher, only for a held round
 
-The trigger is the operator asking to hold this PR's round in this session. A PR merely existing is not one; the queue has it.
+The trigger is the operator asking to hold this PR's round in this session. A PR merely existing is not one; the routine has it.
 
 Seed the seen-state first, both files, so existing comments never replay as `NEW`:
 
@@ -86,18 +86,18 @@ Per-event handling is in `references/events.md`.
 
 ## Phase 3: merge, once the user says so or under an explicit standing grant
 
-The review queue merges a PR whose review came back clean on its own; that is the one standing grant. Everything else waits for `MERGE_OK`.
+The CodeRabbit routine merges a PR whose review came back clean on its own; that is the one standing grant. Everything else waits for `MERGE_OK`.
 
 Check `rig-meta.sh get <owner/repo> merge_queue` first.
 
-- Queue repos (`merge_queue` true): `gh pr merge <n> --squash` enqueues, and the queue tests a speculative merge onto main before landing it. No BEHIND cascade, no update-branch babysitting. Do not enqueue before the liveness comment shows posted review output (`claude-review-lane` §2). The queue gates on checks and threads, not on whether a reviewer spoke, so enqueueing into silence merges an unreviewed head.
+- Queue repos (`merge_queue` true): enqueue with the `enqueuePullRequest` GraphQL mutation (`gh pr merge` answers `Auto merge is not allowed for this repository`, seen on prismalens/gh-workflows#217 - chore: remove the hourly review queue; the CodeRabbit summoner routine summons again), and the merge queue tests a speculative merge onto main before landing it. No BEHIND cascade, no update-branch babysitting. Do not enqueue before the liveness comment shows posted review output (`claude-review-lane` §2). The routine gates on checks and threads, not on whether a reviewer spoke, so enqueueing into silence merges an unreviewed head.
 - Classic repos (`merge_queue` false): merge by hand once CI is green and every review thread resolved by the reviewer that opened it, `gh pr merge <n> --squash`. BEHIND still applies, so update the branch and re-green before merging the next.
 
 Afterward remove the lane's worktree and delete its local branch (`AGENTS.md` §Worktrees). `git worktree unlock` first if git refuses because the tree is locked.
 
 ## Notes
 
-- Auto-merge and the queue both outrun every reviewer. The thread gate only blocks once a thread exists, and auto-merge can fire between a review landing and its fix commit. Order the round as review posted, then fix, then resolve, then merge, never the reverse. On queue repos "review posted" is read off the liveness comment.
+- Auto-merge and the merge queue both outrun every reviewer. The thread gate only blocks once a thread exists, and auto-merge can fire between a review landing and its fix commit. Order the round as review posted, then fix, then resolve, then merge, never the reverse. On queue repos "review posted" is read off the liveness comment.
 - Never wait on `mergeStateStatus`. An unresolved thread pins it at `BLOCKED`. Key on `reviewThreads` and comment IDs (`no-doze` §3).
 - Watching is cheap: a shell poll every 75 seconds, zero tokens while quiet. Prefer over-watching to relaying.
 - Rate limits are invisible on both obvious channels. CodeRabbit posts the notice as an issue comment, so `/pulls/N/comments` misses it, and the `Review rate limited` check passes by design. `watch-coderabbit.sh` polls `/issues/N/comments` for the `rate limited by coderabbit.ai` marker, deduped on `updated_at` because CodeRabbit edits one summary comment in place.

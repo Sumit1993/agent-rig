@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
-# Auto review is off: the hourly review queue in prismalens/gh-workflows summons each ready PR
+# Auto review is off: the hourly CodeRabbit routine (scripts/coderabbit-routine) summons each ready PR
 # (#150). Procedure: skills/coderabbit-lane.
 language: en-US
 reviews:

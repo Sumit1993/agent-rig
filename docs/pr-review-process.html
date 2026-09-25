@@ -949,7 +949,7 @@ The first three below each put a sentence on the PR saying which it was, and tha
 
 <h3>8.6 Spending a CodeRabbit review: the hourly queue</h3>
 <p>CodeRabbit's allowance is <strong>one review per developer per hour</strong>, across every repo. Since
-Sumit1993/rig#150 one scheduler spends it: <code>review-queue.yml</code> in <code>prismalens/gh-workflows</code>, run at :07
+Sumit1993/rig#150 one scheduler spends it: the <code>CodeRabbit summoner</code> routine (<code>scripts/coderabbit-routine/</code>), run at :07
 every hour with the operator's tokens. <code>auto_review</code> is off in every repo's <code>.coderabbit.yaml</code>, so
 opening a PR or marking it ready spends nothing by itself.</p>
 <ol>
@@ -962,12 +962,11 @@ opening a PR or marking it ready spends nothing by itself.</p>
   all carry a reply. Then new PRs, oldest first. The head commit must be 20 minutes old, drafts are never summoned, and a
   rate-limit notice's stated wait is obeyed.</li>
 </ol>
-<p>Findings are not fixed by the queue. They wait on the PR as review debt, printed at the next session start in that repo
+<p>Findings are not fixed by the routine. They wait on the PR as review debt, printed at the next session start in that repo
 and cleared by that session before any new pick (<code>compass</code> Step 0): one push per PR, a reply in every thread,
-rulings collected into one question. The queue then re-reviews, CodeRabbit resolves what it accepts, and the next sweep
-merges. The run summary lists every PR with the reason it waits. The kill switch is the gh-workflows repo variable
-<code>REVIEW_QUEUE_LIVE</code>; anything but <code>true</code> is a dry run.</p>
-<p>Replayed on the 297 PRs of 2026-08-25 to 2026-09-24, a one-per-hour queue gives a median wait of 3.5 hours and a p90 of
+rulings collected into one question. The routine then re-reviews, CodeRabbit resolves what it accepts, and the next sweep
+merges. Each run's report lists what merged, what was summoned and what waits. The off switch is pausing the routine.</p>
+<p>Replayed on the 297 PRs of 2026-08-25 to 2026-09-24, a one-per-hour summoner gives a median wait of 3.5 hours and a p90 of
 8.9: a night session fills it and it drains before the next one. One PR per surface per session, not one per issue, is what
 keeps it short. <strong>Never write the word "resolve" in a reply to CodeRabbit</strong>: it parses as a command and no-ops
 the reply.</p>
@@ -1121,7 +1120,7 @@ gh-workflows#12 (roadmap index and standing invariants), gh-workflows#20 (resolu
 verify becomes its own hardened job), gh-workflows#33/#34/#54 (per-repo config, model escalation, org defaults),
 gh-workflows#37 (dropped the dead GitHub App path from the docs), gh-workflows#39 (vendored prompt drift check),
 canary runs on <code>prismalens/sreforge#157</code> and run <code>33200877365</code> on <code>prismalens/prismalens</code>.
-Sumit1993/rig#150 (the hourly review queue and review debt). Skills that carry the procedures: <code>claude-review-lane</code>, <code>coderabbit-lane</code>, <code>pr-babysit</code>, <code>compass</code>.</p>
+Sumit1993/rig#150 (the hourly CodeRabbit routine and review debt). Skills that carry the procedures: <code>claude-review-lane</code>, <code>coderabbit-lane</code>, <code>pr-babysit</code>, <code>compass</code>.</p>
 
 </main>
 </body>
