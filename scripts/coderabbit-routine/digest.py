@@ -1,0 +1,205 @@
+#!/usr/bin/env python3
+"""Facts for the CodeRabbit routine: one compact JSON digest of every open PR in the six repos.
+
+Structured fields only; CodeRabbit's prose goes out as short excerpts for the model to read,
+never matched here, so a rewording cannot mislead it (prismalens/gh-workflows#216).
+"""
+import base64
+import json
+import re
+import subprocess
+import sys
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
+
+OPERATOR = "Sumit1993"
+REPOS = [
+    "prismalens/prismalens",
+    "prismalens/sreforge",
+    "prismalens/gh-workflows",
+    "prismalens/prismalens.io",
+    "Sumit1993/mage-memory",
+    "Sumit1993/rig",
+]
+CR = "coderabbitai[bot]"
+HOLD_LABELS = {"blocked", "needs-operator"}
+THREADS_QUERY = """query($o:String!,$n:String!,$p:Int!){repository(owner:$o,name:$n){pullRequest(number:$p){
+reviewThreads(first:100){totalCount nodes{isResolved resolvedBy{login}
+first:comments(first:1){nodes{author{login}}} last:comments(last:1){nodes{author{login}}}}}}}}"""
+NOW = datetime.now(timezone.utc)
+
+
+def gh(path, paginate=False):
+    args = ["gh", "api", path] + (["--paginate", "--slurp"] if paginate else [])
+    out = subprocess.run(args, capture_output=True, text=True)
+    if out.returncode != 0:
+        raise RuntimeError(out.stderr.strip()[:200])
+    data = json.loads(out.stdout)
+    return [x for page in data for x in page] if paginate else data
+
+
+def ts(s):
+    return datetime.fromisoformat(s.replace("Z", "+00:00"))
+
+
+def age_min(s):
+    return int((NOW - ts(s)).total_seconds() // 60)
+
+
+def excerpt(body, n=400):
+    text = re.sub(r"<!--.*?-->", " ", body or "", flags=re.S)
+    text = re.sub(r"<[^>]+>|[#>*`|]", " ", text)
+    return re.sub(r"\s+", " ", text).strip()[:n]
+
+
+def login(node):
+    return ((node or {}).get("author") or {}).get("login") or ""
+
+
+def repo_facts(repo):
+    facts = {"merge_queue": False, "claude_lane": "off"}
+    branch = gh(f"repos/{repo}")["default_branch"]
+    try:
+        facts["merge_queue"] = any(r["type"] == "merge_queue" for r in gh(f"repos/{repo}/rules/branches/{branch}"))
+    except RuntimeError:
+        pass
+    try:
+        gh(f"repos/{repo}/contents/.github/workflows/claude-code-review.yml")
+        facts["claude_lane"] = "auto"
+        cfg = base64.b64decode(gh(f"repos/{repo}/contents/.github/claude-review.yml")["content"]).decode()
+        m = re.search(r"^\s*admission:\s*['\"]?(\w+)", cfg, re.M)
+        if m:
+            facts["claude_lane"] = {"false": "off"}.get(m.group(1).lower(), m.group(1).lower())
+    except RuntimeError:
+        pass
+    return facts
+
+
+def threads(repo, number):
+    owner, name = repo.split("/")
+    out = subprocess.run(
+        ["gh", "api", "graphql", "-f", f"query={THREADS_QUERY}", "-F", f"o={owner}", "-F", f"n={name}", "-F", f"p={number}"],
+        capture_output=True, text=True,
+    )
+    if out.returncode != 0:
+        return {"unavailable": out.stderr.strip()[:160]}
+    conn = json.loads(out.stdout)["data"]["repository"]["pullRequest"]["reviewThreads"]
+    unresolved, cr_unreplied, wrong_resolver = 0, 0, []
+    for t in conn["nodes"]:
+        opener = login(t["first"]["nodes"][0]) if t["first"]["nodes"] else ""
+        if not t["isResolved"]:
+            unresolved += 1
+            last = login(t["last"]["nodes"][0]) if t["last"]["nodes"] else ""
+            if opener == "coderabbitai" and last != OPERATOR:
+                cr_unreplied += 1
+        else:
+            # The Claude lane's verify job resolves its own threads as github-actions.
+            by = (t.get("resolvedBy") or {}).get("login", "")
+            if by != opener and not (opener == "claude" and by == "github-actions"):
+                wrong_resolver.append(f"{opener} thread resolved by {by}")
+    return {
+        "unresolved": unresolved,
+        "coderabbit_unresolved_without_operator_reply": cr_unreplied,
+        "resolved_by_non_reviewer": wrong_resolver,
+        "all_read": conn["totalCount"] <= len(conn["nodes"]),
+    }
+
+
+def pr_facts(repo, pr, claude_lane):
+    n = pr["number"]
+    author = pr["user"]["login"]
+    labels = sorted(l["name"] for l in pr["labels"])
+    excluded = None
+    if author == "dependabot[bot]":
+        excluded = "dependabot"
+    elif pr["head"]["ref"].startswith("release-please--"):
+        excluded = "release-please"
+    elif author != OPERATOR:
+        excluded = f"author {author}"
+    elif pr["draft"]:
+        excluded = "draft"
+    if excluded:
+        return {"repo": repo, "number": n, "excluded": excluded}
+
+    full = gh(f"repos/{repo}/pulls/{n}")
+    head = full["head"]["sha"]
+    head_at = gh(f"repos/{repo}/commits/{head}")["commit"]["committer"]["date"]
+    files = [f["filename"] for f in gh(f"repos/{repo}/pulls/{n}/files?per_page=100", paginate=True)]
+    reviews = [r for r in gh(f"repos/{repo}/pulls/{n}/reviews?per_page=100", paginate=True) if r["user"]["login"] == CR]
+    comments = gh(f"repos/{repo}/issues/{n}/comments?per_page=100", paginate=True)
+    cr_comments = [c for c in comments if c["user"]["login"] == CR]
+    summons = [
+        c for c in comments
+        if c["user"]["login"] == OPERATOR and c["body"].lstrip().startswith(("@coderabbitai review", "@coderabbitai full review"))
+    ]
+    last_summon = summons[-1] if summons else None
+    reply = None
+    if last_summon:
+        after = [c for c in cr_comments if c["created_at"] > last_summon["created_at"]]
+        reply = after[0] if after else None
+    liveness = [c for c in comments if c["user"]["login"] == "github-actions[bot]" and "claude-review-liveness" in c["body"]]
+
+    return {
+        "repo": repo,
+        "number": n,
+        "title": pr["title"],
+        "created_at": pr["created_at"],
+        "head": head,
+        "head_committed_at": head_at,
+        "head_age_min": age_min(head_at),
+        "labels": labels,
+        "hold_label": next((l for l in labels if l in HOLD_LABELS), None),
+        "mergeable_state": full.get("mergeable_state"),
+        "docs_only": bool(files) and full["changed_files"] <= 100
+        and all(f.endswith((".md", ".mdx")) or f.startswith("docs/") for f in files),
+        "coderabbit_reviews": [
+            {"commit": r["commit_id"], "is_head": r["commit_id"] == head, "at": r["submitted_at"], "excerpt": excerpt(r["body"], 160)}
+            for r in reviews[-3:]
+        ],
+        "coderabbit_comments": [
+            {"created_at": c["created_at"], "updated_at": c["updated_at"], "excerpt": excerpt(c["body"])}
+            for c in cr_comments[-3:]
+        ],
+        "last_summon": last_summon and {
+            "at": last_summon["created_at"],
+            "after_head": last_summon["created_at"] > head_at,
+            "body": last_summon["body"].strip()[:40],
+        },
+        "first_coderabbit_reply_after_summon": reply and {"at": reply["created_at"], "excerpt": excerpt(reply["body"])},
+        "threads": threads(repo, n),
+        "claude_lane": {
+            "required": claude_lane == "auto" or (claude_lane == "label" and "claude_review" in labels),
+            "skip_label": "claude_review_skip" in labels,
+            "latest_liveness": liveness and excerpt(liveness[-1]["body"], 200),
+        },
+    }
+
+
+def repo_digest(repo):
+    try:
+        facts = repo_facts(repo)
+        prs = gh(f"repos/{repo}/pulls?state=open&per_page=100", paginate=True)
+        facts["pull_requests"] = [pr_facts(repo, pr, facts["claude_lane"]) for pr in prs]
+    except RuntimeError as e:
+        facts = {"error": str(e)}
+    return repo, facts
+
+
+def main():
+    with ThreadPoolExecutor(len(REPOS)) as pool:
+        repos = dict(pool.map(repo_digest, REPOS))
+    summons = [
+        (p["last_summon"]["at"], f"{p['repo']}#{p['number']}")
+        for r in repos.values() for p in r.get("pull_requests", []) if p.get("last_summon")
+    ]
+    last = max(summons) if summons else None
+    json.dump({
+        "now": NOW.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "operator_last_summon": last and {"pr": last[1], "at": last[0], "age_min": age_min(last[0])},
+        "repos": repos,
+    }, sys.stdout, indent=1)
+    print()
+
+
+if __name__ == "__main__":
+    main()
