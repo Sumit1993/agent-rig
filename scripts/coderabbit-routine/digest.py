@@ -34,6 +34,8 @@ def request(url, payload=None, method=None):
     if os.environ.get("GH_TOKEN"):
         headers["Authorization"] = f"Bearer {os.environ['GH_TOKEN']}"
     data = json.dumps(payload).encode() if payload is not None else None
+    if data is not None:
+        headers["Content-Type"] = "application/json"
     try:
         with urllib.request.urlopen(urllib.request.Request(url, data=data, headers=headers, method=method), timeout=20) as resp:
             return json.load(resp), resp.headers.get("Link") or ""
