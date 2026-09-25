@@ -107,7 +107,11 @@ def pr_facts(repo, pr):
     head = full["head"]["sha"]
     head_at = gh(f"repos/{repo}/commits/{head}")["commit"]["committer"]["date"]
     files = [f["filename"] for f in gh(f"repos/{repo}/pulls/{n}/files?per_page=100", paginate=True)]
-    reviews = [r for r in gh(f"repos/{repo}/pulls/{n}/reviews?per_page=100", paginate=True) if r["user"]["login"] == CR]
+    # A CodeRabbit reply inside a thread is also a review object, with an empty body; it reviews nothing.
+    reviews = [
+        r for r in gh(f"repos/{repo}/pulls/{n}/reviews?per_page=100", paginate=True)
+        if r["user"]["login"] == CR and (r["body"] or "").strip()
+    ]
     comments = gh(f"repos/{repo}/issues/{n}/comments?per_page=100", paginate=True)
     cr_comments = [c for c in comments if c["user"]["login"] == CR]
     summons = [
