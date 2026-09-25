@@ -7,15 +7,22 @@ set -u
 in=$(cat)
 cmd=$(jq -r '.tool_input.command // ""' <<<"$in" 2>/dev/null) || exit 0
 [ -n "$cmd" ] || exit 0
-grep -qiE '@coderabbit(ai)?[[:space:]]+(full[[:space:]]+)?review\b|@coderabbit(ai)?[[:space:]]+review[[:space:]]+full\b' <<<"$cmd" || exit 0
+# Quotes stripped first, so '@coderabbitai'' review' still reads as the shell will post it.
+flat=$(tr -d "'\"\\" <<<"$cmd")
+grep -qiE '@coderabbit(ai)?[[:space:]]+(full[[:space:]]+)?review\b|@coderabbit(ai)?[[:space:]]+review[[:space:]]+full\b' <<<"$flat" || exit 0
 # A post, not a read: gh pr/issue comment, or gh api .../comments carrying a body field.
 grep -qE 'gh[[:space:]]+(pr|issue)[[:space:]]+comment\b' <<<"$cmd" \
   || { grep -qE 'issues/[0-9]+/comments' <<<"$cmd" && grep -qE '(-f|-F|--field|--raw-field)[[:space:]]+body=|--input\b' <<<"$cmd"; } \
   || exit 0
 
-pr=$(grep -oE 'gh[[:space:]]+(pr|issue)[[:space:]]+comment[[:space:]]+[0-9]+|issues/[0-9]+/comments' <<<"$cmd" | grep -oE '[0-9]+' | head -1)
+# Every post in a compound command must name the token's PR; a post with no readable target fails.
+posts=$(grep -oE 'gh[[:space:]]+(pr|issue)[[:space:]]+comment\b|issues/[0-9]+/comments' <<<"$cmd" | wc -l)
+targets=$(grep -oE 'gh[[:space:]]+(pr|issue)[[:space:]]+comment[[:space:]]+([0-9]+|https?://[^[:space:]]*/(pull|issues)/[0-9]+)|issues/[0-9]+/comments' <<<"$cmd" \
+  | sed -E 's#.*(comment[[:space:]]+|/pull/|/issues/|^issues/)([0-9]+).*#\2#')
+pr=$(head -1 <<<"$targets")
 token=$(grep -oE '(^|[;&|[:space:]])CR_SUMMON_OK=[^[:space:];&|]+' <<<"$cmd" | tail -1 | sed -E 's/.*CR_SUMMON_OK=//; s/^["'"'"']//; s/["'"'"']$//')
-[ -n "$token" ] && [ -n "$pr" ] && [ "$token" = "$pr" ] && exit 0
+[ -n "$token" ] && [ -n "$targets" ] && [ "$(wc -l <<<"$targets")" -eq "$posts" ] \
+  && ! grep -qvx "$token" <<<"$targets" && exit 0
 
 cat >&2 <<MSG
 Blocked by rig/guard/summon-gate: the hourly CodeRabbit routine summons reviews, not sessions (Sumit1993/rig#150).

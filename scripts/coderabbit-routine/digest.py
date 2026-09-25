@@ -159,10 +159,22 @@ def pr_facts(repo, pr):
     }
 
 
+def last_review_on_closed(repo):
+    # A PR closed since its review still holds the hourly window; open PRs alone would miss it.
+    closed = gh(f"repos/{repo}/pulls?state=closed&sort=updated&direction=desc&per_page=20")
+    ats = [
+        r["submitted_at"]
+        for pr in closed if age_min(pr["updated_at"]) <= 120
+        for r in gh(f"repos/{repo}/pulls/{pr['number']}/reviews?per_page=100", paginate=True)
+        if r["user"]["login"] == CR and (r["body"] or "").strip()
+    ]
+    return max(ats) if ats else None
+
+
 def repo_digest(repo):
     try:
         prs = gh(f"repos/{repo}/pulls?state=open&per_page=100", paginate=True)
-        facts = {"pull_requests": [pr_facts(repo, pr) for pr in prs]}
+        facts = {"pull_requests": [pr_facts(repo, pr) for pr in prs], "closed_last_review_at": last_review_on_closed(repo)}
     except RuntimeError as e:
         facts = {"error": str(e)}
     return repo, facts
@@ -176,6 +188,7 @@ def main():
         for r in repos.values() for p in r.get("pull_requests", []) if p.get("last_summon")
     ]
     reviewed = [p["coderabbit_last_review_at"] for r in repos.values() for p in r.get("pull_requests", []) if p.get("coderabbit_last_review_at")]
+    reviewed += [r["closed_last_review_at"] for r in repos.values() if r.get("closed_last_review_at")]
     last_review = max(reviewed) if reviewed else None
     last = max(summons) if summons else None
     json.dump({

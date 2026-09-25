@@ -21,6 +21,11 @@ check "token naming another PR blocked" 2 "CR_SUMMON_OK=214 gh pr comment 213 --
 check "in-thread fix reply allowed" 0 "bash cr-reply.sh 213 999 '@coderabbitai Fixed in abc: x. Please verify.'"
 check "reading comments allowed" 0 "gh api repos/o/r/issues/213/comments --jq '.[]|select(.body|test(\"@coderabbitai review\"))'"
 check "grep in a file allowed" 0 "grep -n '@coderabbitai review' skills/x.md"
+check "split-quoted summon blocked" 2 "gh pr comment 213 --body '@coderabbitai'' review'"
+check "PR URL target with token allowed" 0 "CR_SUMMON_OK=213 gh pr comment https://github.com/o/r/pull/213 --body '@coderabbitai review'"
+check "PR URL target without token blocked" 2 "gh pr comment https://github.com/o/r/pull/213 --body '@coderabbitai review'"
+check "compound second target blocked" 2 "CR_SUMMON_OK=213 gh pr comment 213 --body '@coderabbitai review'; gh pr comment 214 --body '@coderabbitai review'"
+check "compound targetless post blocked" 2 "CR_SUMMON_OK=213 gh pr comment 213 --body '@coderabbitai review'; gh pr comment --body '@coderabbitai review'"
 check "junk input exits 0" 0 ""
 printf 'not json' | "$HOOK" >/dev/null 2>&1 && pass "non-JSON stdin exits 0" || fail "non-JSON stdin"
 
