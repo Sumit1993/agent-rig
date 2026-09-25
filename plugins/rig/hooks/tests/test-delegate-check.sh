@@ -21,6 +21,8 @@ check() { # name expected_rc json
 }
 
 echo "-- blocked: mechanical execution, named as such"
+check "add tests for the parser" 2 \
+  '{"tool_input":{"subagent_type":"general-purpose","description":"Add tests for the parser","prompt":"to spec"}}'
 check "write tests for the parser" 2 \
   '{"tool_input":{"subagent_type":"general-purpose","description":"write tests for the parser","prompt":"to spec"}}'
 check "run tests without 'the'" 2 \

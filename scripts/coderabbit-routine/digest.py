@@ -35,10 +35,12 @@ def request(url, payload=None, method=None):
         headers["Authorization"] = f"Bearer {os.environ['GH_TOKEN']}"
     data = json.dumps(payload).encode() if payload is not None else None
     try:
-        with urllib.request.urlopen(urllib.request.Request(url, data=data, headers=headers, method=method)) as resp:
+        with urllib.request.urlopen(urllib.request.Request(url, data=data, headers=headers, method=method), timeout=20) as resp:
             return json.load(resp), resp.headers.get("Link") or ""
     except urllib.error.HTTPError as e:
         raise RuntimeError(f"{e.code} {url}: {e.read()[:160]!r}") from None
+    except (urllib.error.URLError, TimeoutError) as e:
+        raise RuntimeError(f"unreachable {url}: {e}") from None
 
 
 def gh(path, paginate=False):
@@ -134,6 +136,8 @@ def pr_facts(repo, pr):
         "head_age_min": age_min(head_at),
         "docs_only": bool(files) and full["changed_files"] <= 100
         and all(f.endswith((".md", ".mdx")) or f.startswith("docs/") for f in files),
+        "coderabbit_reviewed_head": any(r["commit_id"] == head for r in reviews),
+        "coderabbit_last_review_at": reviews[-1]["submitted_at"] if reviews else None,
         "coderabbit_reviews": [
             {"commit": r["commit_id"], "is_head": r["commit_id"] == head, "at": r["submitted_at"], "excerpt": excerpt(r["body"], 160)}
             for r in reviews[-3:]
@@ -169,10 +173,14 @@ def main():
         (p["last_summon"]["at"], f"{p['repo']}#{p['number']}")
         for r in repos.values() for p in r.get("pull_requests", []) if p.get("last_summon")
     ]
+    reviewed = [p["coderabbit_last_review_at"] for r in repos.values() for p in r.get("pull_requests", []) if p.get("coderabbit_last_review_at")]
+    last_review = max(reviewed) if reviewed else None
     last = max(summons) if summons else None
     json.dump({
         "now": NOW.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "operator_last_summon": last and {"pr": last[1], "at": last[0], "age_min": age_min(last[0])},
+        # CodeRabbit's hourly window runs from the last review it accepted, not from the summon.
+        "coderabbit_last_review": last_review and {"at": last_review, "age_min": age_min(last_review)},
         "repos": repos,
     }, sys.stdout, indent=1)
     print()
