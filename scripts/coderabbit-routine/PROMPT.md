@@ -14,12 +14,12 @@ Merge a pull request only when all of these hold:
 
 - `hold_label` is null.
 - `mergeable_state` is `clean`, `unstable` or `has_hooks`. `blocked` means a required check or rule is still unmet.
-- `threads.all_read` is true, `threads.unresolved` is 0 and `threads.resolved_by_non_reviewer` is empty. If `threads` says `unavailable`, do not merge; report it.
+- Its review threads are clean: none unresolved, and each resolved thread was resolved by the reviewer that opened it (a `claude` thread may be resolved by `github-actions`). Cloud sessions cannot reach GitHub GraphQL, so `threads` usually says `unavailable`; check the threads only for PRs that pass every other rule, with the GitHub MCP `pull_request_read` tool (`get_review_comments`). If neither source answers, do not merge.
 - The pull request is either `docs_only`, or it meets both of these:
   - CodeRabbit finished a clean review of `head`. That means either a review object with `is_head: true` that reports zero actionable comments, or a CodeRabbit comment that says the review of the head found nothing actionable. A rate-limit notice, a "review skipped" or "paused" note, or an acknowledgement is not a review.
   - When `claude_lane.required` is true and `skip_label` is false, `latest_liveness` says it reviewed a SHA that `head` starts with.
 
-To merge, run `python3 act.py merge <repo> <n> <head>`, or `python3 act.py enqueue <repo> <n> <head>` when `merge_queue` is true. If a merge fails, report the error and move on.
+To merge, run `python3 act.py merge <repo> <n> <head>`. When `merge_queue` is true, GraphQL is needed to enqueue and the session cannot reach it: list the PR as ready to enqueue in the report instead. If a merge fails, report the error and move on.
 
 ## 3. Summon one
 
@@ -30,16 +30,16 @@ A pull request that is not merged is a candidate when all of these hold:
 - It is not `docs_only`.
 - CodeRabbit has not reviewed `head`.
 - `head_age_min` is at least 20.
-- No summon is pending. A summon is pending when `last_summon.after_head` is true and `first_coderabbit_reply_after_summon` is null, or is anything other than a rate-limit notice, a misparse ("initiate chat"), or a refusal to re-review already reviewed commits.
+- No summon is pending. A summon is pending when `last_summon.after_head` is true and `first_coderabbit_reply_after_summon` is null, or is anything other than a rate-limit notice or a misparse ("initiate chat"). Every reply to a summon ends with the note that CodeRabbit "does not re-review already reviewed commits". That note is boilerplate, not a refusal.
 
 A candidate is a **re-review** if CodeRabbit reviewed an earlier commit. It qualifies only when `threads.coderabbit_unresolved_without_operator_reply` is 0; otherwise its fixes are still pending. Any other candidate is **new**.
 
-Pick re-reviews first, ordered by the oldest `head_committed_at`. Then pick new ones, ordered by the oldest `created_at`. Post exactly one top-level comment on the pick: `@coderabbitai review`, or `@coderabbitai full review` if its last reply refused to re-review already reviewed commits. Use `python3 act.py comment <repo> <n> '<body>'`.
+Pick re-reviews first, ordered by the oldest `head_committed_at`. Then pick new ones, ordered by the oldest `created_at`. Post exactly one summon on the pick with `python3 act.py comment <repo> <n> '@coderabbitai review'`. `act.py` adds the hidden `summoned-by` marker. Never post `full review`: it spends the same slot to re-read commits that were already reviewed.
 
 ## 4. Report
 
 Report in under 12 lines:
-- what the previous summon got
+- what the previous summon got, and who posted it (`last_summon.by`)
 - each merge, or why nothing merged
 - the summon posted, or why none
 - how many pull requests are waiting, per repo
