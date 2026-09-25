@@ -1,8 +1,8 @@
 ---
 name: coderabbit-lane
-description: "CodeRabbit review lane mechanics: the per-developer hourly slot shared across repos, per-repo admission, when a slot is worth spending, trigger syntax, in-thread replies with cr-reply.sh, thread resolution. Load when requesting or answering CodeRabbit."
+description: "CodeRabbit review lane mechanics: the hourly CodeRabbit routine that admits PRs to review, the per-developer hourly slot shared across repos, when a hand summon is worth it, trigger syntax, in-thread replies with cr-reply.sh, thread resolution. Load when requesting or answering CodeRabbit."
 metadata:
-  version: "3.0.0"
+  version: "4.0.0"
 ---
 
 # The CodeRabbit review lane
@@ -11,21 +11,15 @@ metadata:
 
 ## 1. Admission
 
-Admission is per repo. Read it: `rig-meta.sh get <repo> coderabbit_auto_review`. The repo's own AGENTS.md says why.
+The hourly CodeRabbit routine (`scripts/coderabbit-routine/` in Sumit1993/rig, `Sumit1993/rig#150`) is the admission mechanism, in every repo. `auto_review` is off everywhere, so opening a PR or marking it ready spends nothing by itself. Each hour the routine summons CodeRabbit on at most one PR: first a re-review, a PR whose head moved past its last review and whose CodeRabbit threads all carry a reply, then new PRs oldest first. A head commit must be 20 minutes old; a draft is never summoned.
 
-- Manual (`coderabbit_auto_review` false): apply the `coderabbit_review` label by hand, or post a bare `@coderabbitai review`. Without the label CodeRabbit outputs `Review skipped: excluded by label configuration`, which is expected.
-- Automatic (`auto_review.enabled: true` in that repo's `.coderabbit.yaml`): every PR is reviewed, no summon. The push is the request, so batch before pushing, and never tell a lane to hold off triggering when pushing is what triggers. A repo hosting `claude-code-review.yml` needs this, because `claude-code-action` self-skips on any PR editing that file.
+The routine never merges. Merging is a local session's job when the operator asks for it (`compass` Step 0, `pr-babysit` Phase 3). Each run's report, in the routine's run history at claude.ai/code/routines, lists what was summoned and what waits. Its summons carry a hidden `<!-- summoned-by: coderabbit-routine -->` line, so a summon without it came from a session or by hand. Its off switch is pausing the routine.
 
-## 2. When a slot is warranted
+## 2. When to summon by hand
 
-A slot is a deliberate budget decision, never routine. Two cases:
+Only when the operator says so for that PR. A hand summon takes the slot the routine schedules, and two summons within the hour collide: the second is refused as rate-limited (`prismalens/gh-workflows#213`). `summon-gate.sh` blocks a summon unless the command carries `CR_SUMMON_OK=<pr>`, the operator's word for that PR, never carried forward. Post it bare with the marker: `CR_SUMMON_OK=<pr> gh pr comment <pr> --body $'@coderabbitai review\n\n<!-- summoned-by: session -->'`. The routine sees it as pending and does not repeat it.
 
-1. A sensitive surface: the CI and workflow surface itself, credential and crypto handling, the engine core, contract and schema changes.
-2. Independent validation: a Claude finding that wants a reviewer sharing no model, prompt or failure mode.
-
-A judgement call, not a path test. prismalens #415 retired `review-admit.yml` and the `review-evidence` gate, and neither file is on `main`; do not propose finishing them. The hand-applied label is the whole mechanism. Hand admission exists because traffic outruns the counter.
-
-`.coderabbit.yaml` path instructions still shape review quality and the Claude lane cannot see them, so they stay worth writing. They do not decide admission. `profile: chill` tames noise.
+`.coderabbit.yaml` path instructions still shape review quality and the Claude lane cannot see them, so they stay worth writing.
 
 ## 3. The per-developer counter
 
@@ -39,11 +33,11 @@ The lane runs on the Free/OSS plan, seat assignment disabled:
 
 Essentials was formerly called Pro, and Team was formerly called Pro+.
 
-- **The star count does not tell you whether `auto_review` fires.** Fewer than 10 stars describes the OSS tier's default, and a repo carrying `auto_review: true` gets automatic review anyway. `prismalens/gh-workflows` is public with 0 stars, and `coderabbitai[bot]` posted 8 to 93 seconds after `gh pr create` on `#158`, `#155` and `#142`, all three non-draft, with no human summon first. Settle it per repo by comparing the PR's `createdAt` against the first `coderabbitai[bot]` comment in `repos/<owner>/<repo>/issues/<n>/comments`, never by `stargazerCount`.
-- **A draft is exempt, and that decides when to batch.** `reviews.auto_review.drafts` defaults to false, so on a draft the bot posts `Draft PR not reviewed` and stops without spending anything (`prismalens/gh-workflows#161`, 6 seconds after open). Three rules follow. A draft costs nothing to open and nothing to push to. A non-draft spends the slot at `gh pr create`. A draft spends it the moment it is marked ready. So open the draft first, push as often as the work wants, and mark ready once at the end. Holding commits back before the push only saves a slot on a pull request that is already ready.
+- **With `auto_review` off, nothing fires on its own.** Before #150 a repo carrying `auto_review: true` was reviewed 8 to 93 seconds after `gh pr create` whatever its star count (`prismalens/gh-workflows` `#158`, `#155`, `#142`). A repo with no `.coderabbit.yaml` gets CodeRabbit's default, which is on; every repo in the routine carries one with `enabled: false`.
+- **A draft is never reviewed.** The routine skips drafts, and CodeRabbit posts `Draft PR not reviewed` on a draft summon (`prismalens/gh-workflows#161`). Open the draft first, push as often as the work wants, and mark ready once at the end.
 - **Do not read the plan off the bot.** CodeRabbit's run configuration reports a feature tier, and it printed "Plan: Team" on a repo that is rate-limited as Free, because open-source projects receive Team features without a subscription. The name the bot prints is not the row of the rate-limit table that applies.
-- The counter is per developer, not per repo, branch, session or subagent. `prismalens`, `sreforge` and `mage-memory` draw one pool. Run at most one review at a time across every repo you touch; parallel runs serialise and delay every lane.
-- Every run spends a slot: initial reviews, automatic incremental reviews after a push, manual `@coderabbitai review`. The label gates automatic review only. The CLI's `coderabbit review --agent` posts to the PR regardless of labels (marker `coderabbit-cli-agent-hint`, recorded on `#123`). A manual summon on an unlabelled PR still spends the counter, which makes it the escape hatch when the Claude lane is down. Enabled repos set `auto_pause_after_reviewed_commits: 1` in `.coderabbit.yaml`: one review per PR, then batch fixes before re-requesting.
+- The counter is per developer, not per repo, branch, session or subagent. Every repo in the routine draws one pool. Run at most one review at a time across every repo you touch; parallel runs serialise and delay every lane.
+- Every run spends a slot: initial reviews, incremental reviews, manual `@coderabbitai review`. The CLI's `coderabbit review --agent` posts to the PR regardless of labels (marker `coderabbit-cli-agent-hint`, recorded on `#123`). Repos set `auto_pause_after_reviewed_commits: 1` in `.coderabbit.yaml`: one review per PR, then batch fixes before the routine re-requests.
 - Auto-pause is recoverable. A push past the limit pauses the lane on that PR and nothing arrives on its own. A bare `@coderabbitai resume` restarts it, and what follows is a real review of the final head that posts `Review completed`, so a PR paused by its own fix commits can still meet a merge condition requiring one. Resume deliberately; it spends a slot.
 - Batch fixes before requesting. Never spend a slot on a commit you are about to amend.
 - Remaining capacity is not readable. `@coderabbitai rate limit` returns documentation links.
@@ -52,12 +46,12 @@ Essentials was formerly called Pro, and Team was formerly called Pro+.
   - `**Next included review available in 30 minutes.**`
   - `Your next included review will be available in 23 minutes.`
 - The documented limit is one review per developer per hour on Free, rolling. The observed interval between an accepted review and the next runs about 55 to 57 minutes.
-- `review full` is not a way past the limit. Both forms draw the same budget. A success shortly after a refusal is the window rolling over. `review full` is for the different refusal, "does not re-review already reviewed commits"; the clock is for the limit.
+- `review full` is not a way past the limit, and it is not a retry. Both forms draw the same budget. A success shortly after a refusal is the window rolling over. The note "CodeRabbit is an incremental review system and does not re-review already reviewed commits" is a footer on every reply to a summon, accepted ones included (`prismalens/gh-workflows#213`); it is never a refusal.
 - CodeRabbit edits its reply in place, so a first read can show the opposite of the settled outcome. Read `updated_at`, wait for it to stop changing, classify on the settled body, and re-read before acting, not only before classifying.
 
 ## 4. Triggers and polling
 
-- Two triggers, both bare. `@coderabbitai review` is incremental and the default. `@coderabbit review full` re-reads the whole diff and is the fallback when the incremental form is refused as "an incremental review system" that "does not re-review already reviewed commits"; a push that only moves documentation can be declined off cooldown.
+- One trigger, bare: `@coderabbitai review`, incremental. `full review` re-reads the whole diff at the same cost; use it only when the operator asks for it.
 - Post exactly the trigger and nothing else. Extra questions or bullets are parsed as chat, return "For best results, initiate chat on the files or code changes", and run no review. Context goes in the PR description, which the review reads.
 - Poll after every trigger. A trigger posting is not a review starting. Wait about 60 seconds, inspect the latest `coderabbitai[bot]` comment, then report. `rate limited`: rejected, nothing ran, wait out the window. `initiate chat on the files`: misparsed, re-trigger bare. Anything else: accepted.
 - CodeRabbit is not diff-only. It runs `rg`, `fd`, `sed`, `git show` and inline Python against the checkout to reason across files. It does not run test suites.
@@ -75,7 +69,7 @@ Replies go in-thread, to satisfy `required_review_thread_resolution`:
 
 ## 6. Thread resolution
 
-- Fixed threads resolve through one verified re-review, never a blanket command. After every fix for the round is committed, pushed and replied to in-thread, spend one `@coderabbitai review`. CodeRabbit resolves the threads it considers addressed; anything left open is reviewed and resolved individually with rationale in-thread.
+- Fixed threads resolve through one verified re-review, never a blanket command. After every fix for the round is committed, pushed and replied to in-thread, stop: the routine re-reviews a PR whose CodeRabbit threads all carry a reply. Summon it yourself only in the §2 cases. CodeRabbit resolves the threads it considers addressed; anything left open is reviewed and resolved individually with rationale in-thread.
 - Bare top-level `@coderabbitai resolve` blanket-resolves every thread with zero validation. The operator's call only, for rounds made entirely of declined or deferred findings whose dispositions are already recorded.
 - A PR merges only with every review thread resolved by the reviewer that opened it. The session never resolves a CodeRabbit thread to clear a merge.
 - Declining or deferring: CodeRabbit self-resolves only when code changed, so a declined or deferred finding goes to the operator, who resolves it under three rules. State the disposition (accepted-and-deferred with landing target, or rejected with reasons; "noted" is not a disposition). Wait about 60 seconds for the counter-reply so follow-up issue offers are not dropped. Reference tracking issues by number.

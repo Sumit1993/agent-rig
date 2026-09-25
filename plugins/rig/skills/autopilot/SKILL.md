@@ -1,8 +1,8 @@
 ---
 name: autopilot
-description: "Rules for holding a long unattended run: arm the wake-up first, keep the organizer out of the files, catch stalls, treat a green check as nothing, verify every delegate claim, park what needs a human. Load before any run that outlasts the operator's attention."
+description: "Rules for holding a long unattended run: arm the wake-up first, keep the session and its lanes in their own worktrees, catch stalls, treat a green check as nothing, verify every delegate claim, park what needs a human. Load before any run that outlasts the operator's attention."
 metadata:
-  version: "3.1.0"
+  version: "4.0.0"
 ---
 
 # Unattended run: holding a long autonomous session
@@ -29,13 +29,11 @@ Three facts shape the plan. Jobs live in this session's memory only; end the ses
 
 Respect the window. Never start a lane that cannot finish and be verified in the time left. Near the end, take work only to a state that is safe to leave: pushed, commented or parked. Never mid-merge or mid-rebase.
 
-## 1. The organizer never edits repo files
+## 1. The session and its lanes keep to their own worktrees
 
-The organizer produces dispatches, verdicts on returned claims, plan file updates, and merges. Nothing else.
+The session does the coding in its own worktree. agy lanes take the side work `AGENTS.md` §Delegation names, in theirs, while the session keeps going. The main checkout and its stack belong to the session. A lane that "restores" its branch takes the run down. The session creates or reuses a lane's worktree and hands it an absolute path, with instructions to stop and report if it is missing.
 
-Lanes work in worktrees, never the main checkout. `AGENTS.md` sets which mechanism; a Claude subagent lane and an agy lane do not get the same one. The main checkout and its stack belong to the organizer. A lane that "restores" its branch takes the run down. The organizer creates or reuses the worktree and hands the lane an absolute path, with instructions to stop and report if it is missing.
-
-Bounded specs are the organizer's own. A spec that needs a ruling goes to `fable-planner` (§6).
+A call that needs a ruling goes to `fable-planner` (§6).
 
 Every dispatch prompt says, in as many words:
 
@@ -51,7 +49,7 @@ Never override a lane's brief with reasoning you invented on the spot. If you co
 
 ## 2. Delegate, then verify
 
-Verification runs once per umbrella against the build, not once per unit. The seat does not re-run a gate the umbrella already proved; re-run only on a gap.
+Verification runs once per umbrella against the build, not once per unit. The session does not re-run a gate the umbrella already proved; re-run only on a gap.
 
 ## 3. The stall rule: a wait has to hold the turn
 
@@ -77,7 +75,7 @@ A workflow can report `success` having posted nothing, and does.
 
 ## 5. Check every delegate claim against live state
 
-Check reports once per umbrella: verify provenance (worktree, SHA, raw output) and diff against the spec. The seat does not re-run a gate the umbrella proved, re-running only on a gap. Two lanes agreeing raises no confidence, because they can share one stale input.
+Check reports once per umbrella: verify provenance (worktree, SHA, raw output) and diff against the spec. The session does not re-run a gate the umbrella proved, re-running only on a gap. Two lanes agreeing raises no confidence, because they can share one stale input.
 
 Read the delegate's full diff; a passing verify command is not evidence of behaviour. Suspect any added `continue`, `?? default`, `|| 0` or bare try/catch. A cast is proved on both halves: the runtime shape matches, and a deliberately invalid value still fails to compile.
 
@@ -107,9 +105,9 @@ A broken gate blocks every PR in the repo, including the PR that fixes it.
 
 Mechanics are `pr-babysit` Phase 3. Specific to unattended:
 
-- Merge only when CI is green and every review thread resolved by the reviewer that opened it (`pr-babysit` Phase 0). A thread the organizer or a lane resolved does not count.
+- Merge only when CI is green and every review thread resolved by the reviewer that opened it (`pr-babysit` Phase 0). A thread the session or a lane resolved does not count.
 - Never arm auto-merge. Reviewers cannot block a merge, so it fires the moment CI goes green, before the reviewer has finished, and `required_review_thread_resolution` has nothing left to block on.
-- An organizer that cannot merge with the operator present does not merge at all. Take the PR to green, report it ready, leave it (§10).
+- A session that cannot merge with the operator present does not merge at all. Take the PR to green, mark it ready, leave it; the routine gets it reviewed and the operator merges it through `compass`. A PR that needs the operator's sign-off (§10) gets the `needs-operator` label.
 - With a standing grant on a classic repo: one at a time, checking the gate after each. Every merge puts the other open PRs behind the base, auto-merge never updates a branch in that state, and nothing tells you. Go and look. Rebase the PRs you are parking at the end of the drain, not the start.
 
 ## 9. Never bypass a ruleset or a gate

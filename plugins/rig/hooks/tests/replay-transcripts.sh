@@ -24,7 +24,6 @@ SHOW="${REPLAY_SHOW:-0}"
 SANDBOX=$(mktemp -d)
 trap 'rm -rf "$SANDBOX"' EXIT
 export PR_WATCH_STATE_DIR="$SANDBOX/pr-seen" CR_WATCH_STATE_DIR="$SANDBOX/cr-watch"
-export ORGANIZER_SEAT_STATE_DIR="$SANDBOX/seat"
 printf '#!/bin/bash\nexit 1\n' > "$SANDBOX/gh"; chmod +x "$SANDBOX/gh"
 export PATH="$SANDBOX:$PATH"
 
@@ -76,8 +75,6 @@ replay() { # hook_file tool_name label
 
 fails=0
 replay no-broad-agy-kill.sh Bash  "no-broad-agy-kill"  || fails=$((fails + 1))
-replay organizer-seat.sh    Edit  "organizer-seat"     || fails=$((fails + 1))
-replay organizer-seat.sh    Write "organizer-seat"     || fails=$((fails + 1))
 replay delegate-check.sh    Agent "delegate-check"     || fails=$((fails + 1))
 replay no-haiku.sh          Agent "no-haiku"           || fails=$((fails + 1))
 replay pr-created.sh        Bash  "pr-created"         || fails=$((fails + 1))

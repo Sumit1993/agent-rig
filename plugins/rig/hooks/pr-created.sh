@@ -82,7 +82,7 @@ mkdir -p "$state_dir" 2>/dev/null || exit 0
 # the rest are reported unverified rather than making the hook sit on the network.
 checks_left=10
 
-fresh=""; seeded=0; unverified=0
+fresh=""; fresh_urls=""; seeded=0; unverified=0
 while read -r url; do
   [ -z "$url" ] && continue
   repo=${url#https://github.com/}; repo=${repo%%/pull/*}
@@ -102,6 +102,7 @@ while read -r url; do
   if seed_seen "$url"; then seeded=1; fi
   if [ "$seen" = "2" ]; then unverified=1; note=", UNVERIFIED"; else note=""; fi
   fresh="${fresh}PR #${num} ($url$note); "
+  fresh_urls="${fresh_urls}${url}"$'\n'
 done <<< "$urls"
 [ -z "$fresh" ] && exit 0
 
@@ -110,7 +111,7 @@ done <<< "$urls"
 closes_note=""
 while read -r url; do
   [ -z "$url" ] && continue
-  case "$fresh" in *"$url"*) ;; *) continue ;; esac
+  grep -qxF "$url" <<<"$fresh_urls" || continue
   repo=${url#https://github.com/}; repo=${repo%%/pull/*}; num=${url##*/}
   pv=$(gh pr view "$num" -R "$repo" --json body,closingIssuesReferences 2>/dev/null) || continue
   named=$(jq -r '[.body // "" | match("(?i)\\b(close[sd]?|fix(e[sd])?|resolve[sd]?)\\b[^\\n]*"; "g").string | match("#[0-9]+"; "g").string] | unique | length' <<<"$pv" 2>/dev/null)
@@ -119,15 +120,64 @@ while read -r url; do
     && closes_note="${closes_note}PR #${num} body names ${named} issue(s) after a closing keyword but GitHub linked ${linked}; repeat the keyword per issue (closes #a, closes #b) and edit the body. "
 done <<< "$urls"
 
-seed_note="seed the seen-state first (Phase 1) so existing comments are not replayed, then arm"
-[ "$seeded" = "1" ] && seed_note="seen-state is already seeded, so just arm"
-
 check_note="Each PR above was confirmed to exist through the GitHub API before this fired."
 [ "$unverified" = "1" ] && check_note="Each PR above was confirmed to exist through the GitHub API, except any marked UNVERIFIED: that check itself failed, so the URL could be a fixture from test data. Run gh pr view on it before arming."
 
-jq -n --arg fresh "${fresh%; }" --arg seed "$seed_note" --arg check "$check_note" --arg closes "$closes_note" \
+overlap_note=""
+cwd_origin=$(git remote get-url origin 2>/dev/null) || cwd_origin=""
+cwd_origin=$(printf '%s' "$cwd_origin" | sed -E 's#.*github\.com[:/]##; s#\.git$##')
+case "$cwd_origin" in
+  */*) ;;
+  *) cwd_origin="" ;;
+esac
+
+if [ -n "$cwd_origin" ]; then
+  has_matching_fresh=0
+  while read -r url; do
+    [ -z "$url" ] && continue
+    grep -qxF "$url" <<<"$fresh_urls" || continue
+    repo=${url#https://github.com/}; repo=${repo%%/pull/*}
+    if [ "$repo" = "$cwd_origin" ]; then
+      has_matching_fresh=1
+      break
+    fi
+  done <<< "$urls"
+
+  if [ "$has_matching_fresh" = "1" ]; then
+    # Two PR-file queries at most; the draft list is its own call.
+    calls_left=2
+    drafts_json=$(gh pr list -R "$cwd_origin" --author @me --draft --state open --json number,files 2>/dev/null) || drafts_json=""
+    if jq -e 'type == "array" and length > 0' >/dev/null 2>&1 <<<"$drafts_json"; then
+      while read -r url; do
+        [ -z "$url" ] && continue
+        grep -qxF "$url" <<<"$fresh_urls" || continue
+        repo=${url#https://github.com/}; repo=${repo%%/pull/*}; num=${url##*/}
+        [ "$repo" = "$cwd_origin" ] || continue
+        [ "$calls_left" -gt 0 ] || break
+        pv_files=$(gh pr view "$num" -R "$cwd_origin" --json files 2>/dev/null) || pv_files=""
+        calls_left=$((calls_left - 1))
+        if jq -e 'type == "object"' >/dev/null 2>&1 <<<"$pv_files"; then
+          matching_draft=$(jq -n -r \
+            --argjson drafts "$drafts_json" \
+            --argjson fresh_num "$num" \
+            --argjson fresh_view "$pv_files" '
+              ($fresh_view.files // [] | map(.path // empty)) as $fresh_paths
+              | [ $drafts[]
+                  | select(.number != $fresh_num)
+                  | select(any(.files[]?; (.path // empty) as $p | $fresh_paths | index($p)))
+                ] | first | .number // empty
+            ' 2>/dev/null) || matching_draft=""
+          if [ -n "$matching_draft" ]; then
+            overlap_note="${overlap_note}PR #${num} touches files also changed in open draft #${matching_draft}; fold the work into #${matching_draft} unless it is its own unit (compass Step 3). "
+          fi
+        fi
+      done <<< "$urls"
+    fi
+  fi
+fi
+
+jq -n --arg fresh "${fresh%; }" --arg check "$check_note" --arg closes "$closes_note" --arg overlap "$overlap_note" \
   '{hookSpecificOutput:{hookEventName:"PostToolUse",additionalContext:(
-      "\($fresh) — in play in this session with no watcher armed. \($check) \($closes)"
-      + "If you raised it or are driving its review round, pick its watcher NOW. Default: run /autofix-pr on the PR branch; a cloud session subscribes to the PR and pushes fixes for CI failures and review comments, and this session holds nothing. Only when the fix must land in the seat that holds the diff, or CodeRabbit rate limits need tracking, arm the pr-babysit monitor instead: invoke the pr-babysit skill, \($seed) the Monitor with watch-coderabbit.sh. "
-      + "If it is merged, closed, or someone else'"'"'s round, ignore this."
+      "\($fresh) — opened in this session. \($check) \($closes)\($overlap)"
+      + "Reviews run async (Sumit1993/rig#150): keep it a draft while work continues, mark it ready once at the end, and do not arm a watcher. The hourly CodeRabbit routine summons CodeRabbit (it never merges), and findings come back as review debt at the next session start in this repo. Arm the pr-babysit Monitor only when the operator asks to hold this round in this session. If it is merged, closed, or someone else'"'"'s round, ignore this."
    )}}'

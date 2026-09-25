@@ -21,8 +21,14 @@ check() { # name expected_rc json
 }
 
 echo "-- blocked: mechanical execution, named as such"
-check "implementing to spec" 2 \
-  '{"tool_input":{"subagent_type":"general-purpose","description":"Implement the parser","prompt":"to spec"}}'
+check "add tests for the parser" 2 \
+  '{"tool_input":{"subagent_type":"general-purpose","description":"Add tests for the parser","prompt":"to spec"}}'
+check "write tests for the parser" 2 \
+  '{"tool_input":{"subagent_type":"general-purpose","description":"write tests for the parser","prompt":"to spec"}}'
+check "run tests without 'the'" 2 \
+  '{"tool_input":{"subagent_type":"general-purpose","description":"Run tests for the parser","prompt":"go"}}'
+check "run suite" 2 \
+  '{"tool_input":{"subagent_type":"general-purpose","description":"run suite and report failures","prompt":"go"}}'
 check "missing subagent_type still counts as generic" 2 \
   '{"tool_input":{"description":"Collect evidence from the CI logs"}}'
 check "rebase work" 2 \
@@ -31,6 +37,8 @@ check "migration work" 2 \
   '{"tool_input":{"subagent_type":"general-purpose","description":"Migrate the fixtures to v2"}}'
 
 echo "-- allowed: judgment, or agy already considered"
+check "implementing to spec" 0 \
+  '{"tool_input":{"subagent_type":"general-purpose","description":"Implement the parser","prompt":"to spec"}}'
 check "naming agy is the escape hatch" 0 \
   '{"tool_input":{"subagent_type":"general-purpose","description":"Implement the parser","prompt":"agy quota is dry"}}'
 check "antigravity also counts as considered" 0 \
@@ -54,7 +62,7 @@ check "mapping a surface is not mechanical" 0 \
   '{"tool_input":{"subagent_type":"general-purpose","description":"Map full UI surface"}}'
 
 # Guard reporting: when blocking, exits 2 even with mage absent, and stderr contains guard id
-err=$(printf '{"tool_input":{"subagent_type":"general-purpose","description":"Implement the parser"}}' \
+err=$(printf '{"tool_input":{"subagent_type":"general-purpose","description":"write tests for the parser"}}' \
   | PATH=/usr/bin:/bin "$HOOK" 2>&1 >/dev/null)
 rc=$?
 if [ "$rc" -eq 2 ] && grep -q '^mage:rig/guard/delegate-check$' <<<"$err"; then

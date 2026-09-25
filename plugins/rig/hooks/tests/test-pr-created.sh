@@ -17,6 +17,21 @@ export CR_WATCH_STATE_DIR="$SANDBOX/cr-watch"
 # The stub also stands in for the existence check the hook now does. Default: exit 1 with
 # no message, which the hook reads as "could not tell" and still reminds. GH_STUB_404 makes
 # it answer a definite 404 for URLs containing that string; GH_STUB_OK makes it succeed.
+REAL_GIT=$(type -p git)
+cat > "$SANDBOX/git" <<STUB
+#!/bin/bash
+if [ -n "\${GIT_STUB_FAIL-}" ]; then
+  exit 1
+fi
+if [ -n "\${GIT_STUB_ORIGIN-}" ]; then
+  case "\$*" in
+    *"remote get-url origin"*) echo "\$GIT_STUB_ORIGIN"; exit 0 ;;
+  esac
+fi
+exec "$REAL_GIT" "\$@"
+STUB
+chmod +x "$SANDBOX/git"
+
 cat > "$SANDBOX/gh" <<'STUB'
 #!/bin/bash
 if [ -n "${GH_STUB_404-}" ]; then
@@ -24,6 +39,8 @@ if [ -n "${GH_STUB_404-}" ]; then
 fi
 if [ -n "${GH_STUB_OK-}" ]; then
   case "$*" in
+    *"pr list"*) [ -n "${GH_STUB_PRLIST-}" ] && { printf '%s' "$GH_STUB_PRLIST"; exit 0; }; exit 1 ;;
+    *"pr view"*"files"*) [ -n "${GH_STUB_PRVIEW_FILES-}" ] && { printf '%s' "$GH_STUB_PRVIEW_FILES"; exit 0; }; exit 1 ;;
     *"pr view"*) [ -n "${GH_STUB_PRVIEW-}" ] && { printf '%s' "$GH_STUB_PRVIEW"; exit 0; }; exit 1 ;;
     *"${GH_STUB_OK}"*) echo 12; exit 0 ;;
   esac
@@ -77,12 +94,12 @@ case "$c" in
   *) fail "URL lost: $c" ;;
 esac
 case "$c" in
-  *"arm the pr-babysit monitor"*) pass "watch reminder present" ;;
+  *"Reviews run async"*) pass "async reminder present" ;;
   *) fail "reminder lost: $c" ;;
 esac
 case "$c" in
-  *"/autofix-pr"*"arm the pr-babysit monitor"*) pass "autofix-pr is offered first, the Monitor second" ;;
-  *) fail "watcher order wrong: $c" ;;
+  *"/autofix-pr"*) fail "autofix-pr should not be present: $c" ;;
+  *) pass "/autofix-pr absent from reminder" ;;
 esac
 
 # --- A PR that did not come from `gh pr create` still arms ------------------
@@ -90,7 +107,7 @@ out=$(run "agy run --task raise-pr" "created $URL")
 valid_json "$out" && pass "PR URL from a delegated lane emits valid JSON" || fail "delegated lane missed: $out"
 c=$(printf '%s' "$out" | ctx)
 case "$c" in
-  *"PR #12"*"$URL"*"arm the pr-babysit monitor"*) pass "delegated lane gets the same reminder as a direct create" ;;
+  *"PR #12"*"$URL"*"Reviews run async"*) pass "delegated lane gets the same reminder as a direct create" ;;
   *) fail "delegated lane reminder differs: $c" ;;
 esac
 
@@ -133,10 +150,6 @@ out=$(run "cat notes.txt" "see https://github.com/octocat/Hello-World/pull/1" "$
 case "$out" in
   *"octocat/Hello-World/pull/1"*) pass "an unrelated repo's PR still reminds" ;;
   *) fail "unrelated PR did not remind: ${out:0:60}" ;;
-esac
-case "$out" in
-  *"seed the seen-state first"*) pass "and says the seen-state is NOT seeded" ;;
-  *) fail "reminder overclaims seeding for another repo: ${out:0:80}" ;;
 esac
 [ -z "$(ls "$CR_WATCH_STATE_DIR" 2>/dev/null)" ] \
   && pass "an unrelated repo's PR writes no cr-watch state" \
@@ -192,6 +205,62 @@ case "$c" in
   *"gh pr view"*) pass "and tells the session how to check it" ;;
   *) fail "UNVERIFIED reminder gives no way to check: ${c:0:120}" ;;
 esac
+
+# --- Draft overlap detection ------------------------------------------------
+# If a fresh PR in the cwd repo touches files also changed in an open draft in the same
+# repo, append the fold note naming the first matching draft.
+ov_dir=$(mktemp -d)
+PR_DRAFTS='[{"number":10,"files":[{"path":"lib/foo.rb"},{"path":"lib/bar.rb"}]},{"number":11,"files":[{"path":"lib/baz.rb"}]}]'
+PR_FILES='{"files":[{"path":"lib/bar.rb"},{"path":"lib/qux.rb"}]}'
+
+# Case 1: overlap with a draft prints the fold note
+c=$(GIT_STUB_ORIGIN="git@github.com:acme/widget.git" GH_STUB_OK="pulls/60" \
+    GH_STUB_PRLIST="$PR_DRAFTS" GH_STUB_PRVIEW_FILES="$PR_FILES" \
+    run "$CREATE_CMD" "https://github.com/acme/widget/pull/60" "$ov_dir/1" | ctx)
+case "$c" in
+  *"PR #60 touches files also changed in open draft #10; fold the work into #10 unless it is its own unit (compass Step 3)."*)
+    pass "overlap with a draft prints the fold note" ;;
+  *) fail "overlap note missing or wrong: $c" ;;
+esac
+
+# Case 2: no overlap prints none
+PR_NO_OVERLAP='{"files":[{"path":"lib/unique.rb"}]}'
+c=$(GIT_STUB_ORIGIN="git@github.com:acme/widget.git" GH_STUB_OK="pulls/61" \
+    GH_STUB_PRLIST="$PR_DRAFTS" GH_STUB_PRVIEW_FILES="$PR_NO_OVERLAP" \
+    run "$CREATE_CMD" "https://github.com/acme/widget/pull/61" "$ov_dir/2" | ctx)
+case "$c" in
+  *"touches files also changed"*) fail "fold note printed when there is no overlap: $c" ;;
+  *) pass "no overlap prints no fold note" ;;
+esac
+
+# Case 3: a PR in another repo prints none
+c=$(GIT_STUB_ORIGIN="git@github.com:acme/widget.git" GH_STUB_OK="pulls/62" \
+    GH_STUB_PRLIST="$PR_DRAFTS" GH_STUB_PRVIEW_FILES="$PR_FILES" \
+    run "$CREATE_CMD" "https://github.com/other/repo/pull/62" "$ov_dir/3" | ctx)
+case "$c" in
+  *"touches files also changed"*) fail "fold note printed for PR in another repo: $c" ;;
+  *) pass "PR in another repo prints no fold note" ;;
+esac
+# Case 4: two fresh PRs in one output each get a file query and a fold note
+c=$(GIT_STUB_ORIGIN="git@github.com:acme/widget.git" GH_STUB_OK="pulls/" \
+    GH_STUB_PRLIST="$PR_DRAFTS" GH_STUB_PRVIEW_FILES="$PR_FILES" \
+    run "$CREATE_CMD" "https://github.com/acme/widget/pull/63 https://github.com/acme/widget/pull/64" "$ov_dir/4" | ctx)
+case "$c" in
+  *"PR #63 touches"*"PR #64 touches"*) pass "two fresh PRs both get a fold note" ;;
+  *) fail "second fresh PR missed its fold note: $c" ;;
+esac
+
+# Case 5: an already-seen PR whose URL prefixes a fresh one is not treated as fresh
+mkdir -p "$ov_dir/5" && : > "$ov_dir/5/acme-widget-pull-12"
+c=$(GIT_STUB_ORIGIN="git@github.com:acme/widget.git" GH_STUB_OK="pulls/" \
+    GH_STUB_PRLIST="$PR_DRAFTS" GH_STUB_PRVIEW_FILES="$PR_FILES" \
+    run "$CREATE_CMD" "https://github.com/acme/widget/pull/12 https://github.com/acme/widget/pull/123" "$ov_dir/5" | ctx)
+case "$c" in
+  *"PR #12 touches"*) fail "seen PR #12 matched as a prefix of #123: $c" ;;
+  *"PR #123 touches"*) pass "prefix URL of a seen PR is not fresh" ;;
+  *) fail "fresh PR #123 got no fold note: $c" ;;
+esac
+rm -rf "$ov_dir"
 
 echo
 [ "$FAILURES" -eq 0 ] && { echo "all pr-created hook tests passed"; exit 0; }

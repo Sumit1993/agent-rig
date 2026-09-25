@@ -2,7 +2,7 @@
 name: farm-out
 description: "Load before any Agent tool call: decides whether the work belongs on agy (Antigravity CLI, its own quota) instead of a Claude subagent, and how to dispatch, babysit, kill or resume an agy run."
 metadata:
-  version: "4.3.0"
+  version: "4.4.0"
 ---
 
 # Delegating to Antigravity CLI (agy)
@@ -13,6 +13,7 @@ Verified against agy 1.1.27. Check `agy --version` before trusting a flag; `agy 
 
 ## Before dispatching
 
+- Budget the wait. An agy run takes a median 8 minutes, p90 28, and nearly a quarter end in ERROR, before the handler verifies anything (#150 carries the numbers). Dispatch only what the session will not wait on.
 - Permission to use subagents is not an exemption from the delegation rule. It grants model choice, which `AGENTS.md` already gives. A Claude subagent on delegable work needs a stated reason in your reply, and "simpler to set up" is not one.
 - Probe one lane before fanning out. Check `agy-quota.sh check <model>` first, and skip the probe entirely when the file already says the lane is dead. One `-p "say ok"` costs seconds; five wrappers each discovering an empty quota cost five wrappers.
 - Lane count is derived, never a constant. Name the scarce resource and its scope first (a review counter, a serialising merge invariant, agy-Claude's weekly pool). A limit assumed per-repo can be org-wide or per-developer. Serialise inside that scope, run everything else wide.
@@ -112,12 +113,12 @@ The resumed turn keeps the same `conversation_id` and the full context. A fresh 
 
 ## Dispatch
 
-The seat writes a bounded spec itself. A spec that hinges on a ruling (security, design surface, product semantics) comes from a `fable-planner`: hand it the issue, the constraints and the worktree path, and it returns the prompt file's content. The spec is the artifact the lane is judged against, and a weak one is not recoverable downstream: the lane is entitled to follow it off a cliff. Judging what comes back is still yours, the same as judging any returned claim.
+A lane takes side work while the session keeps coding (`AGENTS.md` §Delegation), never work the session would stop and wait on. The session writes the work order itself: the files, the command that must pass, what to return. A work order that hinges on a ruling (security, design surface, product semantics) comes from a `fable-planner`: hand it the issue, the constraints and the worktree path, and it returns the prompt file's content. The spec is the artifact the lane is judged against, and a weak one is not recoverable downstream: the lane is entitled to follow it off a cliff. Judging what comes back is still yours, the same as judging any returned claim.
 
 Write that spec to `~/ai-context/<repo>/<issue>-<slug>/spec-<lane>.md`, or into the repo, never `/tmp`. Spawn `subagent_type: "agy-runner"` with the path. That is the whole dispatch.
 
 - One lane per umbrella issue reused across its slices.
-- Verification once at the umbrella: lane runs the umbrella's verify commands and pastes raw output; handler checks provenance; seat reads the diff against the spec.
+- Verification once at the umbrella: lane runs the umbrella's verify commands and pastes raw output; handler checks provenance; session reads the diff against the spec.
 - Reuse one planner inside the prompt-cache hour instead of spawning a fresh one per spec. A second spec asked inside that window re-reads a cached conversation, while a fresh agent pays for the whole context again. Past the hour it is stale anyway, so start a new one (`#79 - autopilot §0: name the prompt-cache TTL as a ceiling on the cron interval`). Where SendMessage is unavailable, batch the hour's specs into one planner prompt, one file per spec.
 - Never `SendMessage` a lane that is still running. The message arrives as a system-reminder, and a well-briefed lane refuses it as unsourced (`#136 - The kit matches what gh-workflows #173 changes`). Wait for the lane's report, then send the follow-up as the resume prompt.
 - A spec that points a lane at a path outside its project root says to read it with Bash or Read; context-mode refuses those paths.

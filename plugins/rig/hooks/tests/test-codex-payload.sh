@@ -66,48 +66,11 @@ check_stdin() { # name hook want_rc payload_file [extra_env=]
   fi
 }
 
-# organizer-seat.sh: fires only while an agy run is alive. A stubbed `pgrep` ahead of the
-# hook's own PATH answers its "-x agy" query directly, so the assertion always runs whether
-# or not a real agy process happens to be alive on this machine — never skipped, never a
-# staged fake process (#140).
-PGREPBIN=$(mktemp -d)
-cat > "$PGREPBIN/pgrep" <<'EOF'
-#!/bin/bash
-if [ "$1" = "-x" ] && [ "$2" = "agy" ]; then
-  if [ "${STUB_PGREP_AGY_LIVE:-1}" = "1" ]; then
-    echo 424242
-    exit 0
-  fi
-  exit 1
-fi
-exec /usr/bin/pgrep "$@"
-EOF
-chmod +x "$PGREPBIN/pgrep"
-
-# check_stdin splits its env_kv arg on whitespace (#140 also fixes that pattern in run.sh),
-# and this machine's real PATH contains space-bearing entries, so prepend the stub via the
-# shell's own PATH rather than through env_kv.
-REALPATH=$PATH
-export PATH="$PGREPBIN:$REALPATH"
-
-ORGSEAT_STATE=$(mktemp -d)
-check_stdin "organizer-seat.sh blocks an apply_patch while agy is live (stubbed pgrep)" \
-  organizer-seat.sh 2 "$FIXTURES/pretooluse-apply-patch.json" \
-  "ORGANIZER_SEAT_STATE_DIR=$ORGSEAT_STATE STUB_PGREP_AGY_LIVE=1"
-rm -rf "$ORGSEAT_STATE"
-
-ORGSEAT_STATE2=$(mktemp -d)
-check_stdin "organizer-seat.sh passes an apply_patch when agy is not live (stubbed pgrep)" \
-  organizer-seat.sh 0 "$FIXTURES/pretooluse-apply-patch.json" \
-  "ORGANIZER_SEAT_STATE_DIR=$ORGSEAT_STATE2 STUB_PGREP_AGY_LIVE=0"
-rm -rf "$ORGSEAT_STATE2" "$PGREPBIN"
-export PATH="$REALPATH"
-
 # delegate-check.sh: Codex's spawn_agent sends only tool_input.message.
 check_stdin "delegate-check.sh refuses a bounded mechanical spawn_agent" delegate-check.sh 2 \
-  <(jq '.tool_input.message = "Implement the retry parser to spec"' "$FIXTURES/pretooluse-spawn-agent.json")
+  <(jq '.tool_input.message = "write tests for the retry parser to spec"' "$FIXTURES/pretooluse-spawn-agent.json")
 check_stdin "delegate-check.sh passes a spawn_agent naming agy" delegate-check.sh 0 \
-  <(jq '.tool_input.message = "Implement the retry parser; agy quota is dry so doing this directly"' "$FIXTURES/pretooluse-spawn-agent.json")
+  <(jq '.tool_input.message = "write tests for the retry parser; agy quota is dry so doing this directly"' "$FIXTURES/pretooluse-spawn-agent.json")
 
 # outside-view-nudge.sh: Codex has one generic agent shape and no subagent_type field, so
 # every spawn_agent is the "uncertain" moment the nudge is for.

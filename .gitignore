@@ -1,3 +1,4 @@
 
 # Local scratch from the R2 write probe
 .wrangler/
+__pycache__/
