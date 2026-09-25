@@ -179,5 +179,5 @@ fi
 jq -n --arg fresh "${fresh%; }" --arg check "$check_note" --arg closes "$closes_note" --arg overlap "$overlap_note" \
   '{hookSpecificOutput:{hookEventName:"PostToolUse",additionalContext:(
       "\($fresh) — opened in this session. \($check) \($closes)\($overlap)"
-      + "Reviews run async (Sumit1993/rig#150): keep it a draft while work continues, mark it ready once at the end, and do not arm a watcher. The hourly CodeRabbit routine summons CodeRabbit, merges the PR when its review is clean, and findings come back as review debt at the next session start in this repo. Arm the pr-babysit Monitor only when the operator asks to hold this round in this session. If it is merged, closed, or someone else'"'"'s round, ignore this."
+      + "Reviews run async (Sumit1993/rig#150): keep it a draft while work continues, mark it ready once at the end, and do not arm a watcher. The hourly CodeRabbit routine summons CodeRabbit (it never merges), and findings come back as review debt at the next session start in this repo. Arm the pr-babysit Monitor only when the operator asks to hold this round in this session. If it is merged, closed, or someone else'"'"'s round, ignore this."
    )}}'

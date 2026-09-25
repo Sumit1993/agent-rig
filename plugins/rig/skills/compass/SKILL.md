@@ -39,7 +39,8 @@ One agent clears the whole list in one pass, PR by PR on each PR's branch:
 
 - Fix what is right, one push per PR, then reply in each thread (`coderabbit-lane` §5, `claude-review-lane` for `claude[bot]`). Never resolve a reviewer's thread; the next review round does.
 - A finding that needs the operator's ruling is collected, not asked one at a time. Ask them all in one question at the end.
-- Nothing else to do: the CodeRabbit routine re-reviews a PR whose threads all carry a reply, and merges it once the review comes back clean.
+- The CodeRabbit routine re-reviews a PR whose threads all carry a reply. It never merges.
+- A ready PR whose CodeRabbit review on the current head came back clean, with every thread resolved by the reviewer that opened it and checks green, is listed as ready to merge. Ask the operator once for the whole list and merge each one they grant (`pr-babysit` Phase 3, `MERGE_OK=<pr>`).
 
 ## Step 1: read the repo and report drift
 

@@ -1,6 +1,6 @@
 ---
 name: coderabbit-lane
-description: "CodeRabbit review lane mechanics: the hourly CodeRabbit routine that admits and merges, the per-developer hourly slot shared across repos, when a hand summon is worth it, trigger syntax, in-thread replies with cr-reply.sh, thread resolution. Load when requesting or answering CodeRabbit."
+description: "CodeRabbit review lane mechanics: the hourly CodeRabbit routine that admits PRs to review, the per-developer hourly slot shared across repos, when a hand summon is worth it, trigger syntax, in-thread replies with cr-reply.sh, thread resolution. Load when requesting or answering CodeRabbit."
 metadata:
   version: "4.0.0"
 ---
@@ -11,12 +11,9 @@ metadata:
 
 ## 1. Admission
 
-The hourly CodeRabbit routine (`scripts/coderabbit-routine/` in Sumit1993/rig, `Sumit1993/rig#150`) is the admission mechanism, in every repo. `auto_review` is off everywhere, so opening a PR or marking it ready spends nothing by itself. Each hour the routine:
+The hourly CodeRabbit routine (`scripts/coderabbit-routine/` in Sumit1993/rig, `Sumit1993/rig#150`) is the admission mechanism, in every repo. `auto_review` is off everywhere, so opening a PR or marking it ready spends nothing by itself. Each hour the routine summons CodeRabbit on at most one PR: first a re-review, a PR whose head moved past its last review and whose CodeRabbit threads all carry a reply, then new PRs oldest first. A head commit must be 20 minutes old; a draft is never summoned.
 
-- merges or enqueues every ready PR whose CodeRabbit review on the current head came back clean, every thread resolved by the reviewer that opened it; docs-only PRs merge on green checks with no review;
-- summons CodeRabbit on at most one PR: first a re-review, a PR whose head moved past its last review and whose CodeRabbit threads all carry a reply, then new PRs oldest first. A head commit must be 20 minutes old; a draft is never summoned.
-
-`blocked` or `needs-operator` on a PR holds its merge, not its review. Each run's report, in the routine's run history at claude.ai/code/routines, lists what merged, what was summoned and what waits. Its off switch is pausing the routine.
+The routine never merges. Merging is a local session's job when the operator asks for it (`compass` Step 0, `pr-babysit` Phase 3). Each run's report, in the routine's run history at claude.ai/code/routines, lists what was summoned and what waits. Its summons carry a hidden `<!-- summoned-by: coderabbit-routine -->` line, so a summon without it came from a session or by hand. Its off switch is pausing the routine.
 
 ## 2. When to summon by hand
 

@@ -947,25 +947,18 @@ The first three below each put a sentence on the PR saying which it was, and tha
 </svg>
 </figure>
 
-<h3>8.6 Spending a CodeRabbit review: the hourly queue</h3>
+<h3>8.6 Spending a CodeRabbit review: the hourly routine</h3>
 <p>CodeRabbit's allowance is <strong>one review per developer per hour</strong>, across every repo. Since
 Sumit1993/rig#150 one scheduler spends it: the <code>CodeRabbit summoner</code> routine (<code>scripts/coderabbit-routine/</code>), run at :07
-every hour with the operator's tokens. <code>auto_review</code> is off in every repo's <code>.coderabbit.yaml</code>, so
+every hour. It only summons; it never merges. <code>auto_review</code> is off in every repo's <code>.coderabbit.yaml</code>, so
 opening a PR or marking it ready spends nothing by itself.</p>
-<ol>
-  <li><strong>Merge sweep.</strong> Every ready PR whose CodeRabbit review on the current head came back clean, with every
-  thread resolved by the reviewer that opened it, the Claude lane's review on head where <code>admission</code> admits the
-  PR, and required checks green, is merged, or enqueued on a merge-queue repo. Docs-only PRs merge on green checks with no
-  review. <code>blocked</code> or <code>needs-operator</code> holds a merge; release-please and Dependabot PRs are never
-  merged by it.</li>
-  <li><strong>One summon.</strong> First a re-review: a PR whose head moved past its last review and whose CodeRabbit threads
+<p>Each run makes <strong>one summon</strong>. First a re-review: a PR whose head moved past its last review and whose CodeRabbit threads
   all carry a reply. Then new PRs, oldest first. The head commit must be 20 minutes old, drafts are never summoned, and a
-  rate-limit notice's stated wait is obeyed.</li>
-</ol>
+  rate-limit notice's stated wait is obeyed.</p>
 <p>Findings are not fixed by the routine. They wait on the PR as review debt, printed at the next session start in that repo
 and cleared by that session before any new pick (<code>compass</code> Step 0): one push per PR, a reply in every thread,
-rulings collected into one question. The routine then re-reviews, CodeRabbit resolves what it accepts, and the next sweep
-merges. Each run's report lists what merged, what was summoned and what waits. The off switch is pausing the routine.</p>
+rulings collected into one question. The routine then re-reviews, CodeRabbit resolves what it accepts, and the operator
+merges from a local session through <code>compass</code>. Each run's report lists what was summoned and what waits. The off switch is pausing the routine.</p>
 <p>Replayed on the 297 PRs of 2026-08-25 to 2026-09-24, a one-per-hour summoner gives a median wait of 3.5 hours and a p90 of
 8.9: a night session fills it and it drains before the next one. One PR per surface per session, not one per issue, is what
 keeps it short. <strong>Never write the word "resolve" in a reply to CodeRabbit</strong>: it parses as a command and no-ops

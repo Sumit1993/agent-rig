@@ -1,13 +1,13 @@
 ---
 name: pr-babysit
-description: "What happens to a PR after it is raised: by default nothing in this session, because the hourly CodeRabbit routine reviews and merges it async. When the operator asks to hold a round here: seed seen-state, arm the reviewer and CI Monitor, route each event, then merge. Load after any gh pr create or when asked to watch or merge a PR."
+description: "What happens to a PR after it is raised: by default nothing in this session, because the hourly CodeRabbit routine gets it reviewed async and the operator merges through compass. When the operator asks to hold a round here: seed seen-state, arm the reviewer and CI Monitor, route each event, then merge. Load after any gh pr create or when asked to watch or merge a PR."
 metadata:
   version: "5.0.0"
 ---
 
 # PR watch: the session-scoped review round
 
-The default is async (`Sumit1993/rig#150`). Keep the PR a draft while work continues, mark it ready once at the end, and leave it. The hourly CodeRabbit routine (`scripts/coderabbit-routine/` in Sumit1993/rig) summons CodeRabbit on it, merges it when the review comes back clean, and findings come back as review debt at the next session start in that repo (`compass` Step 0). Phases 1 and 2 run only when the operator asks to hold a round in this session; Phase 3 also runs when the operator asks to merge.
+The default is async (`Sumit1993/rig#150`). Keep the PR a draft while work continues, mark it ready once at the end, and leave it. The hourly CodeRabbit routine (`scripts/coderabbit-routine/` in Sumit1993/rig) summons CodeRabbit on it, and findings come back as review debt at the next session start in that repo (`compass` Step 0). Phases 1 and 2 run only when the operator asks to hold a round in this session; Phase 3 also runs when the operator asks to merge.
 
 A held round is one PR, whichever session raised it, watched until its round ends, so the session reacts to findings without the user relaying them. Not a lifecycle manager: the merge queue removed cascade shepherding, and a PR left over from an earlier session needs no local watcher because GitHub notifications cover verify-then-resolve and enqueue.
 
@@ -86,7 +86,7 @@ Per-event handling is in `references/events.md`.
 
 ## Phase 3: merge, once the user says so or under an explicit standing grant
 
-The CodeRabbit routine merges a PR whose review came back clean on its own; that is the one standing grant. Everything else waits for `MERGE_OK`.
+Nothing merges on its own; every merge waits for `MERGE_OK`, and `compass` Step 0 is where the operator gives it for PRs whose review came back clean.
 
 Check `rig-meta.sh get <owner/repo> merge_queue` first.
 
