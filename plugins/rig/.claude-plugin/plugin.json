@@ -1,6 +1,6 @@
 {
   "name": "rig",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "Personal working-style rig: no-doze waiting doctrine, post-PR watching, agy delegation with the agy-runner wrapper agent, comment-budget enforcement, patched CodeRabbit skills, and hooks that enforce delegation routing, review debt at session start, safe agy kills and PR-babysit arming.",
   "author": {
     "name": "Sumit Patel",

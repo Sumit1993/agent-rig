@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.12.0](https://github.com/Sumit1993/rig/compare/rig-v0.11.0...rig-v0.12.0) (2026-09-25)
+
+
+### Features
+
+* reviews run async through the hourly queue; review debt first; agy takes side work and the organizer seat goes ([#152](https://github.com/Sumit1993/rig/issues/152)) ([8041a9e](https://github.com/Sumit1993/rig/commit/8041a9e993d53f335e1d00e8ab69d75cafdfeda2))
+
+
+### Continuous Integration
+
+* bump actions/checkout from 4 to 7 ([#148](https://github.com/Sumit1993/rig/issues/148)) ([c21fdf9](https://github.com/Sumit1993/rig/commit/c21fdf9986ba99443657364ce0d60044132d4be0))
+
 ## [0.11.0](https://github.com/Sumit1993/rig/compare/rig-v0.10.0...rig-v0.11.0) (2026-09-24)
 
 
