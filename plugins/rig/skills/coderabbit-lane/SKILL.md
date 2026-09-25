@@ -17,7 +17,7 @@ The routine never merges. Merging is a local session's job when the operator ask
 
 ## 2. When to summon by hand
 
-Rarely. A hand summon spends the same slot the routine schedules and makes its budget check wait. Two cases justify one: the operator wants a PR reviewed ahead of the routine, or a held round (`pr-babysit`) needs the review inside this session. Post it bare (§4). The routine sees it as pending and does not repeat it.
+Only when the operator says so for that PR. A hand summon takes the slot the routine schedules, and two summons within the hour collide: the second is refused as rate-limited (`prismalens/gh-workflows#213`). `summon-gate.sh` blocks a summon unless the command carries `CR_SUMMON_OK=<pr>`, the operator's word for that PR, never carried forward. Post it bare with the marker: `CR_SUMMON_OK=<pr> gh pr comment <pr> --body $'@coderabbitai review\n\n<!-- summoned-by: session -->'`. The routine sees it as pending and does not repeat it.
 
 `.coderabbit.yaml` path instructions still shape review quality and the Claude lane cannot see them, so they stay worth writing.
 
@@ -46,12 +46,12 @@ Essentials was formerly called Pro, and Team was formerly called Pro+.
   - `**Next included review available in 30 minutes.**`
   - `Your next included review will be available in 23 minutes.`
 - The documented limit is one review per developer per hour on Free, rolling. The observed interval between an accepted review and the next runs about 55 to 57 minutes.
-- `review full` is not a way past the limit. Both forms draw the same budget. A success shortly after a refusal is the window rolling over. `review full` is for the different refusal, "does not re-review already reviewed commits"; the clock is for the limit.
+- `review full` is not a way past the limit, and it is not a retry. Both forms draw the same budget. A success shortly after a refusal is the window rolling over. The note "CodeRabbit is an incremental review system and does not re-review already reviewed commits" is a footer on every reply to a summon, accepted ones included (`prismalens/gh-workflows#213`); it is never a refusal.
 - CodeRabbit edits its reply in place, so a first read can show the opposite of the settled outcome. Read `updated_at`, wait for it to stop changing, classify on the settled body, and re-read before acting, not only before classifying.
 
 ## 4. Triggers and polling
 
-- Two triggers, both bare. `@coderabbitai review` is incremental and the default. `@coderabbit review full` re-reads the whole diff and is the fallback when the incremental form is refused as "an incremental review system" that "does not re-review already reviewed commits"; a push that only moves documentation can be declined off cooldown.
+- One trigger, bare: `@coderabbitai review`, incremental. `full review` re-reads the whole diff at the same cost; use it only when the operator asks for it.
 - Post exactly the trigger and nothing else. Extra questions or bullets are parsed as chat, return "For best results, initiate chat on the files or code changes", and run no review. Context goes in the PR description, which the review reads.
 - Poll after every trigger. A trigger posting is not a review starting. Wait about 60 seconds, inspect the latest `coderabbitai[bot]` comment, then report. `rate limited`: rejected, nothing ran, wait out the window. `initiate chat on the files`: misparsed, re-trigger bare. Anything else: accepted.
 - CodeRabbit is not diff-only. It runs `rg`, `fd`, `sed`, `git show` and inline Python against the checkout to reason across files. It does not run test suites.

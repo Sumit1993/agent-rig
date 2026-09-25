@@ -22,6 +22,7 @@ CLAUDE_ONLY=(
   "draft-posted-nudge.sh: post-tool cleanup in Claude sessions"
   "gh-write-nudge.sh: gh write conventions in Claude sessions"
   "merge-gate.sh: per-merge permission in Claude sessions"
+  "summon-gate.sh: CodeRabbit summons in Claude sessions"
   "protected-edit-gate.sh: protects ~/.claude and dotfiles paths"
 )
 for f in "$SRC"/hooks/*.sh; do
