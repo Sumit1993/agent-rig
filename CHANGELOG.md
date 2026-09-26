@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/Sumit1993/rig/compare/rig-v0.12.0...rig-v0.12.1) (2026-09-26)
+
+
+### Bug Fixes
+
+* **coderabbit-routine:** the model skips re-reviews of fixes CodeRabbit already confirmed in-thread ([#154](https://github.com/Sumit1993/rig/issues/154)) ([7a14cf4](https://github.com/Sumit1993/rig/commit/7a14cf4441579605ee4ce12a3327c63570d16dea)), closes [#153](https://github.com/Sumit1993/rig/issues/153)
+
 ## [0.12.0](https://github.com/Sumit1993/rig/compare/rig-v0.11.0...rig-v0.12.0) (2026-09-25)
 
 
