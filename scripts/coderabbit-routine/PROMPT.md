@@ -26,6 +26,8 @@ A pull request is a candidate when all of these hold:
 
 A candidate is a **re-review** if CodeRabbit reviewed an earlier commit. It qualifies only when `coderabbit_threads_without_operator_reply` is 0; otherwise its fixes are still pending. Any other candidate is **new**.
 
+A re-review also has to buy something. Every review of a fix commit finds a smaller nit in the fix, so summoning on each fix loops forever (prismalens/gh-workflows#222). Read `since_coderabbit_review` against `coderabbit_threads` and judge whether the commits after the last review carry work CodeRabbit has not seen. A commit that answers a thread (`operator_reply` names it) and that CodeRabbit confirmed in `coderabbit_after_reply` is already verified: skip the PR if that is all there is. Summon when a commit adds anything beyond those fixes, such as a new feature, a refactor, or files that no thread touches, or when CodeRabbit disputed a fix or has not replied to one. A small diff confined to the threaded files leans toward skip. When unsure, summon. Name each skipped PR and its reason in the report.
+
 Pick re-reviews first, ordered by the oldest `head_committed_at`. Then pick new ones, ordered by the oldest `created_at`. Summon the pick with `python3 act.py <repo> <n> '@coderabbitai review'`. `act.py` adds the hidden `summoned-by` marker. Never post `full review`: it spends the same slot to re-read commits that were already reviewed.
 
 ## 4. Report
