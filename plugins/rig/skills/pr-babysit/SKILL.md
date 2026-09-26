@@ -90,7 +90,7 @@ Nothing merges on its own; every merge waits for `MERGE_OK`, and `compass` Step 
 
 Check `rig-meta.sh get <owner/repo> merge_queue` first.
 
-- Queue repos (`merge_queue` true): enqueue with the `enqueuePullRequest` GraphQL mutation (`gh pr merge` answers `Auto merge is not allowed for this repository`, seen on prismalens/gh-workflows#217 - chore: remove the hourly review queue; the CodeRabbit summoner routine summons again), and the merge queue tests a speculative merge onto main before landing it. No BEHIND cascade, no update-branch babysitting. Do not enqueue before the liveness comment shows posted review output (`claude-review-lane` §2). The routine gates on checks and threads, not on whether a reviewer spoke, so enqueueing into silence merges an unreviewed head.
+- Queue repos (`merge_queue` true): enqueue with the `enqueuePullRequest` GraphQL mutation (`gh pr merge` answers `Auto merge is not allowed for this repository`, seen on prismalens/gh-workflows#217 - chore: remove the hourly review queue; the CodeRabbit summoner routine summons again), and the merge queue tests a speculative merge onto main before landing it. No BEHIND cascade, no update-branch babysitting. Do not enqueue before the liveness comment shows posted review output (`claude-review-lane` §2, the liveness comment). The routine gates on checks and threads, not on whether a reviewer spoke, so enqueueing into silence merges an unreviewed head.
 - Classic repos (`merge_queue` false): merge by hand once CI is green and every review thread resolved by the reviewer that opened it, `gh pr merge <n> --squash`. BEHIND still applies, so update the branch and re-green before merging the next.
 
 Afterward remove the lane's worktree and delete its local branch (`AGENTS.md` §Worktrees). `git worktree unlock` first if git refuses because the tree is locked.
@@ -98,7 +98,8 @@ Afterward remove the lane's worktree and delete its local branch (`AGENTS.md` §
 ## Notes
 
 - Auto-merge and the merge queue both outrun every reviewer. The thread gate only blocks once a thread exists, and auto-merge can fire between a review landing and its fix commit. Order the round as review posted, then fix, then resolve, then merge, never the reverse. On queue repos "review posted" is read off the liveness comment.
-- Never wait on `mergeStateStatus`. An unresolved thread pins it at `BLOCKED`. Key on `reviewThreads` and comment IDs (`no-doze` §3).
+- Never wait on `mergeStateStatus`. An unresolved thread pins it at `BLOCKED`. Key on `reviewThreads` and comment IDs (`no-doze` §3, conditions the event prevents).
+- Wait for CI on `gh pr checks <n> --required`, never on `statusCheckRollup[].status`. CodeRabbit's `CodeRabbit` commit status is a `StatusContext`, which carries `.state` and no `.status`, so a loop waiting for every entry to read `COMPLETED` only ends at its deadline (seen on prismalens/prismalens#727).
 - Watching is cheap: a shell poll every 75 seconds, zero tokens while quiet. Prefer over-watching to relaying.
 - Rate limits are invisible on both obvious channels. CodeRabbit posts the notice as an issue comment, so `/pulls/N/comments` misses it, and the `Review rate limited` check passes by design. `watch-coderabbit.sh` polls `/issues/N/comments` for the `rate limited by coderabbit.ai` marker, deduped on `updated_at` because CodeRabbit edits one summary comment in place.
 - `~/ai-context/state/cr-watch/` is durable across sessions. Re-arming is always safe.

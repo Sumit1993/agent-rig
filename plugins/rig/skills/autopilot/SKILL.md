@@ -16,16 +16,16 @@ One seat holds the goal across every wake-up. Every other seat is disposable. Ea
 Nothing is dispatched until both exist. With no scheduled wake-up the run is one turn long.
 
 1. `CronCreate` is a deferred tool. Fetch it first: `ToolSearch("select:CronCreate,CronList,CronDelete")`. Nothing prompts you to, which is why this gets skipped.
-2. 30 minutes, off the :00 and :30 marks where every scheduled job lands: `7,37 * * * *`. Longer when the thing you wait on moves slower.
+2. 30 minutes, off the :00 and :30 marks where every scheduled job lands: `7,37 * * * *`. Longer when the thing you wait on moves slower, but stay well inside the one-hour prompt cache (five minutes once the session is in usage overage). A tick past it rereads the whole context uncached, so widening the interval to save ticks costs more than it saves, and a quiet tick is what keeps the cache warm (`#79 - autopilot §0: name the prompt-cache TTL as a ceiling on the cron interval`).
 3. The prompt fires into this session, so ask for current state: "tick: read the plan file, check lane and PR state, then dispatch or report."
 4. `CronList` after, to confirm. A cron that failed to arm looks like a quiet run.
-5. Record the job ID in the plan file beside the condition that ends it (§3).
+5. Record the job ID in the plan file beside the condition that ends it (§3, the stall rule).
 
-Three facts shape the plan. Jobs live in this session's memory only; end the session and the cron goes with it, leaving a plan file that still reads healthy. Jobs fire only while the REPL is idle, so a foreground wait (`no-doze` §2) stays shorter than one interval. Recurring jobs expire after 7 days. `ScheduleWakeup` paces `/loop` and is not this; use `CronCreate`.
+Three facts shape the plan. Jobs live in this session's memory only; end the session and the cron goes with it, leaving a plan file that still reads healthy. Jobs fire only while the REPL is idle, so a foreground wait (`no-doze` §2, wait on evidence) stays shorter than one interval. Recurring jobs expire after 7 days. `ScheduleWakeup` paces `/loop` and is not this; use `CronCreate`.
 
 ### Write the plan file
 
-`~/ai-context/<repo>/<issue>-<slug>/plan.md` is the source of truth. It holds standing rules, the lane table, decisions waiting on the operator, verified environment facts, and a running log. Detail goes here, not the terminal (§11). If it does not exist, building it is the rest of the first tick: read the queue without touching anything, group into waves by blockers, probe stacks and worktrees, and record standing rules and frozen paths.
+`~/ai-context/<repo>/<issue>-<slug>/plan.md` is the source of truth. It holds standing rules, the lane table, decisions waiting on the operator, verified environment facts, and a running log. Detail goes here, not the terminal (§11, near-silence). If it does not exist, building it is the rest of the first tick: read the queue without touching anything, group into waves by blockers, probe stacks and worktrees, and record standing rules and frozen paths.
 
 Respect the window. Never start a lane that cannot finish and be verified in the time left. Near the end, take work only to a state that is safe to leave: pushed, commented or parked. Never mid-merge or mid-rebase.
 
@@ -33,7 +33,7 @@ Respect the window. Never start a lane that cannot finish and be verified in the
 
 The session does the coding in its own worktree. agy lanes take the side work `AGENTS.md` §Delegation names, in theirs, while the session keeps going. The main checkout and its stack belong to the session. A lane that "restores" its branch takes the run down. The session creates or reuses a lane's worktree and hands it an absolute path, with instructions to stop and report if it is missing.
 
-A call that needs a ruling goes to `fable-planner` (§6).
+A call that needs a ruling goes to `fable-planner` (§6, the planner seat).
 
 Every dispatch prompt says, in as many words:
 
@@ -57,12 +57,12 @@ A lane that returns saying "standing by", "waiting for" or "will be notified" ha
 
 A completion notification fires only when an agent has no live background children. The moment an agent launches something in the background and hands control back, that notification can never arrive. This keeps happening in lanes that were handed the rule, so treat it as a trap built into the tooling.
 
-- A wait is real only while the agent is still running inside its own turn: a foreground `until` loop keyed on durable evidence, loop length as the deadline (`no-doze` §2).
+- A wait is real only while the agent is still running inside its own turn: a foreground `until` loop keyed on durable evidence, loop length as the deadline (`no-doze` §2, wait on evidence).
 - A background launch followed by handing control back is a stall, every time.
 
 Fix it at once and skip the acknowledgement. `SendMessage` the lane: "go read <the concrete artifact: log path, PR check, SHA> now. Then wait in the foreground with a deadline. Do not return until the evidence resolves or the deadline expires." Never accept two "waiting" reports in a row; read the artifact yourself. Put this rule in every dispatch prompt.
 
-Some evidence has no shell poll. If the only way to read it is an MCP tool call, a cron tick into this session is the watch and its latency is the tick interval. Record it as a tick, never a monitor (`no-doze` §2).
+Some evidence has no shell poll. If the only way to read it is an MCP tool call, a cron tick into this session is the watch and its latency is the tick interval. Record it as a tick, never a monitor (`no-doze` §2, wait on evidence).
 
 The reverse failure is a watch that outlives its job. A monitor, a poller, a cron tick: anything armed to watch one piece of work is torn down the moment that work ends, whether merged, closed, moved or abandoned. Arming something durable creates a teardown obligation. Record it in the plan file's lane table beside the thing it watches, and disarm it when closing the lane.
 
@@ -79,17 +79,19 @@ Check reports once per umbrella: verify provenance (worktree, SHA, raw output) a
 
 Read the delegate's full diff; a passing verify command is not evidence of behaviour. Suspect any added `continue`, `?? default`, `|| 0` or bare try/catch. A cast is proved on both halves: the runtime shape matches, and a deliberately invalid value still fails to compile.
 
+A checked claim has three outcomes: confirmed, refuted, could not determine. A gate that writes or merges on the result names the confirmed state it saw; "not refuted" is the third outcome, never a pass. The same holds for any boolean the plugin writes across a trust boundary, such as an agy sidecar field or a hook verdict: an unreadable input is its own outcome, not the permissive default (`#81 - autopilot §5: a checked claim has three outcomes, not two`).
+
 A PR body claiming what the PR does not do gets checked against the file list. Checking is cheap. A body that contradicts its diff is invisible afterwards.
 
 ## 6. Ask the planner seat when the call is a judgement
 
 Architecture, security and crypto, product semantics, and any dilemma where two rules point opposite ways are not yours to improvise. Spawn `fable-planner`, a fresh agent on the strongest planning model, with the decision, the constraints and the options. Not the whole run.
 
-- Frame the consult around the subsystem, not the hole in front of you (§7).
+- Frame the consult around the subsystem, not the hole in front of you (§7, flip the setting).
 - One consult per decision. Past an hour, start a new one; a stale consult reasons from premises the run has since disproved.
 - Reuse the same planner for a second ruling inside that hour.
 - Its ruling binds that decision, and what it explicitly deferred stays deferred.
-- A ruling you disagree with is still the ruling. Record the disagreement in the plan file and park it (§10).
+- A ruling you disagree with is still the ruling. Record the disagreement in the plan file and park it (§10, park for sign-off).
 
 ## 7. Gates and rulesets: flip the setting, do not build the machine
 
@@ -107,7 +109,7 @@ Mechanics are `pr-babysit` Phase 3. Specific to unattended:
 
 - Merge only when CI is green and every review thread resolved by the reviewer that opened it (`pr-babysit` Phase 0). A thread the session or a lane resolved does not count.
 - Never arm auto-merge. Reviewers cannot block a merge, so it fires the moment CI goes green, before the reviewer has finished, and `required_review_thread_resolution` has nothing left to block on.
-- A session that cannot merge with the operator present does not merge at all. Take the PR to green, mark it ready, leave it; the routine gets it reviewed and the operator merges it through `compass`. A PR that needs the operator's sign-off (§10) gets the `needs-operator` label.
+- A session that cannot merge with the operator present does not merge at all. Take the PR to green, mark it ready, leave it; the routine gets it reviewed and the operator merges it through `compass`. A PR that needs the operator's sign-off (§10, park for sign-off) gets the `needs-operator` label.
 - With a standing grant on a classic repo: one at a time, checking the gate after each. Every merge puts the other open PRs behind the base, auto-merge never updates a branch in that state, and nothing tells you. Go and look. Rebase the PRs you are parking at the end of the drain, not the start.
 
 ## 9. Never bypass a ruleset or a gate
@@ -116,7 +118,7 @@ When a gate blocks the only fix available, escalate. Waiting out a cooldown insi
 
 Tell a gate that is failing, where retrying is right, from one that cannot be satisfied, where retrying burns the run. The tell: the same action gives the same empty result twice with no error. On the second, stop and escalate.
 
-The PR that repairs a gate is the worst candidate in the repo for skipping review. A gate change reviewed only by the model that wrote it is the failure independent review exists to catch (§7).
+The PR that repairs a gate is the worst candidate in the repo for skipping review. A gate change reviewed only by the model that wrote it is the failure independent review exists to catch (§7, flip the setting).
 
 - A conditional pre-authorisation ("this might need a bypass") is a reserve, not an instruction. Write down the exact condition that would spend it.
 - Never reach for a skip flag, an `--admin` merge, a `--no-verify` push, or a ruleset edit. If a lane already used one, record it and stop that lane. Do not keep the result.
@@ -140,10 +142,10 @@ The handback has a fixed shape: a table with one row per PR (number, state, head
 ## Wake-up checklist (each tick)
 
 1. Read the plan file first. It holds the state, not your memory.
-2. Confirm the cron is still armed (`CronList`). If the session restarted, it is gone (§0).
-3. Confirm every lane is alive by listing agents. Any lane saying "standing by" gets the §3 fix first.
+2. Confirm the cron is still armed (`CronList`). If the session restarted, it is gone (§0, arm the wake-up).
+3. Confirm every lane is alive by listing agents. Any lane saying "standing by" gets the stall-rule fix (§3) first.
 4. Check real state, not reports: default branch SHA, each PR's head SHA, each gate's description string.
 5. Dispatch only work whose prerequisites are final. A lane that depends on an in-flight template gets written twice.
 6. Append findings and decisions to the plan file. One or two lines to the terminal.
 
-Hand back on a hard blocker or when the work is genuinely done, not on a timer. Land the end-of-session deliverable the operator asked for, tear down the cron and every other watch (§3), and leave the plan file's decision list as the first thing they read: each entry a question, its options, and what it blocks.
+Hand back on a hard blocker or when the work is genuinely done, not on a timer. Land the end-of-session deliverable the operator asked for, tear down the cron and every other watch (§3, the stall rule), and leave the plan file's decision list as the first thing they read: each entry a question, its options, and what it blocks.

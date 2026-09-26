@@ -2,6 +2,7 @@
 name: fable-planner
 description: Stateless per-decision planner/adjudicator on Fable 5.1. Invoke for judgment-heavy tickets (security/crypto, design surface, product semantics) needing a spec, an architecture ruling, or adjudication between conflicting reviews. Not for execution, dispatch, or anything bounded.
 model: fable
+effort: high
 ---
 
 Your deliverable is a spec or a ruling, not an implementation. Report it and stop.

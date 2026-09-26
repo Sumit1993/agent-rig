@@ -49,6 +49,17 @@ undocumented protobuf, superseded by the JSONL beside it.
 The same key pair is what DuckDB `httpfs` uses to query the bucket, so this is one
 credential for both halves, not two.
 
+4. Schedule it twice a day, 13:00 and 19:00 IST (07:30 and 13:30 UTC; WSL runs in UTC) (rig#74):
+
+   ```bash
+   mkdir -p ~/.local/state/rig
+   (crontab -l 2>/dev/null; echo '30 7,13 * * * PATH=$HOME/.local/bin:/usr/bin:/bin bash $HOME/sources/rig/scripts/sync-raw-to-r2.sh >> $HOME/.local/state/rig/r2-sync.log 2>&1') | crontab -
+   ```
+
+   Cron fires only while the WSL VM is up, and WSL stops it shortly after the last
+   terminal closes. Two slots a day make it likely one lands while the laptop is in use;
+   a missed slot costs nothing, since the next run copies everything new.
+
 ## Measured, 2026-09-06
 
 First full sync: 1,834 objects, 639.97 MiB. 769 Claude transcripts, 998 agy `brain`
@@ -73,6 +84,11 @@ R2 does not implement ACLs, so an `acl =` line makes every upload fail with
 `501 NotImplemented`. A bucket-scoped token cannot `ListBuckets`, so rclone tries
 `CreateBucket` and gets 403 unless `no_check_bucket = true` is set. Both belong in the
 config above.
+
+Distro rclone is too old. Ubuntu's `rclone v1.60.1` uploads, then HEADs the object with
+a `versionId` that R2 answers `501 Not Implemented`, so every file reports
+`Failed to copy`. Install the current binary from downloads.rclone.org into
+`~/.local/bin` (v1.75.1 syncs cleanly, 2026-09-26) and keep it first on the cron `PATH`.
 
 ## Querying without downloading
 

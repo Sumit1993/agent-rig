@@ -32,12 +32,12 @@ for i in $(seq 1 N); do grep -q DONE "$LOG" && exit 0; sleep 15; done; echo WATC
 
 ### Evidence only an MCP tool can read
 
-When no shell can reach the evidence, the one poll left is a cron tick firing back into the session so the model calls the tool itself (`autopilot` §0).
+When no shell can reach the evidence, the one poll left is a cron tick firing back into the session so the model calls the tool itself (`autopilot` §0, arm the wake-up).
 
 - Do not call it a monitor. In the plan file it is "cron tick every N min, calls `<tool>`". Latency is the full interval and nothing fires between ticks.
 - Set N from how fast the watched thing moves, and record the number beside the watch.
 - Look for a shell path once first. A missing credential is the usual reason there is none, and a secret in CI can sometimes be granted to the box.
-- A tick carries the same teardown duty as any watch (`autopilot` §3): kill the cron when the thing resolves.
+- A tick carries the same teardown duty as any watch (`autopilot` §3, the stall rule): kill the cron when the thing resolves.
 
 Story: `gh-workflows-d1-cron-tick`.
 

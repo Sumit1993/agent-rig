@@ -101,6 +101,8 @@ agy --conversation "$CID" --output-format json \
 
 The resumed turn keeps the same `conversation_id` and the full context. A fresh run is only for an envelope that never closed, meaning no `conversation_id`.
 
+The same holds for a Claude subagent the 5-hour limit killed, whose last message is a `<synthetic>` session-limit notice. Once the window resets, `SendMessage` that agent "continue from where you stopped"; its transcript is intact. Never respawn it on the original brief, which pays again for every request it already made (`#124 - Resume a subagent from its last output after a 5-hour limit kill`).
+
 ### Kill
 
 - By PID. `AGY_PID=$!` from the launch is agy itself. `run-agy-watchdog.sh` prints the same PID on stderr.
@@ -123,7 +125,7 @@ Write that spec to `~/ai-context/<repo>/<issue>-<slug>/spec-<lane>.md`, or into 
 - Never `SendMessage` a lane that is still running. The message arrives as a system-reminder, and a well-briefed lane refuses it as unsourced (`#136 - The kit matches what gh-workflows #173 changes`). Wait for the lane's report, then send the follow-up as the resume prompt.
 - A spec that points a lane at a path outside its project root says to read it with Bash or Read; context-mode refuses those paths.
 - Prompt goes in the file, not the subagent's prompt; agy reads it at shell level. Do not brief the runner on how to run agy: path in, verified report out. This holds whether or not anyone is watching: the spec is the same in an unattended run and with an operator at the keyboard.
-- In Workflows, where `subagent_type` is unavailable: `agent(pathOnlyPrompt, {model: 'sonnet', effort: 'low', label: 'antigravity-gemini-3.8:<task>'})`, and the prompt says to load `farm-out` and `no-doze` first. The `antigravity-<model>` label prefix is required; the UI shows the wrapper's Claude model, so the label is the only sign of who is working.
+- In Workflows, where `subagent_type` is unavailable: `agent(pathOnlyPrompt, {model: 'sonnet', effort: 'medium', label: 'antigravity-gemini-3.8:<task>'})`, and the prompt says to load `farm-out` and `no-doze` first. The `antigravity-<model>` label prefix is required; the UI shows the wrapper's Claude model, so the label is the only sign of who is working.
 
 ## Handler babysit loop
 
