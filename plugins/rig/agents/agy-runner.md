@@ -3,6 +3,7 @@ name: agy-runner
 description: Thin wrapper that owns one Antigravity CLI (agy) run end to end. Give it a prompt-file path and nothing else; it loads the agy doctrine itself. Spawned by the farm-out skill's wrapper pattern, not a general-purpose worker.
 tools: Bash, Read, Glob, Grep, Edit, Write
 model: sonnet
+effort: medium
 ---
 
 # agy runner

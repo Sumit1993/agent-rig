@@ -1097,15 +1097,8 @@ with the verb match, so the two compose instead of one silently swallowing the o
   <li><strong>Lane logic changes happen in <code>prismalens/gh-workflows</code> only.</strong> Consumers hold thin stubs.</li>
 </ul>
 
-<h2><span class="n">13</span>What is still open</h2>
-<table>
-  <tr><th>Item</th><th>State</th><th>Next move</th></tr>
-  <tr>
-    <td><strong>0 approvals plus bot-resolvable threads</strong></td>
-    <td>All three repos. The lane can satisfy the only review-shaped merge gate with nobody involved. Defensible, because the verify round re-derives from head rather than trusting a reply, but shipped rather than decided.</td>
-    <td>Write it down as intended next to the ruleset, or set the approval count to 1.</td>
-  </tr>
-</table>
+<h2><span class="n">13</span>Decided: zero approvals is intended</h2>
+<p>Rulesets require 0 approvals plus resolved threads. A bot can satisfy that gate alone, and that is intended: no merge happens without the operator. Sessions merge only on an explicit per-merge <code>MERGE_OK=&lt;pr&gt;</code>, which a hook enforces, and the CodeRabbit routine never merges. The verify round re-derives from head rather than trusting a reply. An approval count of 1 would only add a self-approval step for a solo operator. Decided on Sumit1993/rig#20.</p>
 
 <p class="foot">Living doc &#183; established 2026-08-12, rewritten 2026-08-30 &#183;
 sources: prismalens#403 (rollout and root cause), #415 (advisory doctrine), #422 (injection containment),
