@@ -11,7 +11,7 @@ metadata:
 
 ## 1. Admission
 
-The hourly CodeRabbit routine (`scripts/coderabbit-routine/` in Sumit1993/rig, `Sumit1993/rig#150`) is the admission mechanism, in every repo. `auto_review` is off everywhere, so opening a PR or marking it ready spends nothing by itself. Each hour the routine summons CodeRabbit on at most one PR: first a re-review, a PR whose head moved past its last review and whose CodeRabbit threads all carry a reply, then new PRs oldest first. A head commit must be 20 minutes old; a draft is never summoned.
+The hourly CodeRabbit routine (`scripts/coderabbit-routine/` in Sumit1993/rig, `Sumit1993/rig#150`) is the admission mechanism, in every repo. `auto_review` is off everywhere, so opening a PR or marking it ready spends nothing by itself. Each hour the routine summons CodeRabbit on at most one PR: first a re-review, a PR whose head moved past its last review and whose CodeRabbit threads all carry a reply, then new PRs oldest first. A re-review is skipped when the model judges the new commits to be only fixes that CodeRabbit already confirmed in-thread, since reviewing a fix only finds a smaller nit in it. A head commit must be 20 minutes old; a draft is never summoned.
 
 The routine never merges. Merging is a local session's job when the operator asks for it (`compass` Step 0, `pr-babysit` Phase 3). Each run's report, in the routine's run history at claude.ai/code/routines, lists what was summoned and what waits. Its summons carry a hidden `<!-- summoned-by: coderabbit-routine -->` line, so a summon without it came from a session or by hand. Its off switch is pausing the routine.
 

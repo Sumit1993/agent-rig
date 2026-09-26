@@ -84,12 +84,38 @@ def login(node):
     return ((node or {}).get("author") or {}).get("login") or ""
 
 
-def coderabbit_threads_unreplied(repo, n):
-    # REST has no resolved flag (GraphQL is refused in cloud sessions): a CodeRabbit root comment
-    # counts as answered once the operator has replied under it.
+def prose(body, n):
+    # Script runs and analysis chains sit in <details>; the finding and the verdict sit outside.
+    return excerpt(re.sub(r"<details>.*?</details>", " ", body or "", flags=re.S), n)
+
+
+def coderabbit_threads(repo, n):
+    # REST has no resolved flag (GraphQL is refused in cloud sessions), so each thread goes out
+    # as its finding, the operator's answer and CodeRabbit's last word, for the model to read.
     comments = gh(f"repos/{repo}/pulls/{n}/comments?per_page=100", paginate=True)
-    replied = {c.get("in_reply_to_id") for c in comments if c["user"]["login"] == OPERATOR}
-    return sum(1 for c in comments if c["user"]["login"] == CR and not c.get("in_reply_to_id") and c["id"] not in replied)
+    threads = []
+    for root in (c for c in comments if c["user"]["login"] == CR and not c.get("in_reply_to_id")):
+        replies = [c for c in comments if c.get("in_reply_to_id") == root["id"]]
+        ours = [c for c in replies if c["user"]["login"] == OPERATOR]
+        theirs = [c for c in replies if c["user"]["login"] == CR and (not ours or c["created_at"] > ours[-1]["created_at"])]
+        threads.append({
+            "path": root["path"],
+            "commit": root["original_commit_id"][:7],
+            "finding": prose(root["body"], 200),
+            "operator_reply": ours and prose(ours[-1]["body"], 200) or None,
+            "coderabbit_after_reply": theirs and prose(theirs[-1]["body"], 240) or None,
+        })
+    return threads
+
+
+def since_review(repo, reviewed, head):
+    if not reviewed or reviewed == head:
+        return None
+    cmp = gh(f"repos/{repo}/compare/{reviewed}...{head}")
+    return {
+        "commits": [{"sha": c["sha"][:7], "headline": c["commit"]["message"].splitlines()[0]} for c in cmp["commits"]],
+        "files": [f"{f['filename']} +{f['additions']} -{f['deletions']}" for f in cmp["files"][:20]],
+    }
 
 
 def pr_facts(repo, pr):
@@ -128,6 +154,7 @@ def pr_facts(repo, pr):
         after = [c for c in cr_comments if c["created_at"] > last_summon["created_at"]]
         reply = after[0] if after else None
 
+    threads = coderabbit_threads(repo, n)
     return {
         "repo": repo,
         "number": n,
@@ -155,7 +182,9 @@ def pr_facts(repo, pr):
             "by": summoner(last_summon["body"]),
         },
         "first_coderabbit_reply_after_summon": reply and {"at": reply["created_at"], "excerpt": excerpt(reply["body"])},
-        "coderabbit_threads_without_operator_reply": coderabbit_threads_unreplied(repo, n),
+        "coderabbit_threads_without_operator_reply": sum(1 for t in threads if not t["operator_reply"]),
+        "coderabbit_threads": threads[-6:],
+        "since_coderabbit_review": since_review(repo, reviews[-1]["commit_id"] if reviews else None, head),
     }
 
 
