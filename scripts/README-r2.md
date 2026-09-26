@@ -49,14 +49,16 @@ undocumented protobuf, superseded by the JSONL beside it.
 The same key pair is what DuckDB `httpfs` uses to query the bucket, so this is one
 credential for both halves, not two.
 
-4. Schedule it nightly, in the 03:00 to 06:00 lull when no session is writing (rig#74):
+4. Schedule it twice a day, 13:00 and 19:00 IST (07:30 and 13:30 UTC; WSL runs in UTC) (rig#74):
 
    ```bash
    mkdir -p ~/.local/state/rig
-   (crontab -l 2>/dev/null; echo '17 3 * * * PATH=$HOME/.local/bin:/usr/bin:/bin bash $HOME/sources/rig/scripts/sync-raw-to-r2.sh >> $HOME/.local/state/rig/r2-sync.log 2>&1') | crontab -
+   (crontab -l 2>/dev/null; echo '30 7,13 * * * PATH=$HOME/.local/bin:/usr/bin:/bin bash $HOME/sources/rig/scripts/sync-raw-to-r2.sh >> $HOME/.local/state/rig/r2-sync.log 2>&1') | crontab -
    ```
 
-   WSL needs the cron service running (`systemctl is-active cron`).
+   Cron fires only while the WSL VM is up, and WSL stops it shortly after the last
+   terminal closes. Two slots a day make it likely one lands while the laptop is in use;
+   a missed slot costs nothing, since the next run copies everything new.
 
 ## Measured, 2026-09-06
 
